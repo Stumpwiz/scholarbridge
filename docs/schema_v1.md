@@ -54,6 +54,28 @@ Tentative fields:
 - created_at (required)
 - updated_at (required)
 
+`organization_type` usage note (v1):
+
+- This existing field serves as the organization type/category field.
+- It remains optional and nullable.
+- UI data entry should use a controlled single-select vocabulary:
+  - Construction
+  - Environmental Services
+  - Facilities Maintenance
+  - Financial Services
+  - Food Services
+  - Healthcare Services
+  - Insurance
+  - Landscaping
+  - Legal Services
+  - Management Services
+  - Other
+  - Renovation
+  - Resident Services
+  - Sustainability
+  - Technology Services
+  - Utilities
+
 ### Contact
 
 Represents a human contact associated with exactly one Organization.

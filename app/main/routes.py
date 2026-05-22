@@ -13,6 +13,29 @@ from app.main import bp
 from app.extensions import db
 from app.models import Organization
 
+ORGANIZATION_TYPE_OPTIONS = tuple(
+    sorted(
+        [
+            "Construction",
+            "Facilities Maintenance",
+            "Renovation",
+            "Utilities",
+            "Landscaping",
+            "Environmental Services",
+            "Food Services",
+            "Resident Services",
+            "Management Services",
+            "Financial Services",
+            "Insurance",
+            "Legal Services",
+            "Technology Services",
+            "Sustainability",
+            "Healthcare Services",
+            "Other",
+        ]
+    )
+)
+
 
 @bp.get("/")
 def index():
@@ -44,6 +67,7 @@ def organization_list():
 @bp.route("/organizations/new", methods=["GET", "POST"])
 def organization_create():
     form_data = {"is_active": True}
+    organization_types, legacy_organization_type = _organization_type_choices()
 
     if request.method == "POST":
         form_data = _organization_form_data(request.form)
@@ -63,6 +87,8 @@ def organization_create():
         mode="create",
         organization=None,
         form_data=form_data,
+        organization_types=organization_types,
+        legacy_organization_type=legacy_organization_type,
     )
 
 
@@ -80,10 +106,15 @@ def organization_detail(organization_id: int):
 def organization_edit(organization_id: int):
     organization = db.get_or_404(Organization, organization_id)
     form_data = _organization_to_form_data(organization)
+    organization_types, legacy_organization_type = _organization_type_choices(
+        organization.organization_type
+    )
 
     if request.method == "POST":
         form_data = _organization_form_data(request.form)
-        validation_error = _validate_organization_form(form_data)
+        validation_error = _validate_organization_form(
+            form_data, legacy_organization_type=legacy_organization_type
+        )
         if validation_error:
             flash(validation_error, "danger")
         else:
@@ -99,6 +130,8 @@ def organization_edit(organization_id: int):
         mode="edit",
         organization=organization,
         form_data=form_data,
+        organization_types=organization_types,
+        legacy_organization_type=legacy_organization_type,
     )
 
 
@@ -128,9 +161,18 @@ def _organization_to_form_data(organization: Organization) -> dict:
     }
 
 
-def _validate_organization_form(form_data: dict) -> str | None:
+def _validate_organization_form(
+    form_data: dict, legacy_organization_type: str | None = None
+) -> str | None:
     if not form_data["organization_name"]:
         return "Organization name is required."
+    organization_type = form_data["organization_type"]
+    if organization_type:
+        if organization_type in ORGANIZATION_TYPE_OPTIONS:
+            return None
+        if legacy_organization_type and organization_type == legacy_organization_type:
+            return None
+        return "Please select a valid organization category."
     return None
 
 
@@ -139,3 +181,10 @@ def _empty_to_none(value):
         return None
     cleaned = value.strip()
     return cleaned if cleaned else None
+
+
+def _organization_type_choices(current_value: str | None = None) -> tuple[list[str], str | None]:
+    legacy_organization_type = None
+    if current_value and current_value not in ORGANIZATION_TYPE_OPTIONS:
+        legacy_organization_type = current_value
+    return list(ORGANIZATION_TYPE_OPTIONS), legacy_organization_type

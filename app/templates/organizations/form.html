@@ -38,14 +38,30 @@
             </div>
 
             <div class="mb-3">
-                <label for="organization_type" class="form-label">Organization Type</label>
-                <input
-                    type="text"
-                    class="form-control"
+                <label for="organization_type" class="form-label">Organization Category</label>
+                <select
+                    class="form-select"
                     id="organization_type"
                     name="organization_type"
-                    value="{{ form_data.organization_type or '' }}"
                 >
+                    <option value="">Not specified</option>
+                    {% if legacy_organization_type %}
+                        <option
+                            value="{{ legacy_organization_type }}"
+                            {% if form_data.organization_type == legacy_organization_type %}selected{% endif %}
+                        >
+                            {{ legacy_organization_type }} (existing value)
+                        </option>
+                    {% endif %}
+                    {% for organization_type in organization_types %}
+                        <option
+                            value="{{ organization_type }}"
+                            {% if form_data.organization_type == organization_type %}selected{% endif %}
+                        >
+                            {{ organization_type }}
+                        </option>
+                    {% endfor %}
+                </select>
             </div>
 
             <div class="row">

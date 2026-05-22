@@ -85,6 +85,12 @@ Likely user actions:
 - Add/edit organization contacts.
 - Navigate from organization to solicitation records.
 
+v1 category entry pattern:
+
+- Use the existing organization type/category field with a controlled dropdown list.
+- Keep category optional so stewardship records remain usable when information is incomplete.
+- Include an `Other` option for non-standard cases while avoiding taxonomy complexity.
+
 Likely future enhancements:
 
 - Better organization categorization and filtering.
