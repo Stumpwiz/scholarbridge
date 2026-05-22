@@ -2,9 +2,9 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 0.75 (stabilized conceptual schema)**.
+Current stage: **Phase 1A (Flask application scaffolding)**.
 
-The project remains documentation-first and discovery-focused. There is still no Flask app, no ORM models, no auth layer, and no UI implementation.
+The project remains architecture-first. A minimal Flask runtime scaffold now exists, but business/domain features are intentionally not implemented yet.
 
 ## Project Snapshot
 
@@ -15,7 +15,7 @@ The project remains documentation-first and discovery-focused. There is still no
 
 ## Core Intent
 
-ScholarBridge should evolve spreadsheet-era operations into a maintainable system without dismissing existing committee practices. Current work is focused on understanding legacy data structure before any schema or application code is finalized.
+ScholarBridge should evolve spreadsheet-era operations into a maintainable system without dismissing existing committee practices. The current phase establishes a conservative runtime foundation before domain workflows are built.
 
 ## Intended Stack (Planned, Not Yet Implemented)
 
@@ -71,6 +71,38 @@ Stabilized conceptual decisions:
 - Solicitation closure in v1 is tracked via `Solicitation.status` + `updated_at` (no `closed_at` field).
 - Thank-you tracking in v1 is timestamp-based via `thank_you_sent_at`, which also serves donor acknowledgment/tax letter tracking in v1 (no separate `tax_letter_sent_at` field).
 
+## Phase 1A Scaffold (Implemented)
+
+Project structure added:
+
+- `app/__init__.py` (app factory)
+- `app/config.py` (environment-driven configuration)
+- `app/extensions.py` (`SQLAlchemy`, `LoginManager`)
+- `app/main/` blueprint (`/`, `/health`)
+- `app/auth/` blueprint (`/auth/status` placeholder)
+- `app/models/` placeholder package
+- `app/templates/base.html` and `app/templates/index.html`
+- `app/static/css/` and `app/static/js/` placeholders
+- `run.py` app entrypoint + `flask init-db` command
+- `instance/` directory for SQLite runtime artifacts
+
+Current runtime behavior:
+
+- App loads configuration from `.env` (with `.env.example` template).
+- SQLite URI defaults to `instance/scholarbridge.db` via relative `DATABASE_URL=sqlite:///scholarbridge.db`.
+- Flask-SQLAlchemy initializes cleanly.
+- Flask-Login initializes with placeholder `user_loader` (no login workflows yet).
+- Bootstrap navigation shell renders with v1-aligned placeholder sections.
+
+Phase 1A deferrals:
+
+- No CRUD/domain workflows
+- No report generation
+- No PDF/letter generation
+- No import pipeline integration
+- No model entities/migrations yet
+- No authentication forms or permissions system
+
 ## Phase 0.5 Tooling Added
 
 ### Directory structure
@@ -107,14 +139,18 @@ Stabilized conceptual decisions:
 
 ## Dependencies (Current Minimal)
 
-See `requirements.txt`:
+See `pyproject.toml` / `requirements.txt`:
 
+- Flask
+- Flask-SQLAlchemy
+- Flask-Login
+- python-dotenv
 - pandas
 - openpyxl
 
 ## Guidance for Next Assistant
 
-1. Run spreadsheet analysis and review markdown report before proposing schema changes.
-2. Treat heuristics as directional, not authoritative.
-3. Treat `docs/schema_v1.md` as the implementation baseline unless committee policy changes.
-4. Continue to defer Flask/ORM/UI implementation until the committee confirms readiness to begin build phase.
+1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
+2. Keep Phase 1B+ implementation conservative and server-rendered.
+3. Add domain models incrementally and introduce migrations only when model scope is agreed.
+4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

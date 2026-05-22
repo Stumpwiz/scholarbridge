@@ -30,4 +30,61 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is currently documentation-first. Architecture, terminology, workflow mapping, and phased planning are being established before application code is introduced.
+This repository is now in **Phase 1A: Flask application scaffolding**.
+
+Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
+
+## Phase 1A Scope
+
+Included:
+
+- Flask app factory and blueprint structure
+- Configuration via `.env`
+- Flask-SQLAlchemy and Flask-Login initialization
+- Bootstrap-based base template and landing page
+- Basic health route and authentication-status placeholder route
+
+Deferred:
+
+- CRUD workflows
+- Campaign/solicitation business logic
+- Reporting and PDF generation
+- Spreadsheet import
+- Advanced permissions and API layers
+
+## Local Development (uv)
+
+1. Create local environment file:
+
+```bash
+cp .env.example .env
+```
+
+2. Create a virtual environment and install dependencies:
+
+```bash
+uv venv
+uv sync
+```
+
+3. Run the application:
+
+```bash
+uv run flask --app run.py run --debug
+```
+
+Default local URL:
+
+- `http://127.0.0.1:5000/`
+
+Useful scaffold routes:
+
+- Landing page: `/`
+- Health: `/health`
+- Auth status placeholder: `/auth/status`
+
+## Minimal Workflow
+
+- Keep architecture documents current before adding feature code.
+- Add models and schema implementation incrementally in later phases.
+- Use conservative, server-rendered workflows aligned with `docs/schema_v1.md` and `docs/ui_concepts.md`.

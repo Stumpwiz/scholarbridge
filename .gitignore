@@ -18,6 +18,8 @@ env/
 *.sqlite
 *.sqlite3
 *.db
+instance/*
+!instance/.gitkeep
 
 # Analysis artifacts (generated reports and scratch outputs)
 data/analysis/*
