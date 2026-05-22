@@ -20,8 +20,8 @@
         </button>
         <div class="collapse navbar-collapse" id="mainNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link active" href="{{ url_for('main.index') }}">Dashboard</a></li>
-                <li class="nav-item"><span class="nav-link disabled">Organizations</span></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.organization_') %} active{% endif %}" href="{{ url_for('main.organization_list') }}">Organizations</a></li>
                 <li class="nav-item"><span class="nav-link disabled">Campaigns</span></li>
                 <li class="nav-item"><span class="nav-link disabled">Solicitations</span></li>
                 <li class="nav-item"><span class="nav-link disabled">Reports</span></li>
@@ -34,6 +34,15 @@
 </nav>
 
 <main class="container py-4">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="mb-3">
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
 </main>
 

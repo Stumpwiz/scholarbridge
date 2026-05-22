@@ -1,5 +1,5 @@
-"""
-Model package placeholder for future Phase 1+ schema implementation.
+from app.models.organization import Organization
+from app.models.person import Person
+from app.models.user import User
 
-No entity models are defined in Phase 1A scaffolding.
-"""
+__all__ = ["Organization", "Person", "User"]

@@ -5,6 +5,7 @@ from flask import Flask
 
 from app.config import Config
 from app.extensions import db, login_manager
+from app.models import User
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -24,9 +25,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     login_manager.login_message_category = "warning"
 
     @login_manager.user_loader
-    def load_user(_user_id: str):
-        # Phase 1A placeholder. User lookup will be implemented with model/auth work.
-        return None
+    def load_user(user_id: str):
+        try:
+            return db.session.get(User, int(user_id))
+        except (TypeError, ValueError):
+            return None
 
     from app.auth import bp as auth_bp
     from app.main import bp as main_bp

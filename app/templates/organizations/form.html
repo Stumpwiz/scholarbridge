@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% if mode == "create" %}
+    {% set heading = "Create Organization" %}
+{% else %}
+    {% set heading = "Edit Organization" %}
+{% endif %}
+
+{% block title %}{{ heading }} - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-8">
+        <h1 class="h4 mb-3">{{ heading }}</h1>
+
+        <form method="post" novalidate>
+            <div class="mb-3">
+                <label for="organization_name" class="form-label">Organization Name</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="organization_name"
+                    name="organization_name"
+                    value="{{ form_data.organization_name or '' }}"
+                    required
+                >
+            </div>
+
+            <div class="mb-3">
+                <label for="display_name" class="form-label">Display Name</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="display_name"
+                    name="display_name"
+                    value="{{ form_data.display_name or '' }}"
+                >
+            </div>
+
+            <div class="mb-3">
+                <label for="organization_type" class="form-label">Organization Type</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="organization_type"
+                    name="organization_type"
+                    value="{{ form_data.organization_type or '' }}"
+                >
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="email_main" class="form-label">Primary Email</label>
+                    <input
+                        type="email"
+                        class="form-control"
+                        id="email_main"
+                        name="email_main"
+                        value="{{ form_data.email_main or '' }}"
+                    >
+                </div>
+                <div class="col-12 col-md-6 mb-3">
+                    <label for="phone_main" class="form-label">Primary Phone</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="phone_main"
+                        name="phone_main"
+                        value="{{ form_data.phone_main or '' }}"
+                    >
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="website" class="form-label">Website</label>
+                <input
+                    type="url"
+                    class="form-control"
+                    id="website"
+                    name="website"
+                    value="{{ form_data.website or '' }}"
+                >
+            </div>
+
+            <div class="mb-3">
+                <label for="organization_notes" class="form-label">Stewardship Notes</label>
+                <textarea
+                    class="form-control"
+                    id="organization_notes"
+                    name="organization_notes"
+                    rows="4"
+                >{{ form_data.organization_notes or '' }}</textarea>
+            </div>
+
+            <div class="form-check mb-3">
+                <input
+                    class="form-check-input"
+                    type="checkbox"
+                    value="on"
+                    id="is_active"
+                    name="is_active"
+                    {% if form_data.is_active %}checked{% endif %}
+                >
+                <label class="form-check-label" for="is_active">
+                    Active organization
+                </label>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Save</button>
+                {% if organization %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_detail', organization_id=organization.id) }}">Cancel</a>
+                {% else %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_list') }}">Cancel</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

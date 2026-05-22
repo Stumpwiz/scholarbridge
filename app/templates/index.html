@@ -6,11 +6,12 @@
 <div class="row">
     <div class="col-12 col-lg-9">
         <h1 class="h3 mb-3">ScholarBridge</h1>
-        <p class="mb-2">Phase 1A scaffolding is active.</p>
+        <p class="mb-2">Phase 1B foundational model work is active.</p>
         <p class="text-muted">
-            This baseline includes app configuration, extension initialization, blueprint routing, and a navigation shell.
-            Domain workflows and stewardship features are intentionally deferred.
+            Person, User, and Organization model foundations are in place. Organization list/detail/create/edit
+            workflows are available as the first conservative vertical slice.
         </p>
+        <a class="btn btn-primary btn-sm" href="{{ url_for('main.organization_list') }}">Open Organizations</a>
     </div>
 </div>
 {% endblock %}

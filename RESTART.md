@@ -2,9 +2,9 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 1A (Flask application scaffolding)**.
+Current stage: **Phase 1B (foundational domain model implementation)**.
 
-The project remains architecture-first. A minimal Flask runtime scaffold now exists, but business/domain features are intentionally not implemented yet.
+The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Organization) is now implemented.
 
 ## Project Snapshot
 
@@ -103,6 +103,30 @@ Phase 1A deferrals:
 - No model entities/migrations yet
 - No authentication forms or permissions system
 
+## Phase 1B Foundations (Implemented)
+
+Model layer implemented:
+
+- `Person` model (operational identity; optional User link)
+- `User` model (local auth account; email/username unique; optional 1-to-1 Person)
+- `Organization` model (long-term stewardship anchor)
+
+Organization workflow implemented:
+
+- Organization list page (`/organizations`)
+- Organization detail page (`/organizations/<id>`)
+- Organization create page (`/organizations/new`)
+- Organization edit page (`/organizations/<id>/edit`)
+
+Current constraints preserved:
+
+- No Campaign model yet
+- No Solicitation model yet
+- No Contact model yet
+- No delete workflow for organizations
+- No advanced auth workflows or permissions system
+- No reporting, PDF generation, import, or email workflows
+
 ## Phase 0.5 Tooling Added
 
 ### Directory structure
@@ -151,6 +175,6 @@ See `pyproject.toml` / `requirements.txt`:
 ## Guidance for Next Assistant
 
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
-2. Keep Phase 1B+ implementation conservative and server-rendered.
-3. Add domain models incrementally and introduce migrations only when model scope is agreed.
+2. Keep next phases conservative and server-rendered.
+3. Add `Contact`, `Campaign`, and `Solicitation` incrementally with migrations only when scope is agreed.
 4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

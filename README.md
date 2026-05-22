@@ -30,7 +30,7 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is now in **Phase 1A: Flask application scaffolding**.
+This repository is now in **Phase 1B: foundational domain model implementation**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
 
@@ -51,6 +51,23 @@ Deferred:
 - Reporting and PDF generation
 - Spreadsheet import
 - Advanced permissions and API layers
+
+## Phase 1B Additions
+
+Included:
+
+- Foundational SQLAlchemy models for `Person`, `User`, and `Organization`
+- Flask-Login `user_loader` wired to `User` model lookup
+- Minimal Organization workflow:
+  - list
+  - detail
+  - create
+  - edit
+
+Still deferred:
+
+- Campaign, Solicitation, and Contact models/workflows
+- Reporting, letter generation, imports, and automation
 
 ## Local Development (uv)
 
@@ -73,6 +90,12 @@ uv sync
 uv run flask --app run.py run --debug
 ```
 
+4. Initialize the database (first run or after schema changes):
+
+```bash
+uv run flask --app run.py init-db
+```
+
 Default local URL:
 
 - `http://127.0.0.1:5000/`
@@ -82,9 +105,10 @@ Useful scaffold routes:
 - Landing page: `/`
 - Health: `/health`
 - Auth status placeholder: `/auth/status`
+- Organizations: `/organizations`
 
 ## Minimal Workflow
 
 - Keep architecture documents current before adding feature code.
-- Add models and schema implementation incrementally in later phases.
+- Add remaining domain models and workflows incrementally in later phases.
 - Use conservative, server-rendered workflows aligned with `docs/schema_v1.md` and `docs/ui_concepts.md`.
