@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.swp
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# PyCharm / JetBrains
+.idea/
+
+# Local SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# Analysis artifacts (generated reports and scratch outputs)
+data/analysis/*
+!data/analysis/.gitkeep
+
+# Imported data staging and local originals
+data/imports/*
+!data/imports/.gitkeep
+data/original/*
+!data/original/.gitkeep
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Environment/configuration
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Coverage / testing
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Build artifacts
+dist/
+build/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS/Linux editor clutter
+*~
