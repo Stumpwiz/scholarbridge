@@ -1,0 +1,25 @@
+.sb-navbar {
+    background-color: #f7f1e7 !important;
+    border-bottom-color: #8b1e3f !important;
+}
+
+.sb-navbar .navbar-brand {
+    color: #5f102a;
+    font-weight: 600;
+}
+
+.sb-navbar .navbar-brand:hover,
+.sb-navbar .navbar-brand:focus {
+    color: #4a0c20;
+}
+
+.sb-navbar-logo {
+    width: 2.25rem;
+    height: 2.25rem;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.sb-navbar-name {
+    line-height: 1.1;
+}

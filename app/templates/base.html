@@ -10,11 +10,19 @@
         integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
         crossorigin="anonymous"
     >
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
 <body>
-<nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom">
+<nav class="navbar navbar-expand-lg navbar-light bg-light border-bottom sb-navbar">
     <div class="container">
-        <a class="navbar-brand" href="{{ url_for('main.index') }}">{{ config.APP_NAME }}</a>
+        <a class="navbar-brand d-inline-flex align-items-center gap-2" href="{{ url_for('main.index') }}">
+            <img
+                src="{{ url_for('static', filename='img/branding/scholarBridgeLogo.png') }}"
+                alt="ScholarBridge logo"
+                class="sb-navbar-logo"
+            >
+            <span class="sb-navbar-name">{{ config.APP_NAME }}</span>
+        </a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav" aria-controls="mainNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
