@@ -45,6 +45,15 @@
     border-color: #d0d5db;
 }
 
+.sb-icon-btn {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
 @media (min-width: 992px) {
     .sb-navbar .navbar-nav .nav-link.active {
         border-bottom: 2px solid #8b1e3f;

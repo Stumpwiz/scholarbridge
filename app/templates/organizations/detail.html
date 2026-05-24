@@ -8,7 +8,10 @@
         <h1 class="h4 mb-1">{{ organization.organization_name }}</h1>
         <p class="text-muted mb-0">{{ organization.display_name or "No display name set" }}</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.organization_edit', organization_id=organization.id) }}">Edit</a>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.organization_edit', organization_id=organization.id) }}">
+        <i class="bi bi-pencil" aria-hidden="true"></i>
+        <span class="ms-1">Edit</span>
+    </a>
 </div>
 
 <div class="row g-3">
@@ -28,6 +31,19 @@
 
                     <dt class="col-sm-4">Website</dt>
                     <dd class="col-sm-8">{{ organization.website or "—" }}</dd>
+
+                    <dt class="col-sm-4">Mailing Address</dt>
+                    <dd class="col-sm-8">
+                        {% if organization.address_1 or organization.address_2 or organization.city or organization.state or organization.postal_code %}
+                            <div>{{ organization.address_1 or "" }}</div>
+                            {% if organization.address_2 %}<div>{{ organization.address_2 }}</div>{% endif %}
+                            <div>
+                                {{ organization.city or "" }}{% if organization.city and organization.state %}, {% endif %}{{ organization.state or "" }} {{ organization.postal_code or "" }}
+                            </div>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
 
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">
@@ -73,7 +89,7 @@
                                 <th>Email</th>
                                 <th>Phone</th>
                                 <th>Status</th>
-                                <th></th>
+                                <th class="text-end">Actions</th>
                             </tr>
                             </thead>
                             <tbody>
@@ -98,11 +114,27 @@
                                     </td>
                                     <td class="text-end">
                                         <a
-                                            class="btn btn-outline-secondary btn-sm"
+                                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
                                             href="{{ url_for('main.organization_contact_edit', organization_id=organization.id, contact_id=contact.id, _anchor='contacts') }}"
+                                            title="Edit contact"
+                                            aria-label="Edit contact"
                                         >
-                                            Edit
+                                            <i class="bi bi-pencil" aria-hidden="true"></i>
                                         </a>
+                                        <form
+                                            method="post"
+                                            action="{{ url_for('main.organization_contact_delete', organization_id=organization.id, contact_id=contact.id, _anchor='contacts') }}"
+                                            class="d-inline ms-1"
+                                        >
+                                            <button
+                                                type="submit"
+                                                class="btn btn-outline-danger btn-sm sb-icon-btn"
+                                                title="Delete contact"
+                                                aria-label="Delete contact"
+                                            >
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                                 {% if contact.notes %}

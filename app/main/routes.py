@@ -311,6 +311,21 @@ def organization_contact_edit(organization_id: int, contact_id: int):
     )
 
 
+@bp.post("/organizations/<int:organization_id>/contacts/<int:contact_id>/delete")
+def organization_contact_delete(organization_id: int, contact_id: int):
+    organization = db.get_or_404(Organization, organization_id)
+    contact = db.get_or_404(Contact, contact_id)
+    if contact.organization_id != organization.id:
+        abort(404)
+
+    db.session.delete(contact)
+    db.session.commit()
+    flash("Contact deleted.", "success")
+    return redirect(
+        url_for("main.organization_detail", organization_id=organization.id, _anchor="contacts")
+    )
+
+
 def _render_organization_detail(
     organization: Organization,
     contact_form_data: dict,
@@ -358,6 +373,11 @@ def _organization_form_data(form) -> dict:
         "organization_name": form.get("organization_name", "").strip(),
         "display_name": _empty_to_none(form.get("display_name")),
         "organization_type": _empty_to_none(form.get("organization_type")),
+        "address_1": _empty_to_none(form.get("address_1")),
+        "address_2": _empty_to_none(form.get("address_2")),
+        "city": _empty_to_none(form.get("city")),
+        "state": _empty_to_none(form.get("state")),
+        "postal_code": _empty_to_none(form.get("postal_code")),
         "email_main": _empty_to_none(form.get("email_main")),
         "phone_main": _empty_to_none(form.get("phone_main")),
         "website": _empty_to_none(form.get("website")),
@@ -371,6 +391,11 @@ def _organization_to_form_data(organization: Organization) -> dict:
         "organization_name": organization.organization_name or "",
         "display_name": organization.display_name or "",
         "organization_type": organization.organization_type or "",
+        "address_1": organization.address_1 or "",
+        "address_2": organization.address_2 or "",
+        "city": organization.city or "",
+        "state": organization.state or "",
+        "postal_code": organization.postal_code or "",
         "email_main": organization.email_main or "",
         "phone_main": organization.phone_main or "",
         "website": organization.website or "",

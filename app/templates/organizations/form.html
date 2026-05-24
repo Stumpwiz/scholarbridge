@@ -88,6 +88,61 @@
             </div>
 
             <div class="mb-3">
+                <label for="address_1" class="form-label">Address Line 1</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="address_1"
+                    name="address_1"
+                    value="{{ form_data.address_1 or '' }}"
+                >
+            </div>
+
+            <div class="mb-3">
+                <label for="address_2" class="form-label">Address Line 2</label>
+                <input
+                    type="text"
+                    class="form-control"
+                    id="address_2"
+                    name="address_2"
+                    value="{{ form_data.address_2 or '' }}"
+                >
+            </div>
+
+            <div class="row">
+                <div class="col-12 col-md-5 mb-3">
+                    <label for="city" class="form-label">City</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="city"
+                        name="city"
+                        value="{{ form_data.city or '' }}"
+                    >
+                </div>
+                <div class="col-12 col-md-3 mb-3">
+                    <label for="state" class="form-label">State</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="state"
+                        name="state"
+                        value="{{ form_data.state or '' }}"
+                    >
+                </div>
+                <div class="col-12 col-md-4 mb-3">
+                    <label for="postal_code" class="form-label">Postal Code</label>
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="postal_code"
+                        name="postal_code"
+                        value="{{ form_data.postal_code or '' }}"
+                    >
+                </div>
+            </div>
+
+            <div class="mb-3">
                 <label for="website" class="form-label">Website</label>
                 <input
                     type="url"

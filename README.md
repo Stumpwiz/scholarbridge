@@ -114,6 +114,21 @@ Still deferred:
 - Solicitation workflows and campaign-linked operational analytics
 - Reports, letter generation, imports, and automation
 
+## Operational Refinements (Current)
+
+Included:
+
+- Organization mailing address fields:
+  - `address_1`, `address_2`, `city`, `state`, `postal_code`
+- Organization address capture/display in create/edit/detail workflows
+- Contact delete workflow from organization detail page (POST-only)
+- Ecosystem action-icon harmonization with Bootstrap Icons:
+  - pencil for edit actions
+  - trashcan for contact delete in compact contact lists
+- Bootstrap importer updates:
+  - maps mailing-address data from `vendors.xlsx` into Organization records
+  - conservatively backfills missing address/email/phone fields for existing matched organizations
+
 ## Local Development (uv)
 
 1. Create local environment file:
@@ -141,6 +156,9 @@ uv run flask --app run.py run --debug
 uv run flask --app run.py init-db
 ```
 
+For local SQLite upgrades where new columns were added (for example organization mailing-address fields),
+rebuild the local database file before re-running `init-db`.
+
 Default local URL:
 
 - `http://127.0.0.1:5000/`
@@ -152,6 +170,43 @@ Useful scaffold routes:
 - Auth status placeholder: `/auth/status`
 - Organizations: `/organizations`
 - Campaigns: `/campaigns`
+
+## Bootstrap Vendor Import (Temporary)
+
+Use the one-time bootstrap importer to populate Organizations and Contacts from the legacy vendor workbook.
+
+Default import (non-destructive):
+
+```bash
+uv run python scripts/import_vendors.py
+```
+
+Reset Organizations/Contacts first:
+
+```bash
+uv run python scripts/import_vendors.py --reset
+```
+
+Explicit workbook path + reset:
+
+```bash
+uv run python scripts/import_vendors.py data/original/vendors.xlsx --reset
+```
+
+Dry-run analysis (no writes):
+
+```bash
+uv run python scripts/import_vendors.py --dry-run
+```
+
+Importer guardrails:
+
+- Imports Organizations and Contacts only.
+- `--reset` deletes Contacts first, then Organizations.
+- Campaigns, Users, and Persons are preserved.
+- Uses conservative normalization and exact-match dedupe only.
+- Organization mailing-address fields are imported when present.
+- Not intended as a generalized ETL/import framework.
 
 ## Minimal Workflow
 

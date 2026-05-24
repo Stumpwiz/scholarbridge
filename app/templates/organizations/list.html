@@ -36,8 +36,13 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.organization_edit', organization_id=organization.id) }}">
-                            Edit
+                        <a
+                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                            href="{{ url_for('main.organization_edit', organization_id=organization.id) }}"
+                            title="Edit organization"
+                            aria-label="Edit organization"
+                        >
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
                         </a>
                     </td>
                 </tr>

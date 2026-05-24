@@ -182,6 +182,37 @@ Operational notes:
 - One active campaign at a time remains a convention, not a hard block.
 - UI warns when multiple campaigns are marked active.
 
+## Operational Refinements (Implemented)
+
+Organization model/workflow:
+
+- Added optional mailing-address fields:
+  - `address_1`, `address_2`, `city`, `state`, `postal_code`
+- Organization create/edit forms now capture mailing address.
+- Organization detail shows mailing address when available.
+
+Contact workflow:
+
+- Added contact delete route:
+  - POST-only
+  - organization-detail context only
+  - no modal/soft-delete/audit system
+
+UI conventions:
+
+- Added Bootstrap Icons in shared base template.
+- Harmonized compact list/table actions to icon controls:
+  - pencil (`bi-pencil`) for edit
+  - trashcan (`bi-trash`) for contact delete
+- Kept larger header actions readable with icon + text labels.
+
+Importer updates (`scripts/import_vendors.py`):
+
+- Maps spreadsheet address fields into Organization mailing-address fields:
+  - `Address 1`, `Address 2`, `City`, `State`, `Zip`
+- Conservatively backfills missing organization address/email/phone when duplicate organization rows appear.
+- Import scope remains Organization + Contact only.
+
 ## Phase 0.5 Tooling Added
 
 ### Directory structure
@@ -194,6 +225,7 @@ Operational notes:
 ### Script
 
 - `scripts/analyze_spreadsheet.py`
+- `scripts/import_vendors.py` (temporary bootstrap importer)
 
 ### Script behavior
 
@@ -215,6 +247,31 @@ Operational notes:
 - No database import
 - No ORM generation
 - No Flask/UI code generation
+
+## Temporary Bootstrap Data Tooling
+
+Purpose:
+
+- Seed realistic demo/testing data into the local development database.
+- Keep implementation narrow and operationally transparent.
+
+Importer behavior (`scripts/import_vendors.py`):
+
+- Reads `data/original/vendors.xlsx` by default (or explicit path).
+- Imports `Organization` and `Contact` records only.
+- Supports sparse rows and skips obviously blank contacts.
+- Logs summary counts and skipped-contact reasons.
+- Supports `--dry-run` (parse/plan only, no writes).
+- Supports optional `--reset`:
+  - deletes `Contact` rows first
+  - deletes `Organization` rows second
+  - preserves Campaigns, Users, and Persons
+
+Intentional limits:
+
+- Not a generalized import/reconciliation platform.
+- No upload UI, import history, fuzzy matching, or ETL abstraction.
+- No Campaign/Solicitation/bootstrap analytics import.
 
 ## Dependencies (Current Minimal)
 

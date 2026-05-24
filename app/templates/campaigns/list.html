@@ -46,8 +46,13 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}">
-                            Edit
+                        <a
+                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                            href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}"
+                            title="Edit campaign"
+                            aria-label="Edit campaign"
+                        >
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
                         </a>
                     </td>
                 </tr>
