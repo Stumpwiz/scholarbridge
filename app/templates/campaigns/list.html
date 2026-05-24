@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Campaigns - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Campaigns</h1>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Add Campaign</a>
+</div>
+
+{% if active_count > 1 %}
+    <div class="alert alert-warning" role="alert">
+        Multiple campaigns are marked active. Normal operations use one active campaign at a time.
+    </div>
+{% endif %}
+
+{% if campaigns %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+            <tr>
+                <th>Year</th>
+                <th>Name</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for campaign in campaigns %}
+                <tr>
+                    <td>{{ campaign.campaign_year }}</td>
+                    <td>
+                        <a href="{{ url_for('main.campaign_detail', campaign_id=campaign.id) }}">
+                            {{ campaign.campaign_name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if campaign.status == "active" %}
+                            <span class="badge text-bg-success">Active</span>
+                        {% elif campaign.status == "planned" %}
+                            <span class="badge text-bg-secondary">Planned</span>
+                        {% elif campaign.status == "closed" %}
+                            <span class="badge text-bg-dark">Closed</span>
+                        {% else %}
+                            <span class="badge text-bg-light border text-dark">Archived</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}">
+                            Edit
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body">
+            <p class="mb-3">No campaigns have been added yet.</p>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Create first campaign</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

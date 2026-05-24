@@ -33,7 +33,7 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link{% if request.endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.organization_') %} active{% endif %}" href="{{ url_for('main.organization_list') }}">Organizations</a></li>
-                <li class="nav-item"><span class="nav-link disabled">Campaigns</span></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.campaign_') %} active{% endif %}" href="{{ url_for('main.campaign_list') }}">Campaigns</a></li>
                 <li class="nav-item"><span class="nav-link disabled">Solicitations</span></li>
                 <li class="nav-item"><span class="nav-link disabled">Reports</span></li>
                 <li class="nav-item"><span class="nav-link disabled">Letter Generation</span></li>

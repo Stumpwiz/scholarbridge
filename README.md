@@ -30,7 +30,7 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is now in **Phase 1C: Contact workflow implementation**.
+This repository is now in **Phase 1D: Campaign foundation implementation**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
 
@@ -87,6 +87,33 @@ Still deferred:
 - Standalone contact index/search/filter pages
 - Communication timeline/history and CRM-style activity logging
 
+## Phase 1D Additions
+
+Included:
+
+- `Campaign` SQLAlchemy model
+  - fields: `campaign_year`, `campaign_name`, `status`, `notes`, timestamps
+  - one campaign per year enforced via unique `campaign_year`
+- Campaign workflow pages:
+  - list
+  - detail
+  - create
+  - edit
+- Campaign status vocabulary implemented:
+  - `planned`
+  - `active`
+  - `closed`
+  - `archived`
+- Campaign naming convention enforced in app logic:
+  - `"{campaign_year} Scholarship Campaign"`
+- Lightweight one-active-campaign convention notices (warning when multiple are active)
+
+Still deferred:
+
+- Campaign delete workflow
+- Solicitation workflows and campaign-linked operational analytics
+- Reports, letter generation, imports, and automation
+
 ## Local Development (uv)
 
 1. Create local environment file:
@@ -124,6 +151,7 @@ Useful scaffold routes:
 - Health: `/health`
 - Auth status placeholder: `/auth/status`
 - Organizations: `/organizations`
+- Campaigns: `/campaigns`
 
 ## Minimal Workflow
 

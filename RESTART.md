@@ -2,7 +2,7 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 1C (Contact workflow implementation)**.
+Current stage: **Phase 1D (Campaign foundation implementation)**.
 
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Organization) is now implemented.
 
@@ -120,7 +120,6 @@ Organization workflow implemented:
 
 Current constraints preserved:
 
-- No Campaign model yet
 - No Solicitation model yet
 - No delete workflow for organizations
 - No advanced auth workflows or permissions system
@@ -156,6 +155,32 @@ Operational notes:
 - Contact entry intentionally remains light: sparse/incomplete records are allowed.
 - Minimal guardrail only: at least one identifying field (name/title/email/phone) is required to save.
 - Marking a contact as primary automatically clears primary on other contacts within the same organization.
+
+## Phase 1D Campaign Foundation (Implemented)
+
+Model layer additions:
+
+- `Campaign` model
+  - `campaign_year` (required, unique)
+  - `campaign_name` (required, convention-based)
+  - `status` (`planned`, `active`, `closed`, `archived`)
+  - `notes` (optional)
+  - timestamps (`created_at`, `updated_at`)
+
+Workflow additions:
+
+- Campaign list page (`/campaigns`)
+- Campaign detail page (`/campaigns/<id>`)
+- Campaign create page (`/campaigns/new`)
+- Campaign edit page (`/campaigns/<id>/edit`)
+- No campaign delete workflow yet
+
+Operational notes:
+
+- Campaign names are generated from year using:
+  - `"{campaign_year} Scholarship Campaign"`
+- One active campaign at a time remains a convention, not a hard block.
+- UI warns when multiple campaigns are marked active.
 
 ## Phase 0.5 Tooling Added
 
@@ -206,5 +231,5 @@ See `pyproject.toml` / `requirements.txt`:
 
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
 2. Keep next phases conservative and server-rendered.
-3. Add `Campaign` and `Solicitation` incrementally with migrations only when scope is agreed.
+3. Add `Solicitation` incrementally with migrations only when scope is agreed.
 4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

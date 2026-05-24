@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from flask import (
     abort,
     current_app,
@@ -12,7 +14,7 @@ from sqlalchemy import select
 
 from app.main import bp
 from app.extensions import db
-from app.models import Contact, Organization
+from app.models import Campaign, Contact, Organization
 
 ORGANIZATION_TYPE_OPTIONS = tuple(
     sorted(
@@ -37,6 +39,8 @@ ORGANIZATION_TYPE_OPTIONS = tuple(
     )
 )
 
+CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
+
 
 @bp.get("/")
 def index():
@@ -50,6 +54,94 @@ def health():
             "status": "ok",
             "app": current_app.config.get("APP_NAME", "ScholarBridge"),
         }
+    )
+
+
+@bp.get("/campaigns")
+def campaign_list():
+    campaigns = db.session.scalars(
+        select(Campaign).order_by(Campaign.campaign_year.desc())
+    ).all()
+    active_count = sum(1 for campaign in campaigns if campaign.status == "active")
+    return render_template(
+        "campaigns/list.html",
+        page_title="Campaigns",
+        campaigns=campaigns,
+        active_count=active_count,
+    )
+
+
+@bp.route("/campaigns/new", methods=["GET", "POST"])
+def campaign_create():
+    form_data = _campaign_form_data()
+
+    if request.method == "POST":
+        form_data = _campaign_form_data(request.form)
+        validation_error = _validate_campaign_form(form_data)
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            campaign = Campaign(
+                campaign_year=form_data["campaign_year"],
+                campaign_name=_campaign_name_for_year(form_data["campaign_year"]),
+                status=form_data["status"],
+                notes=form_data["notes"],
+            )
+            db.session.add(campaign)
+            db.session.commit()
+            _flash_active_campaign_convention_notice(campaign.status)
+            flash("Campaign created.", "success")
+            return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    return render_template(
+        "campaigns/form.html",
+        page_title="Create Campaign",
+        mode="create",
+        campaign=None,
+        form_data=form_data,
+        campaign_statuses=CAMPAIGN_STATUS_OPTIONS,
+        suggested_name=_campaign_name_for_year(form_data["campaign_year"]),
+    )
+
+
+@bp.get("/campaigns/<int:campaign_id>")
+def campaign_detail(campaign_id: int):
+    campaign = db.get_or_404(Campaign, campaign_id)
+    return render_template(
+        "campaigns/detail.html",
+        page_title=campaign.campaign_name,
+        campaign=campaign,
+    )
+
+
+@bp.route("/campaigns/<int:campaign_id>/edit", methods=["GET", "POST"])
+def campaign_edit(campaign_id: int):
+    campaign = db.get_or_404(Campaign, campaign_id)
+    form_data = _campaign_to_form_data(campaign)
+
+    if request.method == "POST":
+        form_data = _campaign_form_data(request.form)
+        validation_error = _validate_campaign_form(form_data, campaign_id=campaign.id)
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            campaign.campaign_year = form_data["campaign_year"]
+            campaign.campaign_name = _campaign_name_for_year(form_data["campaign_year"])
+            campaign.status = form_data["status"]
+            campaign.notes = form_data["notes"]
+            db.session.commit()
+            _flash_active_campaign_convention_notice(campaign.status)
+            flash("Campaign updated.", "success")
+            return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    return render_template(
+        "campaigns/form.html",
+        page_title=f"Edit {campaign.campaign_name}",
+        mode="edit",
+        campaign=campaign,
+        form_data=form_data,
+        campaign_statuses=CAMPAIGN_STATUS_OPTIONS,
+        suggested_name=_campaign_name_for_year(form_data["campaign_year"]),
     )
 
 
@@ -307,6 +399,86 @@ def _empty_to_none(value):
         return None
     cleaned = value.strip()
     return cleaned if cleaned else None
+
+
+def _campaign_name_for_year(campaign_year: int | None) -> str:
+    if campaign_year is None:
+        return "YYYY Scholarship Campaign"
+    return f"{campaign_year} Scholarship Campaign"
+
+
+def _campaign_form_data(form=None) -> dict:
+    if form is None:
+        return {
+            "campaign_year": _current_year(),
+            "status": "planned",
+            "notes": "",
+        }
+
+    return {
+        "campaign_year": _safe_int(form.get("campaign_year")),
+        "status": (form.get("status") or "planned").strip(),
+        "notes": _empty_to_none(form.get("notes")),
+    }
+
+
+def _campaign_to_form_data(campaign: Campaign) -> dict:
+    return {
+        "campaign_year": campaign.campaign_year,
+        "status": campaign.status,
+        "notes": campaign.notes or "",
+    }
+
+
+def _validate_campaign_form(form_data: dict, campaign_id: int | None = None) -> str | None:
+    campaign_year = form_data["campaign_year"]
+    if campaign_year is None:
+        return "Campaign year is required."
+
+    if campaign_year < 2000 or campaign_year > 2100:
+        return "Campaign year must be between 2000 and 2100."
+
+    if form_data["status"] not in CAMPAIGN_STATUS_OPTIONS:
+        return "Please select a valid campaign status."
+
+    existing_campaign = db.session.scalar(
+        select(Campaign).where(Campaign.campaign_year == campaign_year)
+    )
+    if existing_campaign and existing_campaign.id != campaign_id:
+        return f"A campaign for {campaign_year} already exists."
+
+    return None
+
+
+def _flash_active_campaign_convention_notice(current_status: str) -> None:
+    if current_status != "active":
+        return
+
+    active_campaign_ids = db.session.scalars(
+        select(Campaign.id).where(Campaign.status == "active")
+    ).all()
+    if len(active_campaign_ids) > 1:
+        flash(
+            "More than one campaign is currently marked active. "
+            "Normal operations use one active campaign at a time.",
+            "warning",
+        )
+
+
+def _current_year() -> int:
+    return current_app.config.get("CURRENT_YEAR_OVERRIDE") or datetime.utcnow().year
+
+
+def _safe_int(value) -> int | None:
+    if value is None:
+        return None
+    stripped = str(value).strip()
+    if not stripped:
+        return None
+    try:
+        return int(stripped)
+    except ValueError:
+        return None
 
 
 def _contact_form_data(form=None) -> dict:
