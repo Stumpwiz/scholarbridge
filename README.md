@@ -30,7 +30,7 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is now in **Phase 1B: foundational domain model implementation**.
+This repository is now in **Phase 1C: Contact workflow implementation**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
 
@@ -66,8 +66,26 @@ Included:
 
 Still deferred:
 
-- Campaign, Solicitation, and Contact models/workflows
+- Campaign and Solicitation models/workflows
 - Reporting, letter generation, imports, and automation
+
+## Phase 1C Additions
+
+Included:
+
+- `Contact` SQLAlchemy model with organization-bound ownership
+- Organization-to-Contact relationship (`Organization` 1-to-many `Contact`)
+- Embedded contact workflow on organization detail pages:
+  - view contacts
+  - add contact
+  - edit contact
+- Optional/sparse contact fields preserved for low-friction stewardship entry
+
+Still deferred:
+
+- Contact delete workflow
+- Standalone contact index/search/filter pages
+- Communication timeline/history and CRM-style activity logging
 
 ## Local Development (uv)
 

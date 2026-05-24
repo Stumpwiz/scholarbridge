@@ -27,6 +27,11 @@ class Organization(db.Model):
         onupdate=datetime.utcnow,
         server_default=func.now(),
     )
+    contacts = db.relationship(
+        "Contact",
+        back_populates="organization",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Organization id={self.id} name={self.organization_name}>"

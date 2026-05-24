@@ -1,0 +1,95 @@
+<div class="row">
+    <div class="col-12 col-md-6 mb-3">
+        <label for="{{ id_prefix }}_first_name" class="form-label">First Name</label>
+        <input
+            type="text"
+            class="form-control"
+            id="{{ id_prefix }}_first_name"
+            name="first_name"
+            value="{{ form_data.first_name or '' }}"
+        >
+    </div>
+    <div class="col-12 col-md-6 mb-3">
+        <label for="{{ id_prefix }}_last_name" class="form-label">Last Name</label>
+        <input
+            type="text"
+            class="form-control"
+            id="{{ id_prefix }}_last_name"
+            name="last_name"
+            value="{{ form_data.last_name or '' }}"
+        >
+    </div>
+</div>
+
+<div class="mb-3">
+    <label for="{{ id_prefix }}_title" class="form-label">Title</label>
+    <input
+        type="text"
+        class="form-control"
+        id="{{ id_prefix }}_title"
+        name="title"
+        value="{{ form_data.title or '' }}"
+    >
+</div>
+
+<div class="row">
+    <div class="col-12 col-md-6 mb-3">
+        <label for="{{ id_prefix }}_email" class="form-label">Email</label>
+        <input
+            type="email"
+            class="form-control"
+            id="{{ id_prefix }}_email"
+            name="email"
+            value="{{ form_data.email or '' }}"
+        >
+    </div>
+    <div class="col-12 col-md-6 mb-3">
+        <label for="{{ id_prefix }}_phone" class="form-label">Phone</label>
+        <input
+            type="text"
+            class="form-control"
+            id="{{ id_prefix }}_phone"
+            name="phone"
+            value="{{ form_data.phone or '' }}"
+        >
+    </div>
+</div>
+
+<div class="mb-3">
+    <label for="{{ id_prefix }}_notes" class="form-label">Notes</label>
+    <textarea
+        class="form-control"
+        id="{{ id_prefix }}_notes"
+        name="notes"
+        rows="3"
+    >{{ form_data.notes or '' }}</textarea>
+</div>
+
+<div class="d-flex flex-wrap gap-4 mb-3">
+    <div class="form-check">
+        <input
+            class="form-check-input"
+            type="checkbox"
+            value="on"
+            id="{{ id_prefix }}_is_primary"
+            name="is_primary"
+            {% if form_data.is_primary %}checked{% endif %}
+        >
+        <label class="form-check-label" for="{{ id_prefix }}_is_primary">
+            Primary contact
+        </label>
+    </div>
+    <div class="form-check">
+        <input
+            class="form-check-input"
+            type="checkbox"
+            value="on"
+            id="{{ id_prefix }}_is_active"
+            name="is_active"
+            {% if form_data.is_active %}checked{% endif %}
+        >
+        <label class="form-check-label" for="{{ id_prefix }}_is_active">
+            Active contact
+        </label>
+    </div>
+</div>

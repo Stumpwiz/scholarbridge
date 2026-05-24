@@ -2,7 +2,7 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 1B (foundational domain model implementation)**.
+Current stage: **Phase 1C (Contact workflow implementation)**.
 
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Organization) is now implemented.
 
@@ -122,10 +122,40 @@ Current constraints preserved:
 
 - No Campaign model yet
 - No Solicitation model yet
-- No Contact model yet
 - No delete workflow for organizations
 - No advanced auth workflows or permissions system
 - No reporting, PDF generation, import, or email workflows
+
+## Phase 1C Contact Workflow (Implemented)
+
+Model layer additions:
+
+- `Contact` model
+  - organization-bound (`organization_id` required)
+  - sparse-friendly fields (`first_name`, `last_name`, `title`, `email`, `phone`, `notes`)
+  - stewardship flags (`is_primary`, `is_active`)
+  - timestamps (`created_at`, `updated_at`)
+
+Relationship additions:
+
+- `Organization` now has many `Contact` records
+- `Contact` belongs to exactly one `Organization`
+- Organizations with zero contacts remain supported
+
+Workflow additions:
+
+- Embedded contacts section in organization detail page
+  - list contacts
+  - add contact
+  - edit contact
+- No contact delete workflow yet
+- No standalone contact navigation/index/search workflow yet
+
+Operational notes:
+
+- Contact entry intentionally remains light: sparse/incomplete records are allowed.
+- Minimal guardrail only: at least one identifying field (name/title/email/phone) is required to save.
+- Marking a contact as primary automatically clears primary on other contacts within the same organization.
 
 ## Phase 0.5 Tooling Added
 
@@ -176,5 +206,5 @@ See `pyproject.toml` / `requirements.txt`:
 
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
 2. Keep next phases conservative and server-rendered.
-3. Add `Contact`, `Campaign`, and `Solicitation` incrementally with migrations only when scope is agreed.
+3. Add `Campaign` and `Solicitation` incrementally with migrations only when scope is agreed.
 4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

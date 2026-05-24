@@ -55,6 +55,110 @@
     </div>
 </div>
 
+<div class="row g-3 mt-1" id="contacts">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Contacts</span>
+                <span class="text-muted small">{{ contacts|length }} total</span>
+            </div>
+            <div class="card-body">
+                {% if contacts %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Title</th>
+                                <th>Email</th>
+                                <th>Phone</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for contact in contacts %}
+                                {% set contact_name = ((contact.first_name or "") ~ " " ~ (contact.last_name or "")).strip() %}
+                                <tr>
+                                    <td>
+                                        {{ contact_name or "No name provided" }}
+                                        {% if contact.is_primary %}
+                                            <span class="badge text-bg-secondary ms-2">Primary</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ contact.title or "—" }}</td>
+                                    <td>{{ contact.email or "—" }}</td>
+                                    <td>{{ contact.phone or "—" }}</td>
+                                    <td>
+                                        {% if contact.is_active %}
+                                            <span class="badge text-bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge text-bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <a
+                                            class="btn btn-outline-secondary btn-sm"
+                                            href="{{ url_for('main.organization_contact_edit', organization_id=organization.id, contact_id=contact.id, _anchor='contacts') }}"
+                                        >
+                                            Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% if contact.notes %}
+                                    <tr>
+                                        <td colspan="6" class="text-muted small pt-0">
+                                            <strong>Notes:</strong> {{ contact.notes }}
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No contacts recorded yet for this organization.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+        <div class="card h-100">
+            <div class="card-header">Add Contact</div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('main.organization_contact_create', organization_id=organization.id) }}">
+                    {% with form_data = contact_form_data, id_prefix = "add_contact" %}
+                        {% include "organizations/_contact_form_fields.html" %}
+                    {% endwith %}
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Add Contact</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if editing_contact %}
+        <div class="col-12 col-xl-6">
+            <div class="card h-100 border-secondary">
+                <div class="card-header">Edit Contact</div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('main.organization_contact_edit', organization_id=organization.id, contact_id=editing_contact.id, _anchor='contacts') }}">
+                        {% with form_data = edit_form_data, id_prefix = "edit_contact" %}
+                            {% include "organizations/_contact_form_fields.html" %}
+                        {% endwith %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Save Contact</button>
+                            <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_detail', organization_id=organization.id, _anchor='contacts') }}">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
 <div class="mt-3">
     <a class="btn btn-link p-0" href="{{ url_for('main.organization_list') }}">Back to organization list</a>
 </div>
