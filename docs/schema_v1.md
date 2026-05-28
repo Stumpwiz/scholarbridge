@@ -4,7 +4,7 @@
 
 This document defines the first stable conceptual schema for ScholarBridge. It is architecture guidance for implementation planning and review.
 
-ScholarBridge remains a lightweight donor stewardship CRM centered on annual organization-based campaigns. The design prioritizes operational simplicity, stewardship continuity, and historical reporting for non-technical committee users.
+ScholarBridge remains a lightweight donor solicitation management CRM centered on annual partner-based campaigns. The design prioritizes operational simplicity, solicitation management continuity, and historical reporting for non-technical committee users.
 
 This specification intentionally excludes implementation artifacts:
 
@@ -15,7 +15,7 @@ This specification intentionally excludes implementation artifacts:
 
 ## v1 Design Constraints
 
-- Organization-centric stewardship model
+- Partner-centric solicitation management model
 - No standalone individual donor model in v1
 - Exactly one campaign per `campaign_year` (conceptually unique year)
 - One annual active campaign context at a time, with historical campaign visibility
@@ -24,22 +24,22 @@ This specification intentionally excludes implementation artifacts:
 
 ## Conceptual Entities
 
-### Organization
+### Partner
 
-Represents a donor/vendor/business organization that may participate in campaigns across multiple years.
+Represents a donor/vendor/business partner that may participate in campaigns across multiple years.
 
 Conceptual responsibilities:
 
-- Provide institutional identity for stewardship history
+- Provide institutional identity for solicitation management history
 - Act as parent record for contacts
 - Act as parent record for campaign solicitations
 
 Tentative fields:
 
 - id (required)
-- organization_name (required)
+- partner_name (required)
 - display_name (optional)
-- organization_type (optional)
+- partner_type (optional)
 - address_line_1 (optional)
 - address_line_2 (optional)
 - city (optional)
@@ -49,14 +49,14 @@ Tentative fields:
 - phone_main (optional)
 - email_main (optional)
 - website (optional)
-- organization_notes (optional)
+- partner_notes (optional)
 - is_active (required)
 - created_at (required)
 - updated_at (required)
 
-`organization_type` usage note (v1):
+`partner_type` usage note (v1):
 
-- This existing field serves as the organization type/category field.
+- This existing field serves as the partner type/category field.
 - It remains optional and nullable.
 - UI data entry should use a controlled single-select vocabulary:
   - Construction
@@ -78,22 +78,22 @@ Tentative fields:
 
 ### Contact
 
-Represents a human contact associated with exactly one Organization.
+Represents a human contact associated with exactly one Partner.
 
 Scope note:
 
 - ScholarBridge v1 does not support standalone individual donors.
-- Every Contact must belong to one and only one Organization.
+- Every Contact must belong to one and only one Partner.
 
 Conceptual responsibilities:
 
-- Capture who committee members communicate with at an organization
+- Capture who committee members communicate with at a partner
 - Preserve role and communication context over time
 
 Tentative fields:
 
 - id (required)
-- organization_id (required)
+- partner_id (required)
 - first_name (required)
 - last_name (required)
 - preferred_name (optional)
@@ -106,7 +106,7 @@ Tentative fields:
 - state_or_region (optional)
 - postal_code (optional)
 - preferred_contact_method (optional)
-- is_primary_for_organization (required)
+- is_primary_for_partner (required)
 - contact_notes (optional)
 - is_active (required)
 - created_at (required)
@@ -118,7 +118,7 @@ Represents an annual solicitation campaign.
 
 Conceptual responsibilities:
 
-- Define annual stewardship/reporting boundary
+- Define annual solicitation management/reporting boundary
 - Group related solicitations for operational tracking and historical comparison
 
 Status vocabulary (v1):
@@ -154,7 +154,7 @@ Represents a real human in institutional/operational terms. This aligns philosop
 
 Conceptual responsibilities:
 
-- Identify who owns stewardship work in real-world committee operations
+- Identify who owns solicitation management work in real-world committee operations
 - Support continuity when login/account details change
 
 Tentative fields:
@@ -198,17 +198,17 @@ Tentative fields:
 
 ### Solicitation
 
-Represents an Organization participating in a Campaign. This is the central stewardship entity in v1.
+Represents an Partner participating in a Campaign. This is the central solicitation management entity in v1.
 
 Conceptual responsibilities:
 
-- Capture organization-level campaign participation
-- Record stewardship progress and outcomes
+- Capture partner-level campaign participation
+- Record solicitation management progress and outcomes
 - Preserve ownership accountability through assigned person
 
 Canonical ownership rule:
 
-- `Solicitation.assigned_person_id` is the canonical stewardship ownership relationship.
+- `Solicitation.assigned_person_id` is the canonical solicitation management ownership relationship.
 
 Status vocabulary (v1):
 
@@ -223,7 +223,7 @@ Tentative fields:
 
 - id (required)
 - campaign_id (required)
-- organization_id (required)
+- partner_id (required)
 - assigned_person_id (required)
 - primary_contact_id (optional)
 - solicitation_status (required)
@@ -233,33 +233,33 @@ Tentative fields:
 - outreach_last_date (optional)
 - outreach_next_date (optional)
 - thank_you_sent_at (optional)
-- stewardship_notes (optional)
+- solicitation management_notes (optional)
 - created_at (required)
 - updated_at (required)
 
 ## Required Conceptual Relationships
 
-- Organization 1-to-many Contact
-- Organization 1-to-many Solicitation
+- Partner 1-to-many Contact
+- Partner 1-to-many Solicitation
 - Campaign 1-to-many Solicitation
 - Person 1-to-many Solicitation
 - User optional 1-to-1 Person
 
 Relationship rationale:
 
-- Contact is organization-scoped to preserve a simple organization-first model.
-- Solicitation links campaign and organization to represent annual participation.
-- Assigned person is required to ensure stewardship accountability and handoff continuity.
+- Contact is partner-scoped to preserve a simple partner-first model.
+- Solicitation links campaign and partner to represent annual participation.
+- Assigned person is required to ensure solicitation management accountability and handoff continuity.
 - User and Person are intentionally separated so technical account management does not define institutional identity.
 
 ## Lifecycle Considerations
 
-- Organizations and contacts are generally long-lived; prefer inactive status over deletion.
+- Partners and contacts are generally long-lived; prefer inactive status over deletion.
 - Campaigns are annual with exactly one campaign per year.
 - Campaign operations normally run with one active campaign at a time.
 - Solicitations are campaign-scoped records and should remain immutable as historical evidence once campaigns close, except for correction workflows.
 - Solicitation closure tracking in v1 uses `solicitation_status` together with `updated_at`; no dedicated `closed_at` field is included.
-- Persons may remain in records after committee transitions for stewardship continuity.
+- Persons may remain in records after committee transitions for solicitation management continuity.
 - Users may be deactivated independently of Person records.
 
 ## Required vs Optional Data Reasoning
@@ -269,8 +269,8 @@ Relationship rationale:
 - Amount fields remain optional to support records that are created before financial outcomes are known.
 - `User.email` is required and conceptually unique in v1.
 - Dates tied to outreach, donation receipt, and thank-you completion are optional because these events may not occur for every solicitation.
-- `primary_contact_id` remains optional in v1 to avoid blocking useful stewardship work when contact data is sparse or incomplete.
-- Contact communication data (for example email and phone) remains optional in v1 to support organization-only solicitation records where contact details are incomplete.
+- `primary_contact_id` remains optional in v1 to avoid blocking useful solicitation management work when contact data is sparse or incomplete.
+- Contact communication data (for example email and phone) remains optional in v1 to support partner-only solicitation records where contact details are incomplete.
 
 ## Operational Rationale
 
@@ -284,21 +284,21 @@ Relationship rationale:
 
 v1 should support:
 
-- Campaign-by-campaign comparison of organization participation
+- Campaign-by-campaign comparison of partner participation
 - Requested vs received amount rollups by campaign
 - Acknowledgment completion visibility
-- Stewardship workload visibility by assigned person
+- Solicitation Management workload visibility by assigned person
 - Preservation of historical context across leadership transitions
 
 ## Annual Campaign Workflow Assumptions
 
 - Exactly one campaign exists per campaign year.
 - One active campaign at a time is the normal operating model.
-- Organizations may recur across campaigns.
-- Each campaign creates a new solicitation context for each participating organization.
-- Stewardship assignment is person-based and should be explicit early in the campaign cycle.
+- Partners may recur across campaigns.
+- Each campaign creates a new solicitation context for each participating partner.
+- Solicitation Management assignment is person-based and should be explicit early in the campaign cycle.
 
-## Stewardship Continuity and Institutional Handoff
+## Solicitation Management Continuity and Institutional Handoff
 
 - Preserve closed-campaign solicitations for future reference and onboarding.
 - Keep ownership and notes attached to solicitations to reduce reliance on informal memory.

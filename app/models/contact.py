@@ -17,9 +17,9 @@ class Contact(db.Model):
     notes = db.Column(db.Text, nullable=True)
     is_primary = db.Column(db.Boolean, nullable=False, default=False, server_default=func.false())
     is_active = db.Column(db.Boolean, nullable=False, default=True, server_default=func.true())
-    organization_id = db.Column(
+    partner_id = db.Column(
         db.Integer,
-        db.ForeignKey("organizations.id"),
+        db.ForeignKey("partners.id"),
         nullable=False,
         index=True,
     )
@@ -34,7 +34,7 @@ class Contact(db.Model):
         server_default=func.now(),
     )
 
-    organization = db.relationship("Organization", back_populates="contacts")
+    partner = db.relationship("Partner", back_populates="contacts")
 
     def __repr__(self) -> str:
-        return f"<Contact id={self.id} organization_id={self.organization_id}>"
+        return f"<Contact id={self.id} partner_id={self.partner_id}>"

@@ -52,8 +52,8 @@ CONTACT_KEYWORDS = {
     "mobile",
     "title",
 }
-ORGANIZATION_KEYWORDS = {
-    "organization",
+PARTNER_KEYWORDS = {
+    "partner",
     "org",
     "vendor",
     "company",
@@ -233,8 +233,8 @@ def classify_column(column_name: str) -> set[str]:
     labels: set[str] = set()
     if any(token in lowered for token in CONTACT_KEYWORDS):
         labels.add("contact")
-    if any(token in lowered for token in ORGANIZATION_KEYWORDS):
-        labels.add("organization")
+    if any(token in lowered for token in PARTNER_KEYWORDS):
+        labels.add("partner")
     if any(token in lowered for token in CAMPAIGN_KEYWORDS):
         labels.add("campaign")
     return labels
@@ -323,7 +323,7 @@ def build_markdown_report(
     """Assemble a single markdown report for maintainers and future assistants."""
     all_columns: list[str] = []
     shared_columns_counter: dict[str, int] = {}
-    inferred_groups: dict[str, set[str]] = {"contact": set(), "organization": set(), "campaign": set()}
+    inferred_groups: dict[str, set[str]] = {"contact": set(), "partner": set(), "campaign": set()}
     suspicious_rollup: list[str] = []
     normalization_rollup: list[str] = []
 
@@ -374,8 +374,8 @@ def build_markdown_report(
         "",
         "- Contact-related fields: "
         + (", ".join(f"`{c}`" for c in sorted(inferred_groups["contact"])) or "none detected"),
-        "- Organization-related fields: "
-        + (", ".join(f"`{c}`" for c in sorted(inferred_groups["organization"])) or "none detected"),
+        "- Partner-related fields: "
+        + (", ".join(f"`{c}`" for c in sorted(inferred_groups["partner"])) or "none detected"),
         "- Campaign-cycle-related fields: "
         + (", ".join(f"`{c}`" for c in sorted(inferred_groups["campaign"])) or "none detected"),
         "",

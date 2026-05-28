@@ -2,15 +2,15 @@
 
 ## Purpose
 
-This document defines the intended ScholarBridge user experience before implementation work begins. It translates the stabilized conceptual schema and stewardship model into practical UI responsibilities, navigation concepts, and operational workflows suitable for long-term committee continuity.
+This document defines the intended ScholarBridge user experience before implementation work begins. It translates the stabilized conceptual schema and solicitation management model into practical UI responsibilities, navigation concepts, and operational workflows suitable for long-term committee continuity.
 
-ScholarBridge is intentionally a lightweight donor stewardship CRM for non-technical users. The UI should support reliable day-to-day committee work without introducing enterprise-style complexity.
+ScholarBridge is intentionally a lightweight donor solicitation management CRM for non-technical users. The UI should support reliable day-to-day committee work without introducing enterprise-style complexity.
 
 ## Overall UI Philosophy
 
 - Keep workflows simple, readable, and predictable.
 - Prioritize low cognitive load over feature density.
-- Present stewardship context clearly so users can make good judgment calls.
+- Present solicitation management context clearly so users can make good judgment calls.
 - Support print-friendly workflows for meetings, mail preparation, and records.
 - Help users complete practical tasks; avoid rigid process enforcement where discretion is needed.
 - Favor continuity: interface structure should remain stable across committee transitions.
@@ -20,14 +20,14 @@ ScholarBridge is intentionally a lightweight donor stewardship CRM for non-techn
 Likely top-level sections:
 
 - Dashboard
-- Organizations
+- Partners
 - Campaigns
 - Solicitations
 - Reports
 - Letter Generation
 - Administration
 
-These sections map to the v1 model and core operational rhythms: annual campaign planning, organization-based solicitations, stewardship follow-up, and historical reporting.
+These sections map to the v1 model and core operational rhythms: annual campaign planning, partner-based solicitations, solicitation management follow-up, and historical reporting.
 
 ## Dashboard
 
@@ -38,7 +38,7 @@ Purpose:
 Likely workflow:
 
 - User signs in and immediately reviews current priorities.
-- User drills into sections requiring action (solicitations, thank-you letters, organization follow-up).
+- User drills into sections requiring action (solicitations, thank-you letters, partner follow-up).
 
 Key information displayed:
 
@@ -51,7 +51,7 @@ Key information displayed:
 Likely user actions:
 
 - Open solicitation detail for updates.
-- Open organization history before outreach.
+- Open partner history before outreach.
 - Launch report or letter-generation workflows.
 
 Likely future enhancements:
@@ -59,42 +59,42 @@ Likely future enhancements:
 - Configurable dashboard cards by committee role.
 - Saved personal views of priority work.
 
-## Organizations
+## Partners
 
 Purpose:
 
-- Maintain institutional records for donor/vendor/business organizations and their long-term stewardship context.
+- Maintain institutional records for donor/vendor/business partners and their long-term solicitation management context.
 
 Likely workflow:
 
-- Search for an organization.
-- Review organization profile, contacts, and historical solicitations.
-- Update organization and contact records as stewardship context changes.
+- Search for a partner.
+- Review partner profile, contacts, and historical solicitations.
+- Update partner and contact records as solicitation management context changes.
 
 Key information displayed:
 
-- Searchable organization list with basic status and category signals.
-- Organization detail page with core profile data.
-- Related contacts (organization-bound only in v1).
-- Stewardship history and notes.
+- Searchable partner list with basic status and category signals.
+- Partner detail page with core profile data.
+- Related contacts (partner-bound only in v1).
+- Solicitation Management history and notes.
 - Historical solicitations across campaigns.
 
 Likely user actions:
 
-- Add/edit organization records.
-- Add/edit organization contacts.
-- Navigate from organization to solicitation records.
+- Add/edit partner records.
+- Add/edit partner contacts.
+- Navigate from partner to solicitation records.
 
 v1 category entry pattern:
 
-- Use the existing organization type/category field with a controlled dropdown list.
-- Keep category optional so stewardship records remain usable when information is incomplete.
+- Use the existing partner type/category field with a controlled dropdown list.
+- Keep category optional so solicitation management records remain usable when information is incomplete.
 - Include an `Other` option for non-standard cases while avoiding taxonomy complexity.
 
 Likely future enhancements:
 
-- Better organization categorization and filtering.
-- Optional timeline-style stewardship history view.
+- Better partner categorization and filtering.
+- Optional timeline-style solicitation management history view.
 
 ## Campaigns
 
@@ -130,18 +130,18 @@ Likely future enhancements:
 
 Purpose:
 
-- Operate the core stewardship record: an organization participating in a campaign.
+- Operate the core solicitation management record: a partner participating in a campaign.
 
 Likely workflow:
 
-- Create solicitation for organization within active campaign.
-- Assign stewardship ownership (`assigned_person_id`).
+- Create solicitation for partner within active campaign.
+- Assign solicitation management ownership (`assigned_person_id`).
 - Track outreach progress, requested/received amounts, and acknowledgment completion.
 
 Key information displayed:
 
 - Solicitation list filtered by campaign, status, owner, and follow-up priority.
-- Stewardship ownership (person-based).
+- Solicitation Management ownership (person-based).
 - Status tracking (`not_contacted`, `contacted`, `responded`, `donated`, `declined`, `closed`).
 - Requested vs received amounts.
 - Notes/history and next follow-up context.
@@ -150,14 +150,14 @@ Key information displayed:
 Likely user actions:
 
 - Create/edit solicitation.
-- Reassign stewardship owner.
+- Reassign solicitation management owner.
 - Update status, amounts, notes, and thank-you completion timestamp.
-- Open linked organization context and past campaign history.
+- Open linked partner context and past campaign history.
 
 Likely future enhancements:
 
 - Bulk status updates for end-of-cycle cleanup.
-- Stewardship workload balancing views by assigned person.
+- Solicitation Management workload balancing views by assigned person.
 
 ## Reports
 
@@ -173,11 +173,11 @@ Likely workflow:
 
 Key information displayed:
 
-- Donor history reports by organization.
+- Donor history reports by partner.
 - Yearly totals.
-- Organization category summaries.
+- Partner category summaries.
 - Campaign progress summaries.
-- Stewardship summaries by assigned person.
+- Solicitation Management summaries by assigned person.
 
 Likely user actions:
 
@@ -212,7 +212,7 @@ Likely user actions:
 
 - Generate individual or batch letters.
 - Produce printable PDF output.
-- Mark correspondence events in stewardship records when sent.
+- Mark correspondence events in solicitation management records when sent.
 
 Likely future enhancements:
 
@@ -257,11 +257,11 @@ Likely future enhancements:
 - Ensure printable pages remain legible with clean hierarchy.
 - Support older users through consistent navigation placement and minimal mode switching.
 
-## Workflow Simplicity and Steward Discretion
+## Workflow Simplicity and Solicitor Discretion
 
 - Preserve flexibility for real-world committee judgment.
 - Avoid forcing rigid sequences when outreach reality is variable.
-- Allow partial records so stewardship can continue even with sparse contact data.
+- Allow partial records so solicitation management can continue even with sparse contact data.
 - Keep required fields focused on operational essentials.
 - Emphasize clarity of ownership, status, and historical context over administrative overhead.
 
@@ -273,7 +273,7 @@ ScholarBridge v1 should not mimic enterprise fundraising platforms. It should av
 - Heavy automation and rule orchestration.
 - Deep permissions complexity beyond committee needs.
 - Accounting-system assumptions.
-- Process rigidity that discourages practical stewardship work.
+- Process rigidity that discourages practical solicitation management work.
 
 ## Implementation Guidance
 
@@ -282,4 +282,4 @@ ScholarBridge v1 should not mimic enterprise fundraising platforms. It should av
 - JavaScript should remain minimal and targeted to usability improvements.
 - Form workflows should be conservative, explicit, and resilient to partial data entry.
 - Reporting and letter generation should remain print-oriented and operationally practical.
-- UI decisions should continue to track `schema_v1` priorities: continuity, stewardship clarity, and institutional handoff readiness.
+- UI decisions should continue to track `schema_v1` priorities: continuity, solicitation management clarity, and institutional handoff readiness.

@@ -4,11 +4,11 @@ This draft is intentionally provisional and subject to change after stakeholder 
 
 No SQL syntax or ORM code is included here. This is a field-planning aid only.
 
-## Organization (tentative fields)
+## Partner (tentative fields)
 
-- organization_name
+- partner_name
 - display_name
-- organization_type
+- partner_type
 - primary_address_line_1
 - primary_address_line_2
 - city
@@ -18,7 +18,7 @@ No SQL syntax or ORM code is included here. This is a field-planning aid only.
 - phone_main
 - email_main
 - website
-- stewardship_notes
+- solicitation management_notes
 - is_active
 - created_at
 - updated_at
@@ -38,7 +38,7 @@ No SQL syntax or ORM code is included here. This is a field-planning aid only.
 - postal_code
 - preferred_contact_method
 - relationship_notes
-- is_primary_for_organization
+- is_primary_for_partner
 - is_active
 - created_at
 - updated_at
@@ -59,7 +59,7 @@ No SQL syntax or ORM code is included here. This is a field-planning aid only.
 
 - solicitation_code
 - campaign_reference
-- organization_reference
+- partner_reference
 - contact_reference
 - assigned_user_reference
 - solicitation_status
@@ -72,7 +72,7 @@ No SQL syntax or ORM code is included here. This is a field-planning aid only.
 - contribution_type
 - acknowledgment_status
 - acknowledgment_sent_date
-- stewardship_notes
+- solicitation management_notes
 - created_at
 - updated_at
 
@@ -95,7 +95,7 @@ No SQL syntax or ORM code is included here. This is a field-planning aid only.
 
 ## Relationship Intent (Conceptual)
 
-- Organization 1-to-many Contact
-- Organization 1-to-many Solicitation
+- Partner 1-to-many Contact
+- Partner 1-to-many Solicitation
 - Campaign 1-to-many Solicitation
 - User 1-to-many Solicitation

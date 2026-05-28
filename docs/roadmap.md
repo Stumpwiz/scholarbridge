@@ -4,7 +4,7 @@ This roadmap is phased to reduce risk, preserve committee continuity, and delive
 
 ## Phase 0: Discovery and Modeling
 
-- Confirm committee terminology and stewardship definitions
+- Confirm committee terminology and solicitation management definitions
 - Document current spreadsheet structure and annual process variants
 - Finalize conceptual domain model and provisional schema priorities
 - Identify minimum viable workflows for first operational release
@@ -18,7 +18,7 @@ This roadmap is phased to reduce risk, preserve committee continuity, and delive
 
 ## Phase 2: Basic CRUD UI
 
-- Implement core record management for organizations and contacts
+- Implement core record management for partners and contacts
 - Implement campaign and solicitation creation/update flows
 - Add practical search/filter capabilities for committee operations
 - Support low-friction data edits during active campaign management
@@ -33,7 +33,7 @@ This roadmap is phased to reduce risk, preserve committee continuity, and delive
 ## Phase 4: Historical Reporting
 
 - Provide year-over-year campaign summaries
-- Support stewardship activity and response trend analysis
+- Support solicitation management activity and response trend analysis
 - Add export pathways suitable for committee review meetings
 - Validate report consistency against known historical spreadsheet totals
 

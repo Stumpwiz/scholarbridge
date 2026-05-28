@@ -1,6 +1,6 @@
 # Vision
 
-ScholarBridge exists to strengthen the Example Scholarship Committee's ability to steward donor and patron relationships over time. The system is evolving into a lightweight donor stewardship CRM that helps the committee operate consistently year after year, even as membership changes.
+ScholarBridge exists to strengthen the Example Scholarship Committee's ability to manage donor and patron relationships over time. The system is evolving into a lightweight donor solicitation management CRM that helps the committee operate consistently year after year, even as membership changes.
 
 ## Operational Goals
 
@@ -22,7 +22,7 @@ Practical implication:
 
 ## Guiding Principles
 
-- Stewardship first: every record should support respectful, timely follow-up
+- Solicitation Management first: every record should support respectful, timely follow-up
 - Historical continuity: prior campaigns must remain accessible and interpretable
 - Simplicity: workflows should be clear enough for routine volunteer operation
 - Incremental change: evolve from current process in controlled phases

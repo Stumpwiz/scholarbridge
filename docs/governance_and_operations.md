@@ -2,7 +2,7 @@
 
 ## 1. Purpose of the System
 
-ScholarBridge exists to help the Example Scholarship Committee steward donor and patron relationships with consistency, care, and historical awareness. It is intended to support committee work, not replace committee judgment. The system should make routine tasks easier, improve record clarity, and reduce dependence on any one person’s memory or spreadsheet habits.
+ScholarBridge exists to help the Example Scholarship Committee manage donor and patron relationships with consistency, care, and historical awareness. It is intended to support committee work, not replace committee judgment. The system should make routine tasks easier, improve record clarity, and reduce dependence on any one person’s memory or spreadsheet habits.
 
 ## 2. Current Committee Workflow Realities
 
@@ -12,13 +12,13 @@ The committee’s current process is practical and spreadsheet-driven. It reflec
 
 Committee work follows recurring annual rhythms: planning outreach, contacting supporters, tracking responses, recording donations, and confirming acknowledgments. The system should support each campaign clearly while still allowing flexibility when timelines, priorities, or committee capacity shift.
 
-## 4. Relationship Stewardship
+## 4. Relationship Management
 
-Stewardship is relational, not transactional. Records should support thoughtful, timely follow-up and respectful communication with supporters. The goal is to preserve context over time so the committee can engage consistently, understand prior interactions, and avoid repeated gaps or confusion.
+Solicitation Management is relational, not transactional. Records should support thoughtful, timely follow-up and respectful communication with supporters. The goal is to preserve context over time so the committee can engage consistently, understand prior interactions, and avoid repeated gaps or confusion.
 
 ## 5. Historical Continuity and Reporting
 
-Historical records should remain understandable and usable across committee terms. Year-over-year visibility matters for planning, accountability, and donor stewardship. Reporting should focus on clarity and continuity: what happened, what changed, and what follow-up is needed next.
+Historical records should remain understandable and usable across committee terms. Year-over-year visibility matters for planning, accountability, and donor solicitation management. Reporting should focus on clarity and continuity: what happened, what changed, and what follow-up is needed next.
 
 ## 6. Administrative Responsibilities
 
@@ -45,4 +45,4 @@ ScholarBridge should remain lightweight, understandable, and maintainable over t
 - Preserve historical donation and outreach records as a long-term asset.
 - Support smooth transitions to future committee leadership.
 - Keep the system approachable for non-technical users.
-- Favor clarity, consistency, and stewardship value over novelty.
+- Favor clarity, consistency, and solicitation management value over novelty.

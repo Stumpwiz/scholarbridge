@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Bootstrap importer for vendor organizations and contacts.
+Bootstrap importer for vendor partners and contacts.
 
 Scope is intentionally narrow:
 - Read vendors.xlsx style spreadsheets.
-- Import Organizations and Contacts only.
+- Import Partners and Contacts only.
 - Provide optional non-destructive reset and dry-run behavior.
 """
 
@@ -26,11 +26,11 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from app import create_app
 from app.extensions import db
-from app.models import Contact, Organization
+from app.models import Contact, Partner
 
 
 MISSING_TOKENS = {"", "na", "n/a", "none", "null", "-", "--"}
-ORGANIZATION_TYPE_OPTIONS = {
+PARTNER_TYPE_OPTIONS = {
     "Construction",
     "Facilities Maintenance",
     "Renovation",
@@ -57,14 +57,14 @@ FULL_NAME_RE = re.compile(r"^\s*(?P<name>[^,(]+?)(?:,\s*(?P<title>.+))?\s*$")
 class RowPayload:
     sheet_name: str
     row_index: int
-    organization_name: str | None
+    partner_name: str | None
     address_1: str | None
     address_2: str | None
     city: str | None
     state: str | None
     postal_code: str | None
-    organization_email: str | None
-    organization_phone: str | None
+    partner_email: str | None
+    partner_phone: str | None
     first_name: str | None
     last_name: str | None
     title: str | None
@@ -75,7 +75,7 @@ class RowPayload:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Bootstrap import Organizations and Contacts from a vendor spreadsheet."
+        description="Bootstrap import Partners and Contacts from a vendor spreadsheet."
     )
     parser.add_argument(
         "spreadsheet",
@@ -86,7 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--reset",
         action="store_true",
-        help="Delete Contacts then Organizations before import. Campaigns/Users/Persons are preserved.",
+        help="Delete Contacts then Partners before import. Campaigns/Users/Persons are preserved.",
     )
     parser.add_argument(
         "--dry-run",
@@ -125,16 +125,16 @@ class VendorBootstrapImporter:
         self.reset = reset
         self.dry_run = dry_run
 
-        self.org_created = 0
-        self.org_skipped = 0
-        self.org_skip_reasons: Counter[str] = Counter()
+        self.partner_created = 0
+        self.partner_skipped = 0
+        self.partner_skip_reasons: Counter[str] = Counter()
 
         self.contact_created = 0
         self.contact_skipped = 0
         self.contact_skip_reasons: Counter[str] = Counter()
 
-        self._org_cache: dict[str, Organization] = {}
-        self._contact_keys_by_org: dict[int, set[tuple[str, str, str, str, str]]] = {}
+        self._partner_cache: dict[str, Partner] = {}
+        self._contact_keys_by_partner: dict[int, set[tuple[str, str, str, str, str]]] = {}
 
     def run(self) -> None:
         print(f"Workbook: {self.spreadsheet_path}")
@@ -162,7 +162,7 @@ class VendorBootstrapImporter:
 
     def _reset_data(self) -> None:
         contact_count = db.session.query(Contact).delete(synchronize_session=False)
-        organization_count = db.session.query(Organization).delete(synchronize_session=False)
+        partner_count = db.session.query(Partner).delete(synchronize_session=False)
         if self.dry_run:
             db.session.rollback()
         else:
@@ -170,14 +170,14 @@ class VendorBootstrapImporter:
         mode_prefix = "[DRY-RUN] " if self.dry_run else ""
         print(
             f"{mode_prefix}Reset complete: deleted {contact_count} contacts and "
-            f"{organization_count} organizations."
+            f"{partner_count} partners."
         )
 
     def _prime_existing_indexes(self) -> None:
-        for organization in db.session.query(Organization).all():
-            key = normalize_key(organization.organization_name)
+        for partner in db.session.query(Partner).all():
+            key = normalize_key(partner.partner_name)
             if key:
-                self._org_cache[key] = organization
+                self._partner_cache[key] = partner
 
         for contact in db.session.query(Contact).all():
             contact_key = make_contact_key(
@@ -187,23 +187,23 @@ class VendorBootstrapImporter:
                 email=contact.email,
                 phone=contact.phone,
             )
-            self._contact_keys_by_org.setdefault(contact.organization_id, set()).add(contact_key)
+            self._contact_keys_by_partner.setdefault(contact.partner_id, set()).add(contact_key)
 
     def _import_sheet(self, df: pd.DataFrame, sheet_name: str) -> int:
         imported_rows = 0
         for row_index, raw_row in enumerate(df.to_dict(orient="records"), start=2):
             payload = self._row_payload(raw_row, sheet_name=sheet_name, row_index=row_index)
-            if payload.organization_name is None:
-                self._skip_organization("blank_organization_name")
+            if payload.partner_name is None:
+                self._skip_partner("blank_partner_name")
                 continue
 
-            organization, created = self._get_or_create_organization(payload)
+            partner, created = self._get_or_create_partner(payload)
             if created:
-                self.org_created += 1
+                self.partner_created += 1
             else:
-                self._skip_organization("existing_organization")
+                self._skip_partner("existing_partner")
 
-            self._create_contact_if_present(organization, payload)
+            self._create_contact_if_present(partner, payload)
             imported_rows += 1
         return imported_rows
 
@@ -214,8 +214,8 @@ class VendorBootstrapImporter:
         city = clean_text(row.get("City "))
         state = clean_text(row.get("State "))
         postal_code = clean_text(row.get("Zip"))
-        organization_email = clean_text(row.get("Email"))
-        organization_phone = clean_text(row.get("Phone"))
+        partner_email = clean_text(row.get("Email"))
+        partner_phone = clean_text(row.get("Phone"))
 
         first_name = clean_text(row.get("Contact  First Name"))
         last_name = clean_text(row.get("Contact Last Name"))
@@ -231,14 +231,14 @@ class VendorBootstrapImporter:
         return RowPayload(
             sheet_name=sheet_name,
             row_index=row_index,
-            organization_name=company,
+            partner_name=company,
             address_1=address_1,
             address_2=address_2,
             city=city,
             state=state,
             postal_code=postal_code,
-            organization_email=organization_email,
-            organization_phone=organization_phone,
+            partner_email=partner_email,
+            partner_phone=partner_phone,
             first_name=first_name,
             last_name=last_name,
             title=title,
@@ -247,47 +247,47 @@ class VendorBootstrapImporter:
             raw_full_name=full_name,
         )
 
-    def _get_or_create_organization(self, payload: RowPayload) -> tuple[Organization, bool]:
-        assert payload.organization_name is not None
-        org_key = normalize_key(payload.organization_name)
-        existing = self._org_cache.get(org_key)
+    def _get_or_create_partner(self, payload: RowPayload) -> tuple[Partner, bool]:
+        assert payload.partner_name is not None
+        partner_key = normalize_key(payload.partner_name)
+        existing = self._partner_cache.get(partner_key)
         if existing:
-            self._backfill_organization_fields(existing, payload)
+            self._backfill_partner_fields(existing, payload)
             return existing, False
 
-        organization = Organization(
-            organization_name=payload.organization_name,
-            organization_type=infer_organization_type(payload.organization_name),
+        partner = Partner(
+            partner_name=payload.partner_name,
+            partner_type=infer_partner_type(payload.partner_name),
             address_1=payload.address_1,
             address_2=payload.address_2,
             city=payload.city,
             state=payload.state,
             postal_code=payload.postal_code,
-            email_main=payload.organization_email,
-            phone_main=payload.organization_phone,
+            email_main=payload.partner_email,
+            phone_main=payload.partner_phone,
             is_active=True,
         )
-        db.session.add(organization)
+        db.session.add(partner)
         db.session.flush()
 
-        self._org_cache[org_key] = organization
-        return organization, True
+        self._partner_cache[partner_key] = partner
+        return partner, True
 
-    def _backfill_organization_fields(self, organization: Organization, payload: RowPayload) -> None:
+    def _backfill_partner_fields(self, partner: Partner, payload: RowPayload) -> None:
         updates = (
             ("address_1", payload.address_1),
             ("address_2", payload.address_2),
             ("city", payload.city),
             ("state", payload.state),
             ("postal_code", payload.postal_code),
-            ("email_main", payload.organization_email),
-            ("phone_main", payload.organization_phone),
+            ("email_main", payload.partner_email),
+            ("phone_main", payload.partner_phone),
         )
         for field_name, value in updates:
-            if value and not getattr(organization, field_name):
-                setattr(organization, field_name, value)
+            if value and not getattr(partner, field_name):
+                setattr(partner, field_name, value)
 
-    def _create_contact_if_present(self, organization: Organization, payload: RowPayload) -> None:
+    def _create_contact_if_present(self, partner: Partner, payload: RowPayload) -> None:
         if not has_contact_identity(payload):
             self._skip_contact("insufficient_identifying_information")
             return
@@ -299,14 +299,14 @@ class VendorBootstrapImporter:
             email=payload.email,
             phone=payload.phone,
         )
-        existing_keys = self._contact_keys_by_org.setdefault(organization.id, set())
+        existing_keys = self._contact_keys_by_partner.setdefault(partner.id, set())
         if contact_key in existing_keys:
-            self._skip_contact("duplicate_contact_for_organization")
+            self._skip_contact("duplicate_contact_for_partner")
             return
 
-        is_primary = self._should_assign_primary(organization.id)
+        is_primary = self._should_assign_primary(partner.id)
         contact = Contact(
-            organization_id=organization.id,
+            partner_id=partner.id,
             first_name=payload.first_name,
             last_name=payload.last_name,
             title=payload.title,
@@ -320,17 +320,17 @@ class VendorBootstrapImporter:
         existing_keys.add(contact_key)
         self.contact_created += 1
 
-    def _should_assign_primary(self, organization_id: int) -> bool:
-        if organization_id not in self._contact_keys_by_org:
+    def _should_assign_primary(self, partner_id: int) -> bool:
+        if partner_id not in self._contact_keys_by_partner:
             return True
         existing_primary = db.session.query(Contact).filter_by(
-            organization_id=organization_id, is_primary=True
+            partner_id=partner_id, is_primary=True
         ).first()
-        return existing_primary is None and not self._contact_keys_by_org[organization_id]
+        return existing_primary is None and not self._contact_keys_by_partner[partner_id]
 
-    def _skip_organization(self, reason: str) -> None:
-        self.org_skipped += 1
-        self.org_skip_reasons[reason] += 1
+    def _skip_partner(self, reason: str) -> None:
+        self.partner_skipped += 1
+        self.partner_skip_reasons[reason] += 1
 
     def _skip_contact(self, reason: str) -> None:
         self.contact_skipped += 1
@@ -340,9 +340,9 @@ class VendorBootstrapImporter:
         mode_prefix = "[DRY-RUN] " if self.dry_run else ""
         print()
         print(f"{mode_prefix}Processed rows: {total_rows}")
-        print(f"{mode_prefix}Organizations created: {self.org_created}")
-        print(f"{mode_prefix}Organizations skipped: {self.org_skipped}")
-        for reason, count in sorted(self.org_skip_reasons.items()):
+        print(f"{mode_prefix}Partners created: {self.partner_created}")
+        print(f"{mode_prefix}Partners skipped: {self.partner_skipped}")
+        for reason, count in sorted(self.partner_skip_reasons.items()):
             print(f"  - {reason}: {count}")
         print(f"{mode_prefix}Contacts created: {self.contact_created}")
         print(f"{mode_prefix}Contacts skipped: {self.contact_skipped}")
@@ -417,10 +417,10 @@ def normalize_phone(phone: str | None) -> str:
     return digits or normalize_key(phone)
 
 
-def infer_organization_type(organization_name: str | None) -> str | None:
-    if not organization_name:
+def infer_partner_type(partner_name: str | None) -> str | None:
+    if not partner_name:
         return None
-    lowered = organization_name.lower()
+    lowered = partner_name.lower()
     keyword_mapping = [
         ("insurance", "Insurance"),
         ("legal", "Legal Services"),
@@ -440,7 +440,7 @@ def infer_organization_type(organization_name: str | None) -> str | None:
         ("management", "Management Services"),
     ]
     for keyword, category in keyword_mapping:
-        if keyword in lowered and category in ORGANIZATION_TYPE_OPTIONS:
+        if keyword in lowered and category in PARTNER_TYPE_OPTIONS:
             return category
     return None
 

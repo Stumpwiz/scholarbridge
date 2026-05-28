@@ -14,9 +14,9 @@ from sqlalchemy import select
 
 from app.main import bp
 from app.extensions import db
-from app.models import Campaign, Contact, Organization
+from app.models import Campaign, Contact, Partner
 
-ORGANIZATION_TYPE_OPTIONS = tuple(
+PARTNER_TYPE_OPTIONS = tuple(
     sorted(
         [
             "Construction",
@@ -145,108 +145,108 @@ def campaign_edit(campaign_id: int):
     )
 
 
-@bp.get("/organizations")
-def organization_list():
-    organizations = db.session.scalars(
-        select(Organization).order_by(Organization.organization_name.asc())
+@bp.get("/partners")
+def partner_list():
+    partners = db.session.scalars(
+        select(Partner).order_by(Partner.partner_name.asc())
     ).all()
     return render_template(
-        "organizations/list.html",
-        page_title="Organizations",
-        organizations=organizations,
+        "partners/list.html",
+        page_title="Partners",
+        partners=partners,
     )
 
 
-@bp.route("/organizations/new", methods=["GET", "POST"])
-def organization_create():
+@bp.route("/partners/new", methods=["GET", "POST"])
+def partner_create():
     form_data = {"is_active": True}
-    organization_types, legacy_organization_type = _organization_type_choices()
+    partner_types, legacy_partner_type = _partner_type_choices()
 
     if request.method == "POST":
-        form_data = _organization_form_data(request.form)
-        validation_error = _validate_organization_form(form_data)
+        form_data = _partner_form_data(request.form)
+        validation_error = _validate_partner_form(form_data)
         if validation_error:
             flash(validation_error, "danger")
         else:
-            organization = Organization(**form_data)
-            db.session.add(organization)
+            partner = Partner(**form_data)
+            db.session.add(partner)
             db.session.commit()
-            flash("Organization created.", "success")
-            return redirect(url_for("main.organization_detail", organization_id=organization.id))
+            flash("Partner created.", "success")
+            return redirect(url_for("main.partner_detail", partner_id=partner.id))
 
     return render_template(
-        "organizations/form.html",
-        page_title="Create Organization",
+        "partners/form.html",
+        page_title="Create Partner",
         mode="create",
-        organization=None,
+        partner=None,
         form_data=form_data,
-        organization_types=organization_types,
-        legacy_organization_type=legacy_organization_type,
+        partner_types=partner_types,
+        legacy_partner_type=legacy_partner_type,
     )
 
 
-@bp.get("/organizations/<int:organization_id>")
-def organization_detail(organization_id: int):
-    organization = db.get_or_404(Organization, organization_id)
-    return _render_organization_detail(
-        organization=organization,
+@bp.get("/partners/<int:partner_id>")
+def partner_detail(partner_id: int):
+    partner = db.get_or_404(Partner, partner_id)
+    return _render_partner_detail(
+        partner=partner,
         contact_form_data=_contact_form_data(),
         editing_contact=None,
     )
 
 
-@bp.route("/organizations/<int:organization_id>/edit", methods=["GET", "POST"])
-def organization_edit(organization_id: int):
-    organization = db.get_or_404(Organization, organization_id)
-    form_data = _organization_to_form_data(organization)
-    organization_types, legacy_organization_type = _organization_type_choices(
-        organization.organization_type
+@bp.route("/partners/<int:partner_id>/edit", methods=["GET", "POST"])
+def partner_edit(partner_id: int):
+    partner = db.get_or_404(Partner, partner_id)
+    form_data = _partner_to_form_data(partner)
+    partner_types, legacy_partner_type = _partner_type_choices(
+        partner.partner_type
     )
 
     if request.method == "POST":
-        form_data = _organization_form_data(request.form)
-        validation_error = _validate_organization_form(
-            form_data, legacy_organization_type=legacy_organization_type
+        form_data = _partner_form_data(request.form)
+        validation_error = _validate_partner_form(
+            form_data, legacy_partner_type=legacy_partner_type
         )
         if validation_error:
             flash(validation_error, "danger")
         else:
             for key, value in form_data.items():
-                setattr(organization, key, value)
+                setattr(partner, key, value)
             db.session.commit()
-            flash("Organization updated.", "success")
-            return redirect(url_for("main.organization_detail", organization_id=organization.id))
+            flash("Partner updated.", "success")
+            return redirect(url_for("main.partner_detail", partner_id=partner.id))
 
     return render_template(
-        "organizations/form.html",
-        page_title=f"Edit {organization.organization_name}",
+        "partners/form.html",
+        page_title=f"Edit {partner.partner_name}",
         mode="edit",
-        organization=organization,
+        partner=partner,
         form_data=form_data,
-        organization_types=organization_types,
-        legacy_organization_type=legacy_organization_type,
+        partner_types=partner_types,
+        legacy_partner_type=legacy_partner_type,
     )
 
 
-@bp.post("/organizations/<int:organization_id>/contacts/new")
-def organization_contact_create(organization_id: int):
-    organization = db.get_or_404(Organization, organization_id)
+@bp.post("/partners/<int:partner_id>/contacts/new")
+def partner_contact_create(partner_id: int):
+    partner = db.get_or_404(Partner, partner_id)
     contact_form_data = _contact_form_data(request.form)
     validation_error = _validate_contact_form(contact_form_data)
 
     if validation_error:
         flash(validation_error, "danger")
-        return _render_organization_detail(
-            organization=organization,
+        return _render_partner_detail(
+            partner=partner,
             contact_form_data=contact_form_data,
             editing_contact=None,
         )
 
     if contact_form_data["is_primary"]:
-        _unset_other_primary_contacts(organization.id)
+        _unset_other_primary_contacts(partner.id)
 
     contact = Contact(
-        organization_id=organization.id,
+        partner_id=partner.id,
         first_name=contact_form_data["first_name"],
         last_name=contact_form_data["last_name"],
         title=contact_form_data["title"],
@@ -261,19 +261,19 @@ def organization_contact_create(organization_id: int):
     db.session.commit()
     flash("Contact added.", "success")
     return redirect(
-        url_for("main.organization_detail", organization_id=organization.id, _anchor="contacts")
+        url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts")
     )
 
 
 @bp.route(
-    "/organizations/<int:organization_id>/contacts/<int:contact_id>/edit",
+    "/partners/<int:partner_id>/contacts/<int:contact_id>/edit",
     methods=["GET", "POST"],
 )
-def organization_contact_edit(organization_id: int, contact_id: int):
-    organization = db.get_or_404(Organization, organization_id)
+def partner_contact_edit(partner_id: int, contact_id: int):
+    partner = db.get_or_404(Partner, partner_id)
     contact = db.get_or_404(Contact, contact_id)
 
-    if contact.organization_id != organization.id:
+    if contact.partner_id != partner.id:
         abort(404)
 
     if request.method == "POST":
@@ -282,8 +282,8 @@ def organization_contact_edit(organization_id: int, contact_id: int):
 
         if validation_error:
             flash(validation_error, "danger")
-            return _render_organization_detail(
-                organization=organization,
+            return _render_partner_detail(
+                partner=partner,
                 contact_form_data=_contact_form_data(),
                 editing_contact=contact,
                 edit_form_data=contact_form_data,
@@ -295,48 +295,48 @@ def organization_contact_edit(organization_id: int, contact_id: int):
         contact.is_active = contact_form_data["is_active"]
 
         if contact.is_primary:
-            _unset_other_primary_contacts(organization.id, except_contact_id=contact.id)
+            _unset_other_primary_contacts(partner.id, except_contact_id=contact.id)
 
         db.session.commit()
         flash("Contact updated.", "success")
         return redirect(
-            url_for("main.organization_detail", organization_id=organization.id, _anchor="contacts")
+            url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts")
         )
 
-    return _render_organization_detail(
-        organization=organization,
+    return _render_partner_detail(
+        partner=partner,
         contact_form_data=_contact_form_data(),
         editing_contact=contact,
         edit_form_data=_contact_to_form_data(contact),
     )
 
 
-@bp.post("/organizations/<int:organization_id>/contacts/<int:contact_id>/delete")
-def organization_contact_delete(organization_id: int, contact_id: int):
-    organization = db.get_or_404(Organization, organization_id)
+@bp.post("/partners/<int:partner_id>/contacts/<int:contact_id>/delete")
+def partner_contact_delete(partner_id: int, contact_id: int):
+    partner = db.get_or_404(Partner, partner_id)
     contact = db.get_or_404(Contact, contact_id)
-    if contact.organization_id != organization.id:
+    if contact.partner_id != partner.id:
         abort(404)
 
     db.session.delete(contact)
     db.session.commit()
     flash("Contact deleted.", "success")
     return redirect(
-        url_for("main.organization_detail", organization_id=organization.id, _anchor="contacts")
+        url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts")
     )
 
 
-def _render_organization_detail(
-    organization: Organization,
+def _render_partner_detail(
+    partner: Partner,
     contact_form_data: dict,
     editing_contact: Contact | None,
     edit_form_data: dict | None = None,
 ):
-    contacts = _load_organization_contacts(organization.id)
+    contacts = _load_partner_contacts(partner.id)
     return render_template(
-        "organizations/detail.html",
-        page_title=organization.organization_name,
-        organization=organization,
+        "partners/detail.html",
+        page_title=partner.partner_name,
+        partner=partner,
         contacts=contacts,
         contact_form_data=contact_form_data,
         editing_contact=editing_contact,
@@ -344,10 +344,10 @@ def _render_organization_detail(
     )
 
 
-def _load_organization_contacts(organization_id: int) -> list[Contact]:
+def _load_partner_contacts(partner_id: int) -> list[Contact]:
     return db.session.scalars(
         select(Contact)
-        .where(Contact.organization_id == organization_id)
+        .where(Contact.partner_id == partner_id)
         .order_by(
             Contact.is_primary.desc(),
             Contact.is_active.desc(),
@@ -359,20 +359,20 @@ def _load_organization_contacts(organization_id: int) -> list[Contact]:
 
 
 def _unset_other_primary_contacts(
-    organization_id: int, except_contact_id: int | None = None
+    partner_id: int, except_contact_id: int | None = None
 ) -> None:
-    contacts = _load_organization_contacts(organization_id)
+    contacts = _load_partner_contacts(partner_id)
     for contact in contacts:
         if except_contact_id is not None and contact.id == except_contact_id:
             continue
         contact.is_primary = False
 
 
-def _organization_form_data(form) -> dict:
+def _partner_form_data(form) -> dict:
     return {
-        "organization_name": form.get("organization_name", "").strip(),
+        "partner_name": form.get("partner_name", "").strip(),
         "display_name": _empty_to_none(form.get("display_name")),
-        "organization_type": _empty_to_none(form.get("organization_type")),
+        "partner_type": _empty_to_none(form.get("partner_type")),
         "address_1": _empty_to_none(form.get("address_1")),
         "address_2": _empty_to_none(form.get("address_2")),
         "city": _empty_to_none(form.get("city")),
@@ -381,41 +381,41 @@ def _organization_form_data(form) -> dict:
         "email_main": _empty_to_none(form.get("email_main")),
         "phone_main": _empty_to_none(form.get("phone_main")),
         "website": _empty_to_none(form.get("website")),
-        "organization_notes": _empty_to_none(form.get("organization_notes")),
+        "partner_notes": _empty_to_none(form.get("partner_notes")),
         "is_active": form.get("is_active") == "on",
     }
 
 
-def _organization_to_form_data(organization: Organization) -> dict:
+def _partner_to_form_data(partner: Partner) -> dict:
     return {
-        "organization_name": organization.organization_name or "",
-        "display_name": organization.display_name or "",
-        "organization_type": organization.organization_type or "",
-        "address_1": organization.address_1 or "",
-        "address_2": organization.address_2 or "",
-        "city": organization.city or "",
-        "state": organization.state or "",
-        "postal_code": organization.postal_code or "",
-        "email_main": organization.email_main or "",
-        "phone_main": organization.phone_main or "",
-        "website": organization.website or "",
-        "organization_notes": organization.organization_notes or "",
-        "is_active": organization.is_active,
+        "partner_name": partner.partner_name or "",
+        "display_name": partner.display_name or "",
+        "partner_type": partner.partner_type or "",
+        "address_1": partner.address_1 or "",
+        "address_2": partner.address_2 or "",
+        "city": partner.city or "",
+        "state": partner.state or "",
+        "postal_code": partner.postal_code or "",
+        "email_main": partner.email_main or "",
+        "phone_main": partner.phone_main or "",
+        "website": partner.website or "",
+        "partner_notes": partner.partner_notes or "",
+        "is_active": partner.is_active,
     }
 
 
-def _validate_organization_form(
-    form_data: dict, legacy_organization_type: str | None = None
+def _validate_partner_form(
+    form_data: dict, legacy_partner_type: str | None = None
 ) -> str | None:
-    if not form_data["organization_name"]:
-        return "Organization name is required."
-    organization_type = form_data["organization_type"]
-    if organization_type:
-        if organization_type in ORGANIZATION_TYPE_OPTIONS:
+    if not form_data["partner_name"]:
+        return "Partner name is required."
+    partner_type = form_data["partner_type"]
+    if partner_type:
+        if partner_type in PARTNER_TYPE_OPTIONS:
             return None
-        if legacy_organization_type and organization_type == legacy_organization_type:
+        if legacy_partner_type and partner_type == legacy_partner_type:
             return None
-        return "Please select a valid organization category."
+        return "Please select a valid partner category."
     return None
 
 
@@ -559,8 +559,8 @@ def _validate_contact_form(form_data: dict) -> str | None:
     return None
 
 
-def _organization_type_choices(current_value: str | None = None) -> tuple[list[str], str | None]:
-    legacy_organization_type = None
-    if current_value and current_value not in ORGANIZATION_TYPE_OPTIONS:
-        legacy_organization_type = current_value
-    return list(ORGANIZATION_TYPE_OPTIONS), legacy_organization_type
+def _partner_type_choices(current_value: str | None = None) -> tuple[list[str], str | None]:
+    legacy_partner_type = None
+    if current_value and current_value not in PARTNER_TYPE_OPTIONS:
+        legacy_partner_type = current_value
+    return list(PARTNER_TYPE_OPTIONS), legacy_partner_type

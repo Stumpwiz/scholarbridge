@@ -1,6 +1,6 @@
 # ScholarBridge
 
-ScholarBridge is a lightweight donor stewardship CRM for the Example Scholarship Committee. It is being designed as a long-lived institutional tool to support consistent stewardship, accurate records, and reliable committee handoff across years.
+ScholarBridge is a lightweight donor solicitation management CRM for the Example Scholarship Committee. It is being designed as a long-lived institutional tool to support consistent solicitation management, accurate records, and reliable committee handoff across years.
 
 This project evolves from an Excel-centered process that has served the committee for years. The goal is not to discard that practice, but to preserve its practical strengths while reducing manual friction, improving traceability, and creating a stable operational baseline for future committee members.
 
@@ -8,7 +8,7 @@ This project evolves from an Excel-centered process that has served the committe
 
 ScholarBridge is intended to help the committee manage:
 
-- Organizations and associated contacts
+- Partners and associated contacts
 - Campaign planning and solicitation tracking
 - Donation tracking and follow-up
 - Acknowledgment and correspondence workflows
@@ -17,7 +17,7 @@ ScholarBridge is intended to help the committee manage:
 ## Design Priorities
 
 - Institutional continuity over individual preference
-- Clear stewardship lifecycle tracking
+- Clear solicitation management lifecycle tracking
 - Low operational complexity for non-technical users
 - Incremental migration from spreadsheet habits to structured workflows
 - Compatibility with current local deployment and future platform growth
@@ -56,9 +56,9 @@ Deferred:
 
 Included:
 
-- Foundational SQLAlchemy models for `Person`, `User`, and `Organization`
+- Foundational SQLAlchemy models for `Person`, `User`, and `Partner`
 - Flask-Login `user_loader` wired to `User` model lookup
-- Minimal Organization workflow:
+- Minimal Partner workflow:
   - list
   - detail
   - create
@@ -73,13 +73,13 @@ Still deferred:
 
 Included:
 
-- `Contact` SQLAlchemy model with organization-bound ownership
-- Organization-to-Contact relationship (`Organization` 1-to-many `Contact`)
-- Embedded contact workflow on organization detail pages:
+- `Contact` SQLAlchemy model with partner-bound ownership
+- Partner-to-Contact relationship (`Partner` 1-to-many `Contact`)
+- Embedded contact workflow on partner detail pages:
   - view contacts
   - add contact
   - edit contact
-- Optional/sparse contact fields preserved for low-friction stewardship entry
+- Optional/sparse contact fields preserved for low-friction solicitation management entry
 
 Still deferred:
 
@@ -118,16 +118,16 @@ Still deferred:
 
 Included:
 
-- Organization mailing address fields:
+- Partner mailing address fields:
   - `address_1`, `address_2`, `city`, `state`, `postal_code`
-- Organization address capture/display in create/edit/detail workflows
-- Contact delete workflow from organization detail page (POST-only)
+- Partner address capture/display in create/edit/detail workflows
+- Contact delete workflow from partner detail page (POST-only)
 - Ecosystem action-icon harmonization with Bootstrap Icons:
   - pencil for edit actions
   - trashcan for contact delete in compact contact lists
 - Bootstrap importer updates:
-  - maps mailing-address data from `vendors.xlsx` into Organization records
-  - conservatively backfills missing address/email/phone fields for existing matched organizations
+  - maps mailing-address data from `vendors.xlsx` into Partner records
+  - conservatively backfills missing address/email/phone fields for existing matched partners
 
 ## Local Development (uv)
 
@@ -156,7 +156,7 @@ uv run flask --app run.py run --debug
 uv run flask --app run.py init-db
 ```
 
-For local SQLite upgrades where new columns were added (for example organization mailing-address fields),
+For local SQLite upgrades where new columns were added (for example partner mailing-address fields),
 rebuild the local database file before re-running `init-db`.
 
 Default local URL:
@@ -168,12 +168,12 @@ Useful scaffold routes:
 - Landing page: `/`
 - Health: `/health`
 - Auth status placeholder: `/auth/status`
-- Organizations: `/organizations`
+- Partners: `/partners`
 - Campaigns: `/campaigns`
 
 ## Bootstrap Vendor Import (Temporary)
 
-Use the one-time bootstrap importer to populate Organizations and Contacts from the legacy vendor workbook.
+Use the one-time bootstrap importer to populate Partners and Contacts from the legacy vendor workbook.
 
 Default import (non-destructive):
 
@@ -181,7 +181,7 @@ Default import (non-destructive):
 uv run python scripts/import_vendors.py
 ```
 
-Reset Organizations/Contacts first:
+Reset Partners/Contacts first:
 
 ```bash
 uv run python scripts/import_vendors.py --reset
@@ -201,11 +201,11 @@ uv run python scripts/import_vendors.py --dry-run
 
 Importer guardrails:
 
-- Imports Organizations and Contacts only.
-- `--reset` deletes Contacts first, then Organizations.
+- Imports Partners and Contacts only.
+- `--reset` deletes Contacts first, then Partners.
 - Campaigns, Users, and Persons are preserved.
 - Uses conservative normalization and exact-match dedupe only.
-- Organization mailing-address fields are imported when present.
+- Partner mailing-address fields are imported when present.
 - Not intended as a generalized ETL/import framework.
 
 ## Minimal Workflow

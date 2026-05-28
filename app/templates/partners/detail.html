@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}{{ organization.organization_name }} - {{ config.APP_NAME }}{% endblock %}
+{% block title %}{{ partner.partner_name }} - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-        <h1 class="h4 mb-1">{{ organization.organization_name }}</h1>
-        <p class="text-muted mb-0">{{ organization.display_name or "No display name set" }}</p>
+        <h1 class="h4 mb-1">{{ partner.partner_name }}</h1>
+        <p class="text-muted mb-0">{{ partner.display_name or "No display name set" }}</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.organization_edit', organization_id=organization.id) }}">
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.partner_edit', partner_id=partner.id) }}">
         <i class="bi bi-pencil" aria-hidden="true"></i>
         <span class="ms-1">Edit</span>
     </a>
@@ -21,24 +21,24 @@
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-4">Category</dt>
-                    <dd class="col-sm-8">{{ organization.organization_type or "—" }}</dd>
+                    <dd class="col-sm-8">{{ partner.partner_type or "—" }}</dd>
 
                     <dt class="col-sm-4">Email</dt>
-                    <dd class="col-sm-8">{{ organization.email_main or "—" }}</dd>
+                    <dd class="col-sm-8">{{ partner.email_main or "—" }}</dd>
 
                     <dt class="col-sm-4">Phone</dt>
-                    <dd class="col-sm-8">{{ organization.phone_main or "—" }}</dd>
+                    <dd class="col-sm-8">{{ partner.phone_main or "—" }}</dd>
 
                     <dt class="col-sm-4">Website</dt>
-                    <dd class="col-sm-8">{{ organization.website or "—" }}</dd>
+                    <dd class="col-sm-8">{{ partner.website or "—" }}</dd>
 
                     <dt class="col-sm-4">Mailing Address</dt>
                     <dd class="col-sm-8">
-                        {% if organization.address_1 or organization.address_2 or organization.city or organization.state or organization.postal_code %}
-                            <div>{{ organization.address_1 or "" }}</div>
-                            {% if organization.address_2 %}<div>{{ organization.address_2 }}</div>{% endif %}
+                        {% if partner.address_1 or partner.address_2 or partner.city or partner.state or partner.postal_code %}
+                            <div>{{ partner.address_1 or "" }}</div>
+                            {% if partner.address_2 %}<div>{{ partner.address_2 }}</div>{% endif %}
                             <div>
-                                {{ organization.city or "" }}{% if organization.city and organization.state %}, {% endif %}{{ organization.state or "" }} {{ organization.postal_code or "" }}
+                                {{ partner.city or "" }}{% if partner.city and partner.state %}, {% endif %}{{ partner.state or "" }} {{ partner.postal_code or "" }}
                             </div>
                         {% else %}
                             —
@@ -47,7 +47,7 @@
 
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">
-                        {% if organization.is_active %}
+                        {% if partner.is_active %}
                             Active
                         {% else %}
                             Inactive
@@ -59,10 +59,10 @@
     </div>
     <div class="col-12 col-lg-6">
         <div class="card h-100">
-            <div class="card-header">Stewardship Notes</div>
+            <div class="card-header">Solicitation Management Notes</div>
             <div class="card-body">
-                {% if organization.organization_notes %}
-                    <p class="mb-0">{{ organization.organization_notes }}</p>
+                {% if partner.partner_notes %}
+                    <p class="mb-0">{{ partner.partner_notes }}</p>
                 {% else %}
                     <p class="text-muted mb-0">No notes recorded yet.</p>
                 {% endif %}
@@ -115,7 +115,7 @@
                                     <td class="text-end">
                                         <a
                                             class="btn btn-outline-secondary btn-sm sb-icon-btn"
-                                            href="{{ url_for('main.organization_contact_edit', organization_id=organization.id, contact_id=contact.id, _anchor='contacts') }}"
+                                            href="{{ url_for('main.partner_contact_edit', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
                                             title="Edit contact"
                                             aria-label="Edit contact"
                                         >
@@ -123,7 +123,7 @@
                                         </a>
                                         <form
                                             method="post"
-                                            action="{{ url_for('main.organization_contact_delete', organization_id=organization.id, contact_id=contact.id, _anchor='contacts') }}"
+                                            action="{{ url_for('main.partner_contact_delete', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
                                             class="d-inline ms-1"
                                         >
                                             <button
@@ -149,7 +149,7 @@
                         </table>
                     </div>
                 {% else %}
-                    <p class="text-muted mb-0">No contacts recorded yet for this organization.</p>
+                    <p class="text-muted mb-0">No contacts recorded yet for this partner.</p>
                 {% endif %}
             </div>
         </div>
@@ -159,9 +159,9 @@
         <div class="card h-100">
             <div class="card-header">Add Contact</div>
             <div class="card-body">
-                <form method="post" action="{{ url_for('main.organization_contact_create', organization_id=organization.id) }}">
+                <form method="post" action="{{ url_for('main.partner_contact_create', partner_id=partner.id) }}">
                     {% with form_data = contact_form_data, id_prefix = "add_contact" %}
-                        {% include "organizations/_contact_form_fields.html" %}
+                        {% include "partners/_contact_form_fields.html" %}
                     {% endwith %}
                     <div class="d-flex gap-2">
                         <button type="submit" class="btn btn-primary">Add Contact</button>
@@ -176,13 +176,13 @@
             <div class="card h-100 border-secondary">
                 <div class="card-header">Edit Contact</div>
                 <div class="card-body">
-                    <form method="post" action="{{ url_for('main.organization_contact_edit', organization_id=organization.id, contact_id=editing_contact.id, _anchor='contacts') }}">
+                    <form method="post" action="{{ url_for('main.partner_contact_edit', partner_id=partner.id, contact_id=editing_contact.id, _anchor='contacts') }}">
                         {% with form_data = edit_form_data, id_prefix = "edit_contact" %}
-                            {% include "organizations/_contact_form_fields.html" %}
+                            {% include "partners/_contact_form_fields.html" %}
                         {% endwith %}
                         <div class="d-flex gap-2">
                             <button type="submit" class="btn btn-primary">Save Contact</button>
-                            <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_detail', organization_id=organization.id, _anchor='contacts') }}">Cancel</a>
+                            <a class="btn btn-outline-secondary" href="{{ url_for('main.partner_detail', partner_id=partner.id, _anchor='contacts') }}">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -192,6 +192,6 @@
 </div>
 
 <div class="mt-3">
-    <a class="btn btn-link p-0" href="{{ url_for('main.organization_list') }}">Back to organization list</a>
+    <a class="btn btn-link p-0" href="{{ url_for('main.partner_list') }}">Back to partner list</a>
 </div>
 {% endblock %}

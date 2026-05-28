@@ -4,13 +4,13 @@ This file provides resume context for future assistants and maintainers.
 
 Current stage: **Phase 1D (Campaign foundation implementation)**.
 
-The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Organization) is now implemented.
+The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Partner) is now implemented.
 
 ## Project Snapshot
 
 - Name: ScholarBridge
 - Domain: Donor/patron CRM for the Example Scholarship Committee
-- Goal: Institutional continuity, stewardship quality, and historical traceability
+- Goal: Institutional continuity, solicitation management quality, and historical traceability
 - Current operational baseline: legacy spreadsheet process
 
 ## Core Intent
@@ -34,7 +34,7 @@ ScholarBridge should evolve spreadsheet-era operations into a maintainable syste
 
 ## Stabilized Core Entities (Conceptual v1)
 
-- Organization
+- Partner
 - Contact
 - Campaign
 - Solicitation
@@ -45,13 +45,13 @@ The stabilized conceptual schema is documented in `docs/schema_v1.md`.
 
 Current conceptual relationship intent:
 
-- Organization 1-to-many Contact
-- Organization 1-to-many Solicitation
+- Partner 1-to-many Contact
+- Partner 1-to-many Solicitation
 - Campaign 1-to-many Solicitation
 - Person 1-to-many Solicitation
 - User optional 1-to-1 Person
 
-Canonical stewardship ownership:
+Canonical solicitation management ownership:
 
 - `Solicitation.assigned_person_id`
 
@@ -60,10 +60,10 @@ Stabilized conceptual decisions:
 - Exactly one `Campaign` per `campaign_year` (conceptually unique year).
 - One active campaign at a time is the normal operating model.
 - `Campaign.campaign_name` follows a consistent format for reporting/exports: `"{campaign_year} Scholarship Campaign"` (example: `"2026 Scholarship Campaign"`).
-- `Contact` remains strictly organization-bound; no standalone individual donors in v1.
+- `Contact` remains strictly partner-bound; no standalone individual donors in v1.
 - `Solicitation.primary_contact_id` remains optional in v1.
-- Contact email/phone fields remain optional in v1 to support organization-only solicitation records.
-- Stewardship ownership is person-based, not user-account-based.
+- Contact email/phone fields remain optional in v1 to support partner-only solicitation records.
+- Solicitation Management ownership is person-based, not user-account-based.
 - `User.email` is required and conceptually unique in v1.
 - v1 assumes conventional local authentication only.
 - `Campaign.status` vocabulary: `planned`, `active`, `closed`, `archived`.
@@ -109,19 +109,19 @@ Model layer implemented:
 
 - `Person` model (operational identity; optional User link)
 - `User` model (local auth account; email/username unique; optional 1-to-1 Person)
-- `Organization` model (long-term stewardship anchor)
+- `Partner` model (long-term solicitation management anchor)
 
-Organization workflow implemented:
+Partner workflow implemented:
 
-- Organization list page (`/organizations`)
-- Organization detail page (`/organizations/<id>`)
-- Organization create page (`/organizations/new`)
-- Organization edit page (`/organizations/<id>/edit`)
+- Partner list page (`/partners`)
+- Partner detail page (`/partners/<id>`)
+- Partner create page (`/partners/new`)
+- Partner edit page (`/partners/<id>/edit`)
 
 Current constraints preserved:
 
 - No Solicitation model yet
-- No delete workflow for organizations
+- No delete workflow for partners
 - No advanced auth workflows or permissions system
 - No reporting, PDF generation, import, or email workflows
 
@@ -130,20 +130,20 @@ Current constraints preserved:
 Model layer additions:
 
 - `Contact` model
-  - organization-bound (`organization_id` required)
+  - partner-bound (`partner_id` required)
   - sparse-friendly fields (`first_name`, `last_name`, `title`, `email`, `phone`, `notes`)
-  - stewardship flags (`is_primary`, `is_active`)
+  - solicitation management flags (`is_primary`, `is_active`)
   - timestamps (`created_at`, `updated_at`)
 
 Relationship additions:
 
-- `Organization` now has many `Contact` records
-- `Contact` belongs to exactly one `Organization`
-- Organizations with zero contacts remain supported
+- `Partner` now has many `Contact` records
+- `Contact` belongs to exactly one `Partner`
+- Partners with zero contacts remain supported
 
 Workflow additions:
 
-- Embedded contacts section in organization detail page
+- Embedded contacts section in partner detail page
   - list contacts
   - add contact
   - edit contact
@@ -154,7 +154,7 @@ Operational notes:
 
 - Contact entry intentionally remains light: sparse/incomplete records are allowed.
 - Minimal guardrail only: at least one identifying field (name/title/email/phone) is required to save.
-- Marking a contact as primary automatically clears primary on other contacts within the same organization.
+- Marking a contact as primary automatically clears primary on other contacts within the same partner.
 
 ## Phase 1D Campaign Foundation (Implemented)
 
@@ -184,18 +184,18 @@ Operational notes:
 
 ## Operational Refinements (Implemented)
 
-Organization model/workflow:
+Partner model/workflow:
 
 - Added optional mailing-address fields:
   - `address_1`, `address_2`, `city`, `state`, `postal_code`
-- Organization create/edit forms now capture mailing address.
-- Organization detail shows mailing address when available.
+- Partner create/edit forms now capture mailing address.
+- Partner detail shows mailing address when available.
 
 Contact workflow:
 
 - Added contact delete route:
   - POST-only
-  - organization-detail context only
+  - partner-detail context only
   - no modal/soft-delete/audit system
 
 UI conventions:
@@ -208,10 +208,10 @@ UI conventions:
 
 Importer updates (`scripts/import_vendors.py`):
 
-- Maps spreadsheet address fields into Organization mailing-address fields:
+- Maps spreadsheet address fields into Partner mailing-address fields:
   - `Address 1`, `Address 2`, `City`, `State`, `Zip`
-- Conservatively backfills missing organization address/email/phone when duplicate organization rows appear.
-- Import scope remains Organization + Contact only.
+- Conservatively backfills missing partner address/email/phone when duplicate partner rows appear.
+- Import scope remains Partner + Contact only.
 
 ## Phase 0.5 Tooling Added
 
@@ -258,13 +258,13 @@ Purpose:
 Importer behavior (`scripts/import_vendors.py`):
 
 - Reads `data/original/vendors.xlsx` by default (or explicit path).
-- Imports `Organization` and `Contact` records only.
+- Imports `Partner` and `Contact` records only.
 - Supports sparse rows and skips obviously blank contacts.
 - Logs summary counts and skipped-contact reasons.
 - Supports `--dry-run` (parse/plan only, no writes).
 - Supports optional `--reset`:
   - deletes `Contact` rows first
-  - deletes `Organization` rows second
+  - deletes `Partner` rows second
   - preserves Campaigns, Users, and Persons
 
 Intentional limits:

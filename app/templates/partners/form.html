@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
 {% if mode == "create" %}
-    {% set heading = "Create Organization" %}
+    {% set heading = "Create Partner" %}
 {% else %}
-    {% set heading = "Edit Organization" %}
+    {% set heading = "Edit Partner" %}
 {% endif %}
 
 {% block title %}{{ heading }} - {{ config.APP_NAME }}{% endblock %}
@@ -15,13 +15,13 @@
 
         <form method="post" novalidate>
             <div class="mb-3">
-                <label for="organization_name" class="form-label">Organization Name</label>
+                <label for="partner_name" class="form-label">Partner Name</label>
                 <input
                     type="text"
                     class="form-control"
-                    id="organization_name"
-                    name="organization_name"
-                    value="{{ form_data.organization_name or '' }}"
+                    id="partner_name"
+                    name="partner_name"
+                    value="{{ form_data.partner_name or '' }}"
                     required
                 >
             </div>
@@ -38,27 +38,27 @@
             </div>
 
             <div class="mb-3">
-                <label for="organization_type" class="form-label">Organization Category</label>
+                <label for="partner_type" class="form-label">Partner Category</label>
                 <select
                     class="form-select"
-                    id="organization_type"
-                    name="organization_type"
+                    id="partner_type"
+                    name="partner_type"
                 >
                     <option value="">Not specified</option>
-                    {% if legacy_organization_type %}
+                    {% if legacy_partner_type %}
                         <option
-                            value="{{ legacy_organization_type }}"
-                            {% if form_data.organization_type == legacy_organization_type %}selected{% endif %}
+                            value="{{ legacy_partner_type }}"
+                            {% if form_data.partner_type == legacy_partner_type %}selected{% endif %}
                         >
-                            {{ legacy_organization_type }} (existing value)
+                            {{ legacy_partner_type }} (existing value)
                         </option>
                     {% endif %}
-                    {% for organization_type in organization_types %}
+                    {% for partner_type in partner_types %}
                         <option
-                            value="{{ organization_type }}"
-                            {% if form_data.organization_type == organization_type %}selected{% endif %}
+                            value="{{ partner_type }}"
+                            {% if form_data.partner_type == partner_type %}selected{% endif %}
                         >
-                            {{ organization_type }}
+                            {{ partner_type }}
                         </option>
                     {% endfor %}
                 </select>
@@ -154,13 +154,13 @@
             </div>
 
             <div class="mb-3">
-                <label for="organization_notes" class="form-label">Stewardship Notes</label>
+                <label for="partner_notes" class="form-label">Solicitation Management Notes</label>
                 <textarea
                     class="form-control"
-                    id="organization_notes"
-                    name="organization_notes"
+                    id="partner_notes"
+                    name="partner_notes"
                     rows="4"
-                >{{ form_data.organization_notes or '' }}</textarea>
+                >{{ form_data.partner_notes or '' }}</textarea>
             </div>
 
             <div class="form-check mb-3">
@@ -173,16 +173,16 @@
                     {% if form_data.is_active %}checked{% endif %}
                 >
                 <label class="form-check-label" for="is_active">
-                    Active organization
+                    Active partner
                 </label>
             </div>
 
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Save</button>
-                {% if organization %}
-                    <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_detail', organization_id=organization.id) }}">Cancel</a>
+                {% if partner %}
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.partner_detail', partner_id=partner.id) }}">Cancel</a>
                 {% else %}
-                    <a class="btn btn-outline-secondary" href="{{ url_for('main.organization_list') }}">Cancel</a>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('main.partner_list') }}">Cancel</a>
                 {% endif %}
             </div>
         </form>
