@@ -31,6 +31,10 @@ data/imports/*
 data/original/*
 !data/original/.gitkeep
 
+# Miscellaneous
+docs/meetings/*
+docs/prompts/*
+
 # OS clutter
 .DS_Store
 Thumbs.db
