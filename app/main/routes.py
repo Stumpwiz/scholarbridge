@@ -1,4 +1,5 @@
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from flask import (
     abort,
@@ -11,10 +12,11 @@ from flask import (
     url_for,
 )
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from app.main import bp
 from app.extensions import db
-from app.models import Campaign, Contact, Partner
+from app.models import Campaign, Contact, Partner, Solicitation
 
 PARTNER_TYPE_OPTIONS = tuple(
     sorted(
@@ -40,6 +42,15 @@ PARTNER_TYPE_OPTIONS = tuple(
 )
 
 CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
+SOLICITATION_TRANCHE_OPTIONS = (1, 2, 3)
+SOLICITATION_STATUS_OPTIONS = (
+    "not_contacted",
+    "contacted",
+    "responded",
+    "donated",
+    "declined",
+    "closed",
+)
 
 
 @bp.get("/")
@@ -107,10 +118,12 @@ def campaign_create():
 @bp.get("/campaigns/<int:campaign_id>")
 def campaign_detail(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
+    tranche_solicitations = _campaign_tranche_solicitations(campaign.id)
     return render_template(
         "campaigns/detail.html",
         page_title=campaign.campaign_name,
         campaign=campaign,
+        tranche_solicitations=tranche_solicitations,
     )
 
 
@@ -154,6 +167,120 @@ def partner_list():
         "partners/list.html",
         page_title="Partners",
         partners=partners,
+    )
+
+
+@bp.get("/solicitations")
+def solicitation_list():
+    solicitations = db.session.scalars(
+        select(Solicitation)
+        .join(Solicitation.campaign)
+        .join(Solicitation.partner)
+        .order_by(
+            Campaign.campaign_year.desc(),
+            Partner.partner_name.asc(),
+            Solicitation.id.asc(),
+        )
+    ).all()
+    return render_template(
+        "solicitations/list.html",
+        page_title="Solicitations",
+        solicitations=solicitations,
+    )
+
+
+@bp.route("/solicitations/new", methods=["GET", "POST"])
+def solicitation_create():
+    form_data = _solicitation_form_data()
+
+    if request.method == "GET":
+        campaign_id_from_query = _safe_int(request.args.get("campaign_id"))
+        if campaign_id_from_query is not None:
+            campaign = db.session.get(Campaign, campaign_id_from_query)
+            if campaign and campaign.status != "closed":
+                form_data["campaign_id"] = campaign.id
+        elif form_data["campaign_id"] is None:
+            form_data["campaign_id"] = _default_active_campaign_id()
+
+    if request.method == "POST":
+        form_data = _solicitation_form_data(request.form)
+        validation_error, clean_data = _validate_solicitation_form(
+            form_data, allow_closed_campaign=False
+        )
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            solicitation = Solicitation(**clean_data)
+            db.session.add(solicitation)
+            db.session.commit()
+            flash("Solicitation created.", "success")
+            return redirect(
+                url_for("main.solicitation_detail", solicitation_id=solicitation.id)
+            )
+
+    campaigns, partners = _solicitation_form_options_for_create(
+        selected_campaign_id=form_data["campaign_id"]
+    )
+    if form_data["partner_id"] and all(
+        partner.id != form_data["partner_id"] for partner in partners
+    ):
+        form_data["partner_id"] = None
+
+    return render_template(
+        "solicitations/form.html",
+        page_title="Create Solicitation",
+        mode="create",
+        solicitation=None,
+        form_data=form_data,
+        campaigns=campaigns,
+        partners=partners,
+        tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+        status_options=SOLICITATION_STATUS_OPTIONS,
+    )
+
+
+@bp.get("/solicitations/<int:solicitation_id>")
+def solicitation_detail(solicitation_id: int):
+    solicitation = db.get_or_404(Solicitation, solicitation_id)
+    return render_template(
+        "solicitations/detail.html",
+        page_title=f"Solicitation #{solicitation.id}",
+        solicitation=solicitation,
+    )
+
+
+@bp.route("/solicitations/<int:solicitation_id>/edit", methods=["GET", "POST"])
+def solicitation_edit(solicitation_id: int):
+    solicitation = db.get_or_404(Solicitation, solicitation_id)
+    form_data = _solicitation_to_form_data(solicitation)
+    campaigns, partners = _solicitation_form_options()
+
+    if request.method == "POST":
+        form_data = _solicitation_form_data(request.form)
+        validation_error, clean_data = _validate_solicitation_form(
+            form_data, solicitation_id=solicitation.id, allow_closed_campaign=True
+        )
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            for key, value in clean_data.items():
+                setattr(solicitation, key, value)
+            db.session.commit()
+            flash("Solicitation updated.", "success")
+            return redirect(
+                url_for("main.solicitation_detail", solicitation_id=solicitation.id)
+            )
+
+    return render_template(
+        "solicitations/form.html",
+        page_title=f"Edit Solicitation #{solicitation.id}",
+        mode="edit",
+        solicitation=solicitation,
+        form_data=form_data,
+        campaigns=campaigns,
+        partners=partners,
+        tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+        status_options=SOLICITATION_STATUS_OPTIONS,
     )
 
 
@@ -564,3 +691,201 @@ def _partner_type_choices(current_value: str | None = None) -> tuple[list[str], 
     if current_value and current_value not in PARTNER_TYPE_OPTIONS:
         legacy_partner_type = current_value
     return list(PARTNER_TYPE_OPTIONS), legacy_partner_type
+
+
+def _solicitation_form_options() -> tuple[list[Campaign], list[Partner]]:
+    campaigns = db.session.scalars(
+        select(Campaign).order_by(Campaign.campaign_year.desc())
+    ).all()
+    partners = db.session.scalars(
+        select(Partner).order_by(Partner.partner_name.asc())
+    ).all()
+    return campaigns, partners
+
+
+def _solicitation_form_options_for_create(
+    selected_campaign_id: int | None,
+) -> tuple[list[Campaign], list[Partner]]:
+    campaigns = db.session.scalars(
+        select(Campaign)
+        .where(Campaign.status != "closed")
+        .order_by(Campaign.campaign_year.desc())
+    ).all()
+
+    if selected_campaign_id is None:
+        partners = db.session.scalars(
+            select(Partner).order_by(Partner.partner_name.asc())
+        ).all()
+        return campaigns, partners
+
+    available_partner_ids = _available_partner_ids_for_campaign(selected_campaign_id)
+    partners = db.session.scalars(
+        select(Partner)
+        .where(Partner.id.in_(available_partner_ids))
+        .order_by(Partner.partner_name.asc())
+    ).all()
+    return campaigns, partners
+
+
+def _solicitation_form_data(form=None) -> dict:
+    if form is None:
+        return {
+            "campaign_id": None,
+            "partner_id": None,
+            "tranche": 1,
+            "business_volume": "",
+            "amount_requested": "",
+            "amount_received": "",
+            "status": "not_contacted",
+            "notes": "",
+        }
+
+    return {
+        "campaign_id": _safe_int(form.get("campaign_id")),
+        "partner_id": _safe_int(form.get("partner_id")),
+        "tranche": _safe_int(form.get("tranche")),
+        "business_volume": (form.get("business_volume") or "").strip(),
+        "amount_requested": (form.get("amount_requested") or "").strip(),
+        "amount_received": (form.get("amount_received") or "").strip(),
+        "status": (form.get("status") or "not_contacted").strip(),
+        "notes": _empty_to_none(form.get("notes")),
+    }
+
+
+def _solicitation_to_form_data(solicitation: Solicitation) -> dict:
+    return {
+        "campaign_id": solicitation.campaign_id,
+        "partner_id": solicitation.partner_id,
+        "tranche": solicitation.tranche,
+        "business_volume": _money_for_form(solicitation.business_volume),
+        "amount_requested": _money_for_form(solicitation.amount_requested),
+        "amount_received": _money_for_form(solicitation.amount_received),
+        "status": solicitation.status,
+        "notes": solicitation.notes or "",
+    }
+
+
+def _validate_solicitation_form(
+    form_data: dict,
+    solicitation_id: int | None = None,
+    allow_closed_campaign: bool = False,
+) -> tuple[str | None, dict]:
+    campaign_id = form_data["campaign_id"]
+    if campaign_id is None:
+        return "Campaign is required.", {}
+    campaign = db.session.get(Campaign, campaign_id)
+    if campaign is None:
+        return "Please select a valid campaign.", {}
+    if not allow_closed_campaign and campaign.status == "closed":
+        return "Closed campaigns are not available for new solicitations.", {}
+
+    partner_id = form_data["partner_id"]
+    if partner_id is None:
+        return "Partner is required.", {}
+    if db.session.get(Partner, partner_id) is None:
+        return "Please select a valid partner.", {}
+
+    tranche = form_data["tranche"]
+    if tranche not in SOLICITATION_TRANCHE_OPTIONS:
+        return "Please select a valid tranche.", {}
+
+    status = form_data["status"]
+    if status not in SOLICITATION_STATUS_OPTIONS:
+        return "Please select a valid solicitation status.", {}
+
+    business_volume, error = _parse_money(form_data["business_volume"])
+    if error:
+        return f"Business volume {error}", {}
+
+    amount_requested, error = _parse_money(form_data["amount_requested"])
+    if error:
+        return f"Amount requested {error}", {}
+
+    amount_received, error = _parse_money(form_data["amount_received"])
+    if error:
+        return f"Amount received {error}", {}
+
+    existing_solicitation = db.session.scalar(
+        select(Solicitation).where(
+            Solicitation.partner_id == partner_id,
+            Solicitation.campaign_id == campaign_id,
+        )
+    )
+    if existing_solicitation and existing_solicitation.id != solicitation_id:
+        return "This partner is already assigned to the selected campaign.", {}
+
+    return (
+        None,
+        {
+            "campaign_id": campaign_id,
+            "partner_id": partner_id,
+            "tranche": tranche,
+            "business_volume": business_volume,
+            "amount_requested": amount_requested,
+            "amount_received": amount_received,
+            "status": status,
+            "notes": form_data["notes"],
+        },
+    )
+
+
+def _parse_money(value: str) -> tuple[Decimal | None, str | None]:
+    if not value:
+        return None, None
+
+    normalized = value.replace(",", "").replace("$", "").strip()
+    if not normalized:
+        return None, None
+
+    try:
+        parsed = Decimal(normalized)
+    except InvalidOperation:
+        return None, "must be a valid dollar value."
+
+    if parsed < 0:
+        return None, "cannot be negative."
+
+    return parsed, None
+
+
+def _money_for_form(value) -> str:
+    if value is None:
+        return ""
+    return f"{value:.2f}"
+
+
+def _default_active_campaign_id() -> int | None:
+    active_campaigns = db.session.scalars(
+        select(Campaign.id).where(Campaign.status == "active")
+    ).all()
+    if len(active_campaigns) == 1:
+        return active_campaigns[0]
+    return None
+
+
+def _available_partner_ids_for_campaign(campaign_id: int) -> list[int]:
+    assigned_partner_ids = db.session.scalars(
+        select(Solicitation.partner_id).where(Solicitation.campaign_id == campaign_id)
+    ).all()
+
+    query = select(Partner.id)
+    if assigned_partner_ids:
+        query = query.where(Partner.id.notin_(assigned_partner_ids))
+
+    return db.session.scalars(query).all()
+
+
+def _campaign_tranche_solicitations(campaign_id: int) -> dict[int, list[Solicitation]]:
+    solicitations = db.session.scalars(
+        select(Solicitation)
+        .options(selectinload(Solicitation.partner))
+        .join(Solicitation.partner)
+        .where(Solicitation.campaign_id == campaign_id)
+        .order_by(Solicitation.tranche.asc(), Partner.partner_name.asc(), Solicitation.id.asc())
+    ).all()
+
+    tranche_map = {1: [], 2: [], 3: []}
+    for solicitation in solicitations:
+        if solicitation.tranche in tranche_map:
+            tranche_map[solicitation.tranche].append(solicitation)
+    return tranche_map

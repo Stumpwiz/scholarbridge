@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Solicitations - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">Solicitations</h1>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Add Solicitation</a>
+</div>
+
+{% if solicitations %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+            <tr>
+                <th>Campaign</th>
+                <th>Partner</th>
+                <th>Tranche</th>
+                <th>Status</th>
+                <th>Requested</th>
+                <th>Received</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for solicitation in solicitations %}
+                <tr>
+                    <td>
+                        {% if solicitation.campaign %}
+                            {{ solicitation.campaign.campaign_year }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if solicitation.partner %}
+                            {{ solicitation.partner.partner_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>Tranche {{ solicitation.tranche }}</td>
+                    <td>
+                        {% if solicitation.status == "donated" %}
+                            <span class="badge text-bg-success">Donated</span>
+                        {% elif solicitation.status == "declined" %}
+                            <span class="badge text-bg-secondary">Declined</span>
+                        {% elif solicitation.status == "closed" %}
+                            <span class="badge text-bg-dark">Closed</span>
+                        {% elif solicitation.status == "responded" %}
+                            <span class="badge text-bg-primary">Responded</span>
+                        {% elif solicitation.status == "contacted" %}
+                            <span class="badge text-bg-info">Contacted</span>
+                        {% else %}
+                            <span class="badge text-bg-light border text-dark">Not Contacted</span>
+                        {% endif %}
+                    </td>
+                    <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
+                    <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
+                    <td class="text-end">
+                        <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body">
+            <p class="mb-3">No solicitations have been added yet.</p>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Create first solicitation</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

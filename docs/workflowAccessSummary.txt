@@ -1,0 +1,60 @@
+ScholarBridge Workflow and Access Summary
+
+I'm about to start work on implementing the project in hopes of having something relatively complete to demo next Tuesday.  Please look over the following outline.  If it's good enough for "Version 1," no need to reply.  If there's a show-stopper somewhere, please let me know as soon as possible.
+
+Current Workflow
+
+1. A campaign is created for the annual solicitation effort.
+
+2. Each campaign contains three solicitation tranches:
+
+   * Tranche 1
+   * Tranche 2
+   * Tranche 3
+
+3. Partners are assigned to a tranche.
+
+4. A Solicitor is assigned to each Partner participation record.
+
+5. A Example Organization Point of Contact (MRPOC) is assigned automatically based on the Partner's category.
+
+6. Solicitation activities are tracked throughout the campaign:
+
+   * solicitation letters
+   * follow-up activities
+   * donations received
+   * acknowledgments
+
+7. The campaign is closed and retained for historical reference.
+
+User Roles
+
+Editor
+
+* May create, edit, assign, and maintain records.
+
+Reader
+
+* May view and review information but may not make changes.
+
+Solicitor
+
+A Solicitor is an Editor who has responsibility for managing specific Partner solicitations.
+
+Current Design Goals
+
+* Preserve institutional memory.
+* Support annual campaign planning.
+* Support continuity between committee leadership transitions.
+* Provide visibility into historical campaign activity.
+* Keep workflows simple and understandable.
+* Avoid unnecessary complexity.
+
+Decisions I've Made
+
+1. Partners won't be moved to a different tranche after solicitation activity has begun.
+
+2. If a Solicitor becomes unavailable during a campaign, an Editor user can simply assign a new one.
+
+3. Reader users may download/print reports, not just view them.
+

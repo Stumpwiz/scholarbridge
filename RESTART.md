@@ -2,7 +2,7 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 1D (Campaign foundation implementation)**.
+Current stage: **Phase 2B.1 (Solicitation workflow refinement)**.
 
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Partner) is now implemented.
 
@@ -48,12 +48,7 @@ Current conceptual relationship intent:
 - Partner 1-to-many Contact
 - Partner 1-to-many Solicitation
 - Campaign 1-to-many Solicitation
-- Person 1-to-many Solicitation
 - User optional 1-to-1 Person
-
-Canonical solicitation management ownership:
-
-- `Solicitation.assigned_person_id`
 
 Stabilized conceptual decisions:
 
@@ -61,15 +56,17 @@ Stabilized conceptual decisions:
 - One active campaign at a time is the normal operating model.
 - `Campaign.campaign_name` follows a consistent format for reporting/exports: `"{campaign_year} Scholarship Campaign"` (example: `"2026 Scholarship Campaign"`).
 - `Contact` remains strictly partner-bound; no standalone individual donors in v1.
-- `Solicitation.primary_contact_id` remains optional in v1.
 - Contact email/phone fields remain optional in v1 to support partner-only solicitation records.
-- Solicitation Management ownership is person-based, not user-account-based.
 - `User.email` is required and conceptually unique in v1.
 - v1 assumes conventional local authentication only.
 - `Campaign.status` vocabulary: `planned`, `active`, `closed`, `archived`.
 - `Solicitation.status` vocabulary: `not_contacted`, `contacted`, `responded`, `donated`, `declined`, `closed`.
+- `Solicitation.tranche` vocabulary: `1`, `2`, `3`.
+- One `Solicitation` per Partner+Campaign is a core v1 guardrail.
 - Solicitation closure in v1 is tracked via `Solicitation.status` + `updated_at` (no `closed_at` field).
-- Thank-you tracking in v1 is timestamp-based via `thank_you_sent_at`, which also serves donor acknowledgment/tax letter tracking in v1 (no separate `tax_letter_sent_at` field).
+- Solicitation phase-2B intentionally excludes `solicitor_person_id`, `mrpoc_person_id`, and correspondence timestamps.
+- Solicitation create workflow in phase 2B.1 excludes closed campaigns and preselects campaign when exactly one is active.
+- Solicitation create partner options in phase 2B.1 are campaign-aware (unassigned partners only).
 
 ## Phase 1A Scaffold (Implemented)
 
@@ -120,7 +117,6 @@ Partner workflow implemented:
 
 Current constraints preserved:
 
-- No Solicitation model yet
 - No delete workflow for partners
 - No advanced auth workflows or permissions system
 - No reporting, PDF generation, import, or email workflows
@@ -181,6 +177,55 @@ Operational notes:
   - `"{campaign_year} Scholarship Campaign"`
 - One active campaign at a time remains a convention, not a hard block.
 - UI warns when multiple campaigns are marked active.
+
+## Phase 2B Solicitation Foundation (Implemented)
+
+Model layer additions:
+
+- `Solicitation` model
+  - required relationships: `partner_id`, `campaign_id`
+  - controlled fields: `tranche`, `status`
+  - dollar fields: `business_volume`, `amount_requested`, `amount_received`
+  - optional notes + timestamps
+  - uniqueness guardrail on `(partner_id, campaign_id)`
+
+Workflow additions:
+
+- Solicitation list page (`/solicitations`)
+- Solicitation detail page (`/solicitations/<id>`)
+- Solicitation create page (`/solicitations/new`)
+- Solicitation edit page (`/solicitations/<id>/edit`)
+- No solicitation delete workflow yet
+
+Operational notes:
+
+- Validation remains conservative and workflow-light.
+- Partner/Campaign duplicate assignments are blocked.
+- Solicitor/MRPOC and correspondence timestamps are deferred to later refinement phases.
+
+## Phase 2B.1 Solicitation Workflow Refinement (Implemented)
+
+Workflow additions:
+
+- Solicitation create preselects campaign when exactly one active campaign exists.
+- Closed campaigns are omitted from new-solicitation campaign options.
+- Server-side validation blocks new solicitation creation for closed campaigns.
+- Solicitation create partner options are filtered by selected campaign:
+  - available partners = all partners minus already assigned partners in that campaign
+- Campaign detail now includes tranche workspace sections:
+  - Tranche 1
+  - Tranche 2
+  - Tranche 3
+- Each tranche section lists solicitations with:
+  - partner
+  - status
+  - amount requested
+  - amount received
+- Partner links in tranche sections navigate to solicitation detail records.
+
+UI convention update:
+
+- Navigation placeholder label changed from `Letter Generation` to `Letters`.
 
 ## Operational Refinements (Implemented)
 
@@ -288,5 +333,5 @@ See `pyproject.toml` / `requirements.txt`:
 
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
 2. Keep next phases conservative and server-rendered.
-3. Add `Solicitation` incrementally with migrations only when scope is agreed.
+3. Keep Solicitation enhancements incremental (role assignments, correspondence dates, and automation remain deferred).
 4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

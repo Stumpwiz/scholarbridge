@@ -30,7 +30,7 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is now in **Phase 1D: Campaign foundation implementation**.
+This repository is now in **Phase 2B.1: Solicitation workflow refinement**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
 
@@ -114,6 +114,55 @@ Still deferred:
 - Solicitation workflows and campaign-linked operational analytics
 - Reports, letter generation, imports, and automation
 
+## Phase 2B Additions
+
+Included:
+
+- `Solicitation` SQLAlchemy model
+  - relationships: Partner 1-to-many Solicitation, Campaign 1-to-many Solicitation
+  - fields: `partner_id`, `campaign_id`, `tranche`, `business_volume`,
+    `amount_requested`, `amount_received`, `status`, `notes`, timestamps
+  - conceptual uniqueness guardrail: one solicitation per partner per campaign
+- Solicitation workflow pages:
+  - list
+  - detail
+  - create
+  - edit
+- Controlled solicitation vocabularies:
+  - tranche: `1`, `2`, `3`
+  - status: `not_contacted`, `contacted`, `responded`, `donated`, `declined`, `closed`
+
+Still deferred:
+
+- Solicitation delete workflow
+- Solicitor/MRPOC assignment fields and automation
+- Authentication/authorization enforcement
+- Reporting, analytics, letter generation, and automation
+
+## Phase 2B.1 Workflow Refinements
+
+Included:
+
+- Solicitation create defaults and guardrails:
+  - if exactly one active campaign exists, it is preselected
+  - closed campaigns are excluded from new-solicitation campaign options
+  - server-side validation blocks creation against closed campaigns
+- Campaign-aware partner availability on solicitation create:
+  - partner choices are filtered to unassigned partners for the selected campaign
+  - uniqueness validation remains as final safeguard
+- Campaign detail workspace evolution:
+  - added Tranche 1/2/3 operational sections
+  - each section lists campaign solicitations with partner, status, requested, and received amounts
+  - partner links open solicitation detail as a primary campaign-management navigation path
+- Navigation terminology update:
+  - `Letter Generation` renamed to `Letters` (placeholder preserved)
+
+Still deferred:
+
+- Tranche reassignment workflows and drag/drop interfaces
+- Kanban/charts/analytics dashboards
+- Authorization enforcement and role-based UI restrictions
+
 ## Operational Refinements (Current)
 
 Included:
@@ -170,6 +219,7 @@ Useful scaffold routes:
 - Auth status placeholder: `/auth/status`
 - Partners: `/partners`
 - Campaigns: `/campaigns`
+- Solicitations: `/solicitations`
 
 ## Bootstrap Vendor Import (Temporary)
 

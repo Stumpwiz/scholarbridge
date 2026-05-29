@@ -8,10 +8,16 @@
         <h1 class="h4 mb-1">{{ campaign.campaign_name }}</h1>
         <p class="text-muted mb-0">Campaign Year: {{ campaign.campaign_year }}</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}">
-        <i class="bi bi-pencil" aria-hidden="true"></i>
-        <span class="ms-1">Edit</span>
-    </a>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-primary btn-sm" href="{{ url_for('main.solicitation_create', campaign_id=campaign.id) }}">
+            <i class="bi bi-plus-circle" aria-hidden="true"></i>
+            <span class="ms-1">Add Solicitation</span>
+        </a>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+            <span class="ms-1">Edit</span>
+        </a>
+    </div>
 </div>
 
 <div class="row g-3">
@@ -44,6 +50,52 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="row g-3 mt-1">
+    {% for tranche in (1, 2, 3) %}
+        {% set tranche_items = tranche_solicitations[tranche] %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>Tranche {{ tranche }}</span>
+                    <span class="text-muted small">{{ tranche_items|length }} total</span>
+                </div>
+                <div class="card-body">
+                    {% if tranche_items %}
+                        <div class="table-responsive">
+                            <table class="table table-sm align-middle mb-0">
+                                <thead>
+                                <tr>
+                                    <th>Partner</th>
+                                    <th>Status</th>
+                                    <th>Amount Requested</th>
+                                    <th>Amount Received</th>
+                                </tr>
+                                </thead>
+                                <tbody>
+                                {% for solicitation in tranche_items %}
+                                    <tr>
+                                        <td>
+                                            <a href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
+                                                {{ solicitation.partner.partner_name if solicitation.partner else "—" }}
+                                            </a>
+                                        </td>
+                                        <td>{{ solicitation.status.replace("_", " ").title() }}</td>
+                                        <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
+                                        <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
+                                    </tr>
+                                {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No solicitations in this tranche yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    {% endfor %}
 </div>
 
 <div class="mt-3">

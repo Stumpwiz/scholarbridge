@@ -37,6 +37,11 @@ class Partner(db.Model):
         back_populates="partner",
         lazy="selectin",
     )
+    solicitations = db.relationship(
+        "Solicitation",
+        back_populates="partner",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Partner id={self.id} name={self.partner_name}>"

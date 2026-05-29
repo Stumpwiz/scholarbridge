@@ -23,6 +23,11 @@ class Campaign(db.Model):
         onupdate=datetime.utcnow,
         server_default=func.now(),
     )
+    solicitations = db.relationship(
+        "Solicitation",
+        back_populates="campaign",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Campaign id={self.id} year={self.campaign_year} status={self.status}>"

@@ -38,9 +38,9 @@
                 <li class="nav-item"><a class="nav-link{% if request.endpoint == 'main.index' %} active{% endif %}" href="{{ url_for('main.index') }}">Dashboard</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.partner_') %} active{% endif %}" href="{{ url_for('main.partner_list') }}">Partners</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.campaign_') %} active{% endif %}" href="{{ url_for('main.campaign_list') }}">Campaigns</a></li>
-                <li class="nav-item"><span class="nav-link disabled">Solicitations</span></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.solicitation_') %} active{% endif %}" href="{{ url_for('main.solicitation_list') }}">Solicitations</a></li>
                 <li class="nav-item"><span class="nav-link disabled">Reports</span></li>
-                <li class="nav-item"><span class="nav-link disabled">Letter Generation</span></li>
+                <li class="nav-item"><span class="nav-link disabled">Letters</span></li>
                 <li class="nav-item"><span class="nav-link disabled">Administration</span></li>
             </ul>
             <div class="d-flex pb-2 pb-lg-0">
