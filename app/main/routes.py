@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 
 from app.main import bp
 from app.extensions import db
-from app.models import Campaign, Contact, Partner, Solicitation
+from app.models import Campaign, Contact, Partner, Person, Solicitation
 
 PARTNER_TYPE_OPTIONS = tuple(
     sorted(
@@ -119,11 +119,68 @@ def campaign_create():
 def campaign_detail(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     tranche_solicitations = _campaign_tranche_solicitations(campaign.id)
+    available_partners = _available_partners_for_campaign(campaign.id)
     return render_template(
         "campaigns/detail.html",
         page_title=campaign.campaign_name,
         campaign=campaign,
         tranche_solicitations=tranche_solicitations,
+        available_partners=available_partners,
+        tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+    )
+
+
+@bp.post("/campaigns/<int:campaign_id>/assign-partner")
+def campaign_assign_partner(campaign_id: int):
+    campaign = db.get_or_404(Campaign, campaign_id)
+    tranche = _safe_int(request.form.get("tranche"))
+    partner_id = _safe_int(request.form.get("partner_id"))
+
+    if campaign.status == "closed":
+        flash("Cannot assign partners to a closed campaign.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    if tranche not in SOLICITATION_TRANCHE_OPTIONS:
+        flash("Please select a valid tranche.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    if partner_id is None:
+        flash("Please select a partner to assign.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    partner = db.session.get(Partner, partner_id)
+    if partner is None:
+        flash("Please select a valid partner.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    existing_solicitation = db.session.scalar(
+        select(Solicitation).where(
+            Solicitation.campaign_id == campaign.id,
+            Solicitation.partner_id == partner.id,
+        )
+    )
+    if existing_solicitation is not None:
+        flash("This partner is already assigned to the campaign.", "warning")
+        return redirect(
+            url_for(
+                "main.solicitation_edit",
+                solicitation_id=existing_solicitation.id,
+                return_to="campaign",
+            )
+        )
+
+    solicitation = Solicitation(
+        campaign_id=campaign.id,
+        partner_id=partner.id,
+        tranche=tranche,
+        status="not_contacted",
+    )
+    db.session.add(solicitation)
+    db.session.commit()
+
+    flash("Partner assigned. Complete solicitation details and assign a solicitor.", "success")
+    return redirect(
+        url_for("main.solicitation_edit", solicitation_id=solicitation.id, return_to="campaign")
     )
 
 
@@ -170,15 +227,89 @@ def partner_list():
     )
 
 
+@bp.get("/people")
+def person_list():
+    people = db.session.scalars(
+        select(Person).order_by(
+            Person.is_active.desc(),
+            Person.last_name.asc(),
+            Person.first_name.asc(),
+            Person.id.asc(),
+        )
+    ).all()
+    return render_template(
+        "people/list.html",
+        page_title="People",
+        people=people,
+    )
+
+
+@bp.route("/people/new", methods=["GET", "POST"])
+def person_create():
+    form_data = _person_form_data()
+
+    if request.method == "POST":
+        form_data = _person_form_data(request.form)
+        validation_error, clean_data = _validate_person_form(form_data)
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            person = Person(**clean_data)
+            db.session.add(person)
+            db.session.commit()
+            flash("Person created.", "success")
+            return redirect(url_for("main.person_list"))
+
+    return render_template(
+        "people/form.html",
+        page_title="Create Person",
+        mode="create",
+        person=None,
+        form_data=form_data,
+    )
+
+
+@bp.route("/people/<int:person_id>/edit", methods=["GET", "POST"])
+def person_edit(person_id: int):
+    person = db.get_or_404(Person, person_id)
+    form_data = _person_to_form_data(person)
+
+    if request.method == "POST":
+        form_data = _person_form_data(request.form)
+        validation_error, clean_data = _validate_person_form(form_data)
+        if validation_error:
+            flash(validation_error, "danger")
+        else:
+            for key, value in clean_data.items():
+                setattr(person, key, value)
+            db.session.commit()
+            flash("Person updated.", "success")
+            return redirect(url_for("main.person_list"))
+
+    return render_template(
+        "people/form.html",
+        page_title=f"Edit {person.first_name} {person.last_name}",
+        mode="edit",
+        person=person,
+        form_data=form_data,
+    )
+
+
 @bp.get("/solicitations")
 def solicitation_list():
     solicitations = db.session.scalars(
         select(Solicitation)
+        .options(
+            selectinload(Solicitation.campaign),
+            selectinload(Solicitation.partner),
+            selectinload(Solicitation.solicitor),
+        )
         .join(Solicitation.campaign)
         .join(Solicitation.partner)
         .order_by(
-            Campaign.campaign_year.desc(),
+            Solicitation.tranche.asc(),
             Partner.partner_name.asc(),
+            Campaign.campaign_year.desc(),
             Solicitation.id.asc(),
         )
     ).all()
@@ -221,6 +352,7 @@ def solicitation_create():
     campaigns, partners = _solicitation_form_options_for_create(
         selected_campaign_id=form_data["campaign_id"]
     )
+    solicitors = _solicitor_options()
     if form_data["partner_id"] and all(
         partner.id != form_data["partner_id"] for partner in partners
     ):
@@ -234,6 +366,7 @@ def solicitation_create():
         form_data=form_data,
         campaigns=campaigns,
         partners=partners,
+        solicitors=solicitors,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
     )
@@ -242,10 +375,12 @@ def solicitation_create():
 @bp.get("/solicitations/<int:solicitation_id>")
 def solicitation_detail(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
+    return_to = _solicitation_return_to_value()
     return render_template(
         "solicitations/detail.html",
         page_title=f"Solicitation #{solicitation.id}",
         solicitation=solicitation,
+        return_to=return_to,
     )
 
 
@@ -254,6 +389,8 @@ def solicitation_edit(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
     form_data = _solicitation_to_form_data(solicitation)
     campaigns, partners = _solicitation_form_options()
+    solicitors = _solicitor_options()
+    return_to = _solicitation_return_to_value()
 
     if request.method == "POST":
         form_data = _solicitation_form_data(request.form)
@@ -267,9 +404,10 @@ def solicitation_edit(solicitation_id: int):
                 setattr(solicitation, key, value)
             db.session.commit()
             flash("Solicitation updated.", "success")
-            return redirect(
-                url_for("main.solicitation_detail", solicitation_id=solicitation.id)
-            )
+            redirect_kwargs = {"solicitation_id": solicitation.id}
+            if return_to == "campaign":
+                redirect_kwargs["return_to"] = "campaign"
+            return redirect(url_for("main.solicitation_detail", **redirect_kwargs))
 
     return render_template(
         "solicitations/form.html",
@@ -279,6 +417,8 @@ def solicitation_edit(solicitation_id: int):
         form_data=form_data,
         campaigns=campaigns,
         partners=partners,
+        solicitors=solicitors,
+        return_to=return_to,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
     )
@@ -693,6 +833,89 @@ def _partner_type_choices(current_value: str | None = None) -> tuple[list[str], 
     return list(PARTNER_TYPE_OPTIONS), legacy_partner_type
 
 
+def _person_form_data(form=None) -> dict:
+    if form is None:
+        return {
+            "first_name": "",
+            "middle_initial": "",
+            "last_name": "",
+            "preferred_name": "",
+            "email": "",
+            "mobile_phone": "",
+            "other_phone": "",
+            "committee_role": "",
+            "notes": "",
+            "is_active": True,
+        }
+
+    return {
+        "first_name": (form.get("first_name") or "").strip(),
+        "middle_initial": (form.get("middle_initial") or "").strip(),
+        "last_name": (form.get("last_name") or "").strip(),
+        "preferred_name": (form.get("preferred_name") or "").strip(),
+        "email": (form.get("email") or "").strip(),
+        "mobile_phone": (form.get("mobile_phone") or "").strip(),
+        "other_phone": (form.get("other_phone") or "").strip(),
+        "committee_role": (form.get("committee_role") or "").strip(),
+        "notes": (form.get("notes") or "").strip(),
+        "is_active": form.get("is_active") == "on",
+    }
+
+
+def _person_to_form_data(person: Person) -> dict:
+    return {
+        "first_name": person.first_name or "",
+        "middle_initial": person.middle_initial or "",
+        "last_name": person.last_name or "",
+        "preferred_name": person.preferred_name or "",
+        "email": person.email or "",
+        "mobile_phone": person.mobile_phone or person.phone or "",
+        "other_phone": person.other_phone or "",
+        "committee_role": person.committee_role or "",
+        "notes": person.person_notes or "",
+        "is_active": person.is_active,
+    }
+
+
+def _validate_person_form(form_data: dict) -> tuple[str | None, dict]:
+    first_name = form_data["first_name"]
+    if not first_name:
+        return "First name is required.", {}
+
+    last_name = form_data["last_name"]
+    if not last_name:
+        return "Last name is required.", {}
+
+    middle_initial = _empty_to_none(form_data["middle_initial"])
+    if middle_initial:
+        middle_initial = middle_initial[0].upper()
+
+    preferred_name = _empty_to_none(form_data["preferred_name"])
+    email = _empty_to_none(form_data["email"])
+    mobile_phone = _empty_to_none(form_data["mobile_phone"])
+    other_phone = _empty_to_none(form_data["other_phone"])
+    committee_role = _empty_to_none(form_data["committee_role"])
+    notes = _empty_to_none(form_data["notes"])
+    primary_phone = mobile_phone or other_phone
+
+    return (
+        None,
+        {
+            "first_name": first_name,
+            "middle_initial": middle_initial,
+            "last_name": last_name,
+            "preferred_name": preferred_name,
+            "email": email,
+            "phone": primary_phone,
+            "mobile_phone": mobile_phone,
+            "other_phone": other_phone,
+            "committee_role": committee_role,
+            "person_notes": notes,
+            "is_active": form_data["is_active"],
+        },
+    )
+
+
 def _solicitation_form_options() -> tuple[list[Campaign], list[Partner]]:
     campaigns = db.session.scalars(
         select(Campaign).order_by(Campaign.campaign_year.desc())
@@ -732,6 +955,7 @@ def _solicitation_form_data(form=None) -> dict:
         return {
             "campaign_id": None,
             "partner_id": None,
+            "solicitor_person_id": None,
             "tranche": 1,
             "business_volume": "",
             "amount_requested": "",
@@ -743,6 +967,7 @@ def _solicitation_form_data(form=None) -> dict:
     return {
         "campaign_id": _safe_int(form.get("campaign_id")),
         "partner_id": _safe_int(form.get("partner_id")),
+        "solicitor_person_id": _safe_int(form.get("solicitor_person_id")),
         "tranche": _safe_int(form.get("tranche")),
         "business_volume": (form.get("business_volume") or "").strip(),
         "amount_requested": (form.get("amount_requested") or "").strip(),
@@ -756,6 +981,7 @@ def _solicitation_to_form_data(solicitation: Solicitation) -> dict:
     return {
         "campaign_id": solicitation.campaign_id,
         "partner_id": solicitation.partner_id,
+        "solicitor_person_id": solicitation.solicitor_person_id,
         "tranche": solicitation.tranche,
         "business_volume": _money_for_form(solicitation.business_volume),
         "amount_requested": _money_for_form(solicitation.amount_requested),
@@ -784,6 +1010,10 @@ def _validate_solicitation_form(
         return "Partner is required.", {}
     if db.session.get(Partner, partner_id) is None:
         return "Please select a valid partner.", {}
+
+    solicitor_person_id = form_data["solicitor_person_id"]
+    if solicitor_person_id is not None and db.session.get(Person, solicitor_person_id) is None:
+        return "Please select a valid solicitor.", {}
 
     tranche = form_data["tranche"]
     if tranche not in SOLICITATION_TRANCHE_OPTIONS:
@@ -819,6 +1049,7 @@ def _validate_solicitation_form(
         {
             "campaign_id": campaign_id,
             "partner_id": partner_id,
+            "solicitor_person_id": solicitor_person_id,
             "tranche": tranche,
             "business_volume": business_volume,
             "amount_requested": amount_requested,
@@ -863,6 +1094,27 @@ def _default_active_campaign_id() -> int | None:
     return None
 
 
+def _solicitor_options() -> list[Person]:
+    return db.session.scalars(
+        select(Person).order_by(
+            Person.is_active.desc(),
+            Person.last_name.asc(),
+            Person.first_name.asc(),
+            Person.id.asc(),
+        )
+    ).all()
+
+
+def _solicitation_return_to_value() -> str | None:
+    value = request.args.get("return_to")
+    if value is None:
+        value = request.form.get("return_to")
+
+    if value == "campaign":
+        return "campaign"
+    return None
+
+
 def _available_partner_ids_for_campaign(campaign_id: int) -> list[int]:
     assigned_partner_ids = db.session.scalars(
         select(Solicitation.partner_id).where(Solicitation.campaign_id == campaign_id)
@@ -875,10 +1127,25 @@ def _available_partner_ids_for_campaign(campaign_id: int) -> list[int]:
     return db.session.scalars(query).all()
 
 
+def _available_partners_for_campaign(campaign_id: int) -> list[Partner]:
+    available_partner_ids = _available_partner_ids_for_campaign(campaign_id)
+    if not available_partner_ids:
+        return []
+
+    return db.session.scalars(
+        select(Partner)
+        .where(Partner.id.in_(available_partner_ids))
+        .order_by(Partner.partner_name.asc())
+    ).all()
+
+
 def _campaign_tranche_solicitations(campaign_id: int) -> dict[int, list[Solicitation]]:
     solicitations = db.session.scalars(
         select(Solicitation)
-        .options(selectinload(Solicitation.partner))
+        .options(
+            selectinload(Solicitation.partner),
+            selectinload(Solicitation.solicitor),
+        )
         .join(Solicitation.partner)
         .where(Solicitation.campaign_id == campaign_id)
         .order_by(Solicitation.tranche.asc(), Partner.partner_name.asc(), Solicitation.id.asc())

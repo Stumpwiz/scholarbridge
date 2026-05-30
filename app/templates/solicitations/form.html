@@ -14,6 +14,9 @@
         <h1 class="h4 mb-3">{{ heading }}</h1>
 
         <form method="post" novalidate>
+            {% if return_to %}
+                <input type="hidden" name="return_to" value="{{ return_to }}">
+            {% endif %}
             <div class="mb-3">
                 <label for="campaign_id" class="form-label">Campaign</label>
                 <select class="form-select" id="campaign_id" name="campaign_id" required>
@@ -57,6 +60,18 @@
                 </select>
             </div>
 
+            <div class="mb-3">
+                <label for="solicitor_person_id" class="form-label">Solicitor</label>
+                <select class="form-select" id="solicitor_person_id" name="solicitor_person_id">
+                    <option value="">Unassigned</option>
+                    {% for person in solicitors %}
+                        <option value="{{ person.id }}" {% if form_data.solicitor_person_id == person.id %}selected{% endif %}>
+                            {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <div class="row">
                 <div class="col-12 col-md-4 mb-3">
                     <label for="business_volume" class="form-label">Business Volume ($)</label>
@@ -91,12 +106,32 @@
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Save</button>
                 {% if solicitation %}
-                    <a class="btn btn-outline-secondary" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">Cancel</a>
+                    {% if return_to == "campaign" %}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id, return_to='campaign') }}">Cancel</a>
+                    {% else %}
+                        <a class="btn btn-outline-secondary" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">Cancel</a>
+                    {% endif %}
                 {% else %}
                     <a class="btn btn-outline-secondary" href="{{ url_for('main.solicitation_list') }}">Cancel</a>
                 {% endif %}
             </div>
         </form>
+
+        {% if solicitation and solicitation.campaign %}
+            <div class="d-flex gap-3 align-items-center mt-3">
+                <a
+                    class="btn btn-sm {% if return_to == 'campaign' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                    href="{{ url_for('main.campaign_detail', campaign_id=solicitation.campaign.id) }}"
+                >
+                    Return to Campaign
+                </a>
+                <a class="btn btn-link p-0" href="{{ url_for('main.solicitation_list') }}">Return to Solicitations</a>
+            </div>
+        {% elif solicitation %}
+            <div class="mt-3">
+                <a class="btn btn-link p-0" href="{{ url_for('main.solicitation_list') }}">Return to Solicitations</a>
+            </div>
+        {% endif %}
     </div>
 </div>
 {% if mode == "create" %}

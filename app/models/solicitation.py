@@ -19,6 +19,9 @@ class Solicitation(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     partner_id = db.Column(db.Integer, db.ForeignKey("partners.id"), nullable=False, index=True)
     campaign_id = db.Column(db.Integer, db.ForeignKey("campaigns.id"), nullable=False, index=True)
+    solicitor_person_id = db.Column(
+        db.Integer, db.ForeignKey("persons.id"), nullable=True, index=True
+    )
     tranche = db.Column(db.Integer, nullable=False, default=1, server_default="1")
     business_volume = db.Column(db.Numeric(12, 2), nullable=True)
     amount_requested = db.Column(db.Numeric(12, 2), nullable=True)
@@ -40,6 +43,7 @@ class Solicitation(db.Model):
 
     partner = db.relationship("Partner", back_populates="solicitations")
     campaign = db.relationship("Campaign", back_populates="solicitations")
+    solicitor = db.relationship("Person", back_populates="solicitations_as_solicitor")
 
     def __repr__(self) -> str:
         return (

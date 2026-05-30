@@ -10,10 +10,13 @@ class Person(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(120), nullable=False)
+    middle_initial = db.Column(db.String(1), nullable=True)
     last_name = db.Column(db.String(120), nullable=False)
     preferred_name = db.Column(db.String(120), nullable=True)
     email = db.Column(db.String(255), nullable=True)
     phone = db.Column(db.String(50), nullable=True)
+    mobile_phone = db.Column(db.String(50), nullable=True)
+    other_phone = db.Column(db.String(50), nullable=True)
     committee_role = db.Column(db.String(120), nullable=True)
     person_notes = db.Column(db.Text, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True, server_default=func.true())
@@ -29,6 +32,11 @@ class Person(db.Model):
     )
 
     user = db.relationship("User", back_populates="person", uselist=False)
+    solicitations_as_solicitor = db.relationship(
+        "Solicitation",
+        back_populates="solicitor",
+        lazy="selectin",
+    )
 
     def __repr__(self) -> str:
         return f"<Person id={self.id} name={self.first_name} {self.last_name}>"

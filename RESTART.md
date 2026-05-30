@@ -2,7 +2,7 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 2B.1 (Solicitation workflow refinement)**.
+Current stage: **Phase 2C.5 (Person management)**.
 
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Partner) is now implemented.
 
@@ -64,7 +64,8 @@ Stabilized conceptual decisions:
 - `Solicitation.tranche` vocabulary: `1`, `2`, `3`.
 - One `Solicitation` per Partner+Campaign is a core v1 guardrail.
 - Solicitation closure in v1 is tracked via `Solicitation.status` + `updated_at` (no `closed_at` field).
-- Solicitation phase-2B intentionally excludes `solicitor_person_id`, `mrpoc_person_id`, and correspondence timestamps.
+- Solicitation phase-2C includes `solicitor_person_id` (Person-based assignment).
+- `mrpoc_person_id` and correspondence timestamps remain deferred.
 - Solicitation create workflow in phase 2B.1 excludes closed campaigns and preselects campaign when exactly one is active.
 - Solicitation create partner options in phase 2B.1 are campaign-aware (unassigned partners only).
 
@@ -226,6 +227,41 @@ Workflow additions:
 UI convention update:
 
 - Navigation placeholder label changed from `Letter Generation` to `Letters`.
+
+## Phase 2C Solicitor Assignment + Campaign Workbench (Implemented)
+
+Model/workflow additions:
+
+- `Solicitation` now supports optional `solicitor_person_id` referencing `Person`.
+- Campaign detail now acts as an assignment workbench with an `Assign Partner to Tranche` flow.
+- Assigning from campaign detail creates the solicitation record immediately and routes to solicitation edit.
+- Existing one-partner-per-campaign guardrail is preserved.
+
+UI/workflow refinements:
+
+- Campaign tranche tables now show: Partner, Solicitor, Status, Amount Requested, Amount Received.
+- Solicitation create/edit/detail/list now expose solicitor assignment.
+- Solicitation list columns now include solicitor and are ordered by tranche then partner.
+
+## Phase 2C.5 Person Management (Implemented)
+
+Model/workflow additions:
+
+- Added lightweight People workflow:
+  - list (`/people`)
+  - create (`/people/new`)
+  - edit (`/people/<id>/edit`)
+- No person delete workflow (intentionally deferred for ownership continuity).
+- Navigation now includes a user-facing `People` entry.
+
+Person data refinements:
+
+- `Person` now includes optional:
+  - `middle_initial`
+  - `mobile_phone`
+  - `other_phone`
+- Existing `preferred_name`, `committee_role`, and `person_notes` remain supported.
+- Person forms remain sparse-data-friendly outside required name fields.
 
 ## Operational Refinements (Implemented)
 

@@ -20,6 +20,42 @@
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-header">Assign Partner to Tranche</div>
+    <div class="card-body">
+        {% if campaign.status == "closed" %}
+            <p class="text-muted mb-0">Campaign is closed. New partner assignments are unavailable.</p>
+        {% elif available_partners %}
+            <form method="post" action="{{ url_for('main.campaign_assign_partner', campaign_id=campaign.id) }}">
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-md-3">
+                        <label for="tranche" class="form-label mb-1">Tranche</label>
+                        <select class="form-select form-select-sm" id="tranche" name="tranche" required>
+                            {% for tranche in tranche_options %}
+                                <option value="{{ tranche }}">Tranche {{ tranche }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-7">
+                        <label for="partner_id" class="form-label mb-1">Partner</label>
+                        <select class="form-select form-select-sm" id="partner_id" name="partner_id" required>
+                            <option value="">Select partner</option>
+                            {% for partner in available_partners %}
+                                <option value="{{ partner.id }}">{{ partner.partner_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-2">
+                        <button type="submit" class="btn btn-primary btn-sm w-100">Assign</button>
+                    </div>
+                </div>
+            </form>
+        {% else %}
+            <p class="text-muted mb-0">All partners are already assigned in this campaign.</p>
+        {% endif %}
+    </div>
+</div>
+
 <div class="row g-3">
     <div class="col-12 col-lg-6">
         <div class="card h-100">
@@ -68,6 +104,7 @@
                                 <thead>
                                 <tr>
                                     <th>Partner</th>
+                                    <th>Solicitor</th>
                                     <th>Status</th>
                                     <th>Amount Requested</th>
                                     <th>Amount Received</th>
@@ -80,6 +117,13 @@
                                             <a href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
                                                 {{ solicitation.partner.partner_name if solicitation.partner else "—" }}
                                             </a>
+                                        </td>
+                                        <td>
+                                            {% if solicitation.solicitor %}
+                                                {{ solicitation.solicitor.preferred_name or solicitation.solicitor.first_name }} {{ solicitation.solicitor.last_name }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
                                         </td>
                                         <td>{{ solicitation.status.replace("_", " ").title() }}</td>
                                         <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>

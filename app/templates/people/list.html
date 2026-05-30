@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}People - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h1 class="h4 mb-0">People</h1>
+    <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Add Person</a>
+</div>
+
+{% if people %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Active</th>
+                <th>Edit</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for person in people %}
+                <tr>
+                    <td>
+                        {{ person.preferred_name or person.first_name }} {{ person.last_name }}
+                    </td>
+                    <td>{{ person.email or "—" }}</td>
+                    <td>{{ person.mobile_phone or person.other_phone or person.phone or "—" }}</td>
+                    <td>
+                        {% if person.is_active %}
+                            <span class="badge text-bg-success">Active</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a
+                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                            href="{{ url_for('main.person_edit', person_id=person.id) }}"
+                            title="Edit person"
+                            aria-label="Edit person"
+                        >
+                            <i class="bi bi-pencil" aria-hidden="true"></i>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body">
+            <p class="mb-3">No people have been added yet.</p>
+            <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Create first person</a>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

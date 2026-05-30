@@ -11,10 +11,17 @@
             {% if solicitation.partner %} • {{ solicitation.partner.partner_name }}{% endif %}
         </p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
-        <i class="bi bi-pencil" aria-hidden="true"></i>
-        <span class="ms-1">Edit</span>
-    </a>
+    {% if return_to == "campaign" %}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, return_to='campaign') }}">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+            <span class="ms-1">Edit</span>
+        </a>
+    {% else %}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+            <span class="ms-1">Edit</span>
+        </a>
+    {% endif %}
 </div>
 
 <div class="row g-3">
@@ -37,6 +44,15 @@
 
                     <dt class="col-sm-4">Tranche</dt>
                     <dd class="col-sm-8">Tranche {{ solicitation.tranche }}</dd>
+
+                    <dt class="col-sm-4">Solicitor</dt>
+                    <dd class="col-sm-8">
+                        {% if solicitation.solicitor %}
+                            {{ solicitation.solicitor.preferred_name or solicitation.solicitor.first_name }} {{ solicitation.solicitor.last_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
 
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">{{ solicitation.status.replace("_", " ").title() }}</dd>
@@ -68,6 +84,18 @@
 </div>
 
 <div class="mt-3">
-    <a class="btn btn-link p-0" href="{{ url_for('main.solicitation_list') }}">Back to solicitation list</a>
+    {% if solicitation.campaign %}
+        <div class="d-flex gap-3 align-items-center">
+            <a
+                class="btn btn-sm {% if return_to == 'campaign' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+                href="{{ url_for('main.campaign_detail', campaign_id=solicitation.campaign.id) }}"
+            >
+                Return to Campaign
+            </a>
+            <a class="btn btn-link p-0" href="{{ url_for('main.solicitation_list') }}">Return to Solicitations</a>
+        </div>
+    {% else %}
+        <a class="btn btn-link p-0" href="{{ url_for('main.solicitation_list') }}">Return to Solicitations</a>
+    {% endif %}
 </div>
 {% endblock %}
