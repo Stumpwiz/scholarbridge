@@ -17,6 +17,7 @@
                 <th>Partner</th>
                 <th>Tranche</th>
                 <th>Solicitor</th>
+                <th>MRPOC</th>
                 <th>Status</th>
                 <th>Requested</th>
                 <th>Received</th>
@@ -44,6 +45,13 @@
                     <td>
                         {% if solicitation.solicitor %}
                             {{ solicitation.solicitor.preferred_name or solicitation.solicitor.first_name }} {{ solicitation.solicitor.last_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if solicitation.mrpoc %}
+                            {{ solicitation.mrpoc.preferred_name or solicitation.mrpoc.first_name }} {{ solicitation.mrpoc.last_name }}
                         {% else %}
                             —
                         {% endif %}

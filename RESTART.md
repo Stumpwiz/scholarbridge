@@ -2,7 +2,7 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 2C.5 (Person management)**.
+Current stage: **Phase 2D.1 (Partner category realignment)**.
 
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Partner) is now implemented.
 
@@ -48,6 +48,10 @@ Current conceptual relationship intent:
 - Partner 1-to-many Contact
 - Partner 1-to-many Solicitation
 - Campaign 1-to-many Solicitation
+- Campaign 1-to-many CampaignCategoryMRPOC
+- Person 1-to-many Solicitation (as solicitor)
+- Person 1-to-many Solicitation (as MRPOC)
+- Person 1-to-many CampaignCategoryMRPOC (as MRPOC)
 - User optional 1-to-1 Person
 
 Stabilized conceptual decisions:
@@ -65,7 +69,25 @@ Stabilized conceptual decisions:
 - One `Solicitation` per Partner+Campaign is a core v1 guardrail.
 - Solicitation closure in v1 is tracked via `Solicitation.status` + `updated_at` (no `closed_at` field).
 - Solicitation phase-2C includes `solicitor_person_id` (Person-based assignment).
-- `mrpoc_person_id` and correspondence timestamps remain deferred.
+- Solicitation phase-2D includes optional `mrpoc_person_id` (Person-based correspondence context).
+- Campaign phase-2D includes category-to-MRPOC mapping per campaign year.
+- Canonical partner category vocabulary (phase 2D.1):
+  - Food and Beverage
+  - Finance
+  - Insurance
+  - Accounting
+  - HR
+  - IT
+  - Security Services
+  - Construction
+  - Renovation
+  - Moving
+  - Packing
+  - Medical Service Providers
+  - Personal Service Providers
+  - Cleaning Services and Supplies
+  - Admin
+- Temporary review category in app workflows: `Needs Review`.
 - Solicitation create workflow in phase 2B.1 excludes closed campaigns and preselects campaign when exactly one is active.
 - Solicitation create partner options in phase 2B.1 are campaign-aware (unassigned partners only).
 
@@ -202,7 +224,7 @@ Operational notes:
 
 - Validation remains conservative and workflow-light.
 - Partner/Campaign duplicate assignments are blocked.
-- Solicitor/MRPOC and correspondence timestamps are deferred to later refinement phases.
+- Correspondence timestamps remain deferred to later refinement phases.
 
 ## Phase 2B.1 Solicitation Workflow Refinement (Implemented)
 
@@ -262,6 +284,55 @@ Person data refinements:
   - `other_phone`
 - Existing `preferred_name`, `committee_role`, and `person_notes` remain supported.
 - Person forms remain sparse-data-friendly outside required name fields.
+
+## Phase 2D MRPOC Assignment + Campaign Category Mapping (Implemented)
+
+Model/workflow additions:
+
+- Added `CampaignCategoryMRPOC` model:
+  - `campaign_id`
+  - `partner_category`
+  - `mrpoc_person_id`
+  - optional `notes`
+  - timestamps
+  - uniqueness guardrail on `(campaign_id, partner_category)`
+- Added optional `Solicitation.mrpoc_person_id` referencing `Person`.
+
+Workflow additions:
+
+- Campaign detail/workbench now includes `MRPOC Mapping by Partner Category`.
+- Mapping choices use the existing controlled partner category vocabulary.
+- Solicitation creation from campaign workbench partner assignment now auto-assigns MRPOC:
+  - if campaign+category mapping exists, copy mapped person into `Solicitation.mrpoc_person_id`
+  - if no mapping exists, leave `mrpoc_person_id` blank
+- Solicitation create/edit now allows manual MRPOC selection/override.
+- Solicitation detail/list and campaign tranche tables now display MRPOC as secondary correspondence context.
+
+Operational notes:
+
+- MRPOC is informational/correspondence context, not operational ownership.
+- Solicitor remains the operational owner.
+- Missing mappings do not block solicitation creation.
+- Bulk remapping and mid-campaign remap automation remain deferred.
+
+## Phase 2D.1 Partner Category Realignment (Implemented)
+
+Category alignment updates:
+
+- Replaced legacy partner category options with the committee-approved canonical vocabulary.
+- Introduced `Needs Review` as a temporary cleanup value for records with legacy/invalid categories.
+- Existing partner records with non-canonical categories are automatically normalized to `Needs Review`.
+- MRPOC campaign mapping choices now use canonical categories only.
+
+Importer updates:
+
+- Bootstrap importer no longer infers partner category from partner name keywords.
+- Imported partners now default category to blank unless explicitly set later by committee review.
+
+Operational notes:
+
+- No automatic category guessing is performed in phase 2D.1.
+- Category cleanup is intentionally manual and visible on the Partner list/edit workflows.
 
 ## Operational Refinements (Implemented)
 
@@ -354,6 +425,33 @@ Intentional limits:
 - No upload UI, import history, fuzzy matching, or ETL abstraction.
 - No Campaign/Solicitation/bootstrap analytics import.
 
+## People Seed Preservation Utility
+
+Purpose:
+
+- Preserve manually maintained committee `Person` records across local database rebuilds.
+
+Scripts:
+
+- `scripts/export_people.py`
+- `scripts/import_people.py`
+
+Seed path:
+
+- `data/seeds/people.json`
+
+Usage:
+
+- Export:
+  - `uv run python scripts/export_people.py`
+- Import:
+  - `uv run python scripts/import_people.py`
+
+Scope and limits:
+
+- Person-only utility (no User export/import).
+- No backup framework, migration framework, or generalized ETL behavior.
+
 ## Dependencies (Current Minimal)
 
 See `pyproject.toml` / `requirements.txt`:
@@ -369,5 +467,5 @@ See `pyproject.toml` / `requirements.txt`:
 
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
 2. Keep next phases conservative and server-rendered.
-3. Keep Solicitation enhancements incremental (role assignments, correspondence dates, and automation remain deferred).
+3. Keep Solicitation enhancements incremental (correspondence dates and automation remain deferred).
 4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.

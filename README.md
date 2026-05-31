@@ -258,6 +258,31 @@ Importer guardrails:
 - Partner mailing-address fields are imported when present.
 - Not intended as a generalized ETL/import framework.
 
+## People Seed Export/Import (Development Utility)
+
+Use these scripts to preserve `Person` records across SQLite rebuilds.
+
+Export People to seed JSON:
+
+```bash
+uv run python scripts/export_people.py
+```
+
+Import People from seed JSON:
+
+```bash
+uv run python scripts/import_people.py
+```
+
+Seed file path:
+
+- `data/seeds/people.json`
+
+Scope notes:
+
+- Exports/imports `Person` records only.
+- Does not include Users, Campaigns, Solicitations, Partners, or Contacts.
+
 ## Minimal Workflow
 
 - Keep architecture documents current before adding feature code.

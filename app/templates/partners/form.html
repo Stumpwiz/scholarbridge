@@ -45,20 +45,16 @@
                     name="partner_type"
                 >
                     <option value="">Not specified</option>
-                    {% if legacy_partner_type %}
-                        <option
-                            value="{{ legacy_partner_type }}"
-                            {% if form_data.partner_type == legacy_partner_type %}selected{% endif %}
-                        >
-                            {{ legacy_partner_type }} (existing value)
-                        </option>
-                    {% endif %}
                     {% for partner_type in partner_types %}
                         <option
                             value="{{ partner_type }}"
                             {% if form_data.partner_type == partner_type %}selected{% endif %}
                         >
-                            {{ partner_type }}
+                            {% if partner_type == "Needs Review" %}
+                                Needs Review (temporary)
+                            {% else %}
+                                {{ partner_type }}
+                            {% endif %}
                         </option>
                     {% endfor %}
                 </select>

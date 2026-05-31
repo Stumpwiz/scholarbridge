@@ -31,22 +31,22 @@ from app.models import Contact, Partner
 
 MISSING_TOKENS = {"", "na", "n/a", "none", "null", "-", "--"}
 PARTNER_TYPE_OPTIONS = {
-    "Construction",
-    "Facilities Maintenance",
-    "Renovation",
-    "Utilities",
-    "Landscaping",
-    "Environmental Services",
-    "Food Services",
-    "Resident Services",
-    "Management Services",
-    "Financial Services",
+    "Food and Beverage",
+    "Finance",
     "Insurance",
-    "Legal Services",
-    "Technology Services",
-    "Sustainability",
-    "Healthcare Services",
-    "Other",
+    "Accounting",
+    "HR",
+    "IT",
+    "Security Services",
+    "Construction",
+    "Renovation",
+    "Moving",
+    "Packing",
+    "Medical Service Providers",
+    "Personal Service Providers",
+    "Cleaning Services and Supplies",
+    "Admin",
+    "Needs Review",
 }
 
 SHEET_SKIP = {"Export Summary"}
@@ -71,6 +71,7 @@ class RowPayload:
     email: str | None
     phone: str | None
     raw_full_name: str | None
+    partner_type: str | None
 
 
 def parse_args() -> argparse.Namespace:
@@ -221,6 +222,11 @@ class VendorBootstrapImporter:
         last_name = clean_text(row.get("Contact Last Name"))
         title = None
         full_name = clean_text(row.get("Contact full name with title"))
+        source_category = (
+            clean_text(row.get("Partner Category"))
+            or clean_text(row.get("Category"))
+            or clean_text(row.get("Type"))
+        )
 
         if full_name and not (first_name or last_name):
             parsed_name, parsed_title = parse_full_name_and_title(full_name)
@@ -245,6 +251,7 @@ class VendorBootstrapImporter:
             email=clean_text(row.get("Email")),
             phone=clean_text(row.get("Phone")),
             raw_full_name=full_name,
+            partner_type=normalize_partner_type(source_category),
         )
 
     def _get_or_create_partner(self, payload: RowPayload) -> tuple[Partner, bool]:
@@ -257,7 +264,7 @@ class VendorBootstrapImporter:
 
         partner = Partner(
             partner_name=payload.partner_name,
-            partner_type=infer_partner_type(payload.partner_name),
+            partner_type=payload.partner_type,
             address_1=payload.address_1,
             address_2=payload.address_2,
             city=payload.city,
@@ -275,6 +282,7 @@ class VendorBootstrapImporter:
 
     def _backfill_partner_fields(self, partner: Partner, payload: RowPayload) -> None:
         updates = (
+            ("partner_type", payload.partner_type),
             ("address_1", payload.address_1),
             ("address_2", payload.address_2),
             ("city", payload.city),
@@ -417,32 +425,12 @@ def normalize_phone(phone: str | None) -> str:
     return digits or normalize_key(phone)
 
 
-def infer_partner_type(partner_name: str | None) -> str | None:
-    if not partner_name:
+def normalize_partner_type(raw_category: str | None) -> str | None:
+    if raw_category is None:
         return None
-    lowered = partner_name.lower()
-    keyword_mapping = [
-        ("insurance", "Insurance"),
-        ("legal", "Legal Services"),
-        ("law", "Legal Services"),
-        ("landscap", "Landscaping"),
-        ("construction", "Construction"),
-        ("contracting", "Construction"),
-        ("maintenance", "Facilities Maintenance"),
-        ("utility", "Utilities"),
-        ("electric", "Utilities"),
-        ("technology", "Technology Services"),
-        ("tech", "Technology Services"),
-        ("health", "Healthcare Services"),
-        ("food", "Food Services"),
-        ("financial", "Financial Services"),
-        ("bank", "Financial Services"),
-        ("management", "Management Services"),
-    ]
-    for keyword, category in keyword_mapping:
-        if keyword in lowered and category in PARTNER_TYPE_OPTIONS:
-            return category
-    return None
+    if raw_category in PARTNER_TYPE_OPTIONS:
+        return raw_category
+    return "Needs Review"
 
 
 if __name__ == "__main__":

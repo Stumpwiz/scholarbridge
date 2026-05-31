@@ -56,6 +56,61 @@
     </div>
 </div>
 
+<div class="card mb-3">
+    <div class="card-header">MRPOC Mapping by Partner Category</div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Assigned MRPOC</th>
+                    <th class="text-end">Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for category in partner_categories %}
+                    {% set mapping = category_mrpoc_map.get(category) %}
+                    {% set form_id = "mrpoc_mapping_" ~ loop.index %}
+                    <tr>
+                        <td>{{ category }}</td>
+                        <td>
+                            <select
+                                class="form-select form-select-sm"
+                                id="mrpoc_person_id_{{ loop.index }}"
+                                name="mrpoc_person_id"
+                                form="{{ form_id }}"
+                                aria-label="MRPOC for {{ category }}"
+                            >
+                                <option value="">Unassigned</option>
+                                {% for person in mrpoc_people %}
+                                    <option
+                                        value="{{ person.id }}"
+                                        {% if mapping and mapping.mrpoc_person_id == person.id %}selected{% endif %}
+                                    >
+                                        {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="text-end">
+                            <form
+                                id="{{ form_id }}"
+                                method="post"
+                                action="{{ url_for('main.campaign_set_mrpoc_mapping', campaign_id=campaign.id) }}"
+                            >
+                                <input type="hidden" name="partner_category" value="{{ category }}">
+                                <button type="submit" class="btn btn-outline-primary btn-sm">Save</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 <div class="row g-3">
     <div class="col-12 col-lg-6">
         <div class="card h-100">
@@ -105,6 +160,7 @@
                                 <tr>
                                     <th>Partner</th>
                                     <th>Solicitor</th>
+                                    <th>MRPOC</th>
                                     <th>Status</th>
                                     <th>Amount Requested</th>
                                     <th>Amount Received</th>
@@ -121,6 +177,13 @@
                                         <td>
                                             {% if solicitation.solicitor %}
                                                 {{ solicitation.solicitor.preferred_name or solicitation.solicitor.first_name }} {{ solicitation.solicitor.last_name }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if solicitation.mrpoc %}
+                                                {{ solicitation.mrpoc.preferred_name or solicitation.mrpoc.first_name }} {{ solicitation.mrpoc.last_name }}
                                             {% else %}
                                                 —
                                             {% endif %}

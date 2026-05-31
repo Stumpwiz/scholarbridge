@@ -72,6 +72,19 @@
                 </select>
             </div>
 
+            <div class="mb-3">
+                <label for="mrpoc_person_id" class="form-label">MRPOC</label>
+                <select class="form-select" id="mrpoc_person_id" name="mrpoc_person_id">
+                    <option value="">Unassigned</option>
+                    {% for person in solicitors %}
+                        <option value="{{ person.id }}" {% if form_data.mrpoc_person_id == person.id %}selected{% endif %}>
+                            {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
+                        </option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">MRPOC is correspondence context; solicitor remains the operational owner.</div>
+            </div>
+
             <div class="row">
                 <div class="col-12 col-md-4 mb-3">
                     <label for="business_volume" class="form-label">Business Volume ($)</label>

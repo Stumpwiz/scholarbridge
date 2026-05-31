@@ -70,8 +70,8 @@ Rationale: these fields define the core participation record.
 
 ### Stewardship roles
 
-- `solicitor_person_id` (required in normal operations): operational owner responsible for outreach and follow-up.
-- `mrpoc_person_id` (optional pending business confirmation): Example Organization point of contact for coordination/copying.
+- `solicitor_person_id` (optional in v1 implementation): operational owner responsible for outreach and follow-up.
+- `mrpoc_person_id` (optional): Example Organization point of contact for coordination/copying.
 
 Rationale: role clarity supports accountability, handoff continuity, and workload planning.
 
@@ -171,12 +171,32 @@ Known v1 intent:
 - typically (possibly always) a Example Organization employee
 - included for correspondence-copy and coordination context
 - represented as `mrpoc_person_id` referencing `Person`
+- auto-assigned when a campaign has a category-to-MRPOC mapping for the partner category
+- manually editable for exceptions or incomplete mapping coverage
 
-Assumptions requiring confirmation before implementation:
+v1 behavior:
 
-- whether MRPOC is always required, or optional
-- whether MRPOC can be outside Example Organization in exception cases
-- whether one default MRPOC should auto-populate for specific partner categories
+- MRPOC remains optional and may be blank.
+- Automatic assignment is campaign-specific and category-based.
+- Missing mappings do not block solicitation creation.
+- Manual per-solicitation override is allowed.
+- Category mapping uses the canonical committee vocabulary:
+  - Food and Beverage
+  - Finance
+  - Insurance
+  - Accounting
+  - HR
+  - IT
+  - Security Services
+  - Construction
+  - Renovation
+  - Moving
+  - Packing
+  - Medical Service Providers
+  - Personal Service Providers
+  - Cleaning Services and Supplies
+  - Admin
+- Legacy partner categories are treated as `Needs Review` until manually corrected.
 
 ## Status Model (v1)
 
@@ -226,11 +246,11 @@ Solicitation is the anchor for future reporting, including:
 ## Focused Open Questions Before Implementation
 
 1. Should `solicitor_person_id` be strictly required at record creation, or allowed temporarily null during intake?
-2. Should `mrpoc_person_id` be required, optional, or conditionally required by partner category/workflow stage?
+2. Should v2 add controlled review tooling for mid-campaign MRPOC remapping and backfill?
 3. Should `business_volume` represent a point-in-time value for the campaign year only, or allow periodic in-year revision tracking in notes?
 4. What is the exact semantic distinction between `declined` and `closed` for committee reporting?
 5. Should `tax_letter_sent_at` remain a distinct field in v1, or be deferred if operationally redundant with thank-you workflows?
 
 ## v1 Design Summary
 
-Solicitation v1 is defined as the campaign-scoped participation record linking Partner and Campaign, with person-based ownership and correspondence/outcome tracking. It is intentionally lightweight, operationally transparent, and continuity-oriented, with status used for visibility rather than strict workflow enforcement.
+Solicitation v1 is defined as the campaign-scoped participation record linking Partner and Campaign, with person-based ownership and correspondence/outcome tracking. It is intentionally lightweight, operationally transparent, and continuity-oriented, with status used for visibility rather than strict workflow enforcement. MRPOC remains optional correspondence context and does not replace solicitor ownership.

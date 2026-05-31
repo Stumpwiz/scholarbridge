@@ -51,17 +51,36 @@ The campaign workflow should be consistent year to year, simple for committee us
 
 ### Solicitor Assignment
 
-- Solicitor must be an Editor user in v1.
 - Solicitor is the accountable owner of solicitation execution for assigned records.
+- v1 implementation does not enforce authentication role gates yet (reader/editor enforcement deferred).
 
 ### MRPOC Assignment
 
 - MRPOC assignment is automatic in v1.
 - MRPOC is determined by Partner category.
 - Category-to-MRPOC mappings are established per Campaign.
+- Canonical partner categories used for mapping:
+  - Food and Beverage
+  - Finance
+  - Insurance
+  - Accounting
+  - HR
+  - IT
+  - Security Services
+  - Construction
+  - Renovation
+  - Moving
+  - Packing
+  - Medical Service Providers
+  - Personal Service Providers
+  - Cleaning Services and Supplies
+  - Admin
+- Mapping is campaign-specific, so the same category may resolve to different MRPOCs in different years.
 - MRPOCs are generally Example Organization employees.
 - MRPOC assignments may change between Campaigns.
 - Mid-campaign remapping is not a v1 concern.
+- Missing category mapping does not block solicitation creation; MRPOC remains blank until manually set.
+- Partners with legacy categories are marked `Needs Review` until committee cleanup.
 
 ## Stewardship Philosophy
 

@@ -54,6 +54,15 @@
                         {% endif %}
                     </dd>
 
+                    <dt class="col-sm-4">MRPOC</dt>
+                    <dd class="col-sm-8">
+                        {% if solicitation.mrpoc %}
+                            {{ solicitation.mrpoc.preferred_name or solicitation.mrpoc.first_name }} {{ solicitation.mrpoc.last_name }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
+
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">{{ solicitation.status.replace("_", " ").title() }}</dd>
 

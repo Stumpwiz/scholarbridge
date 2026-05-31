@@ -36,6 +36,19 @@ class Person(db.Model):
         "Solicitation",
         back_populates="solicitor",
         lazy="selectin",
+        foreign_keys="Solicitation.solicitor_person_id",
+    )
+    solicitations_as_mrpoc = db.relationship(
+        "Solicitation",
+        back_populates="mrpoc",
+        lazy="selectin",
+        foreign_keys="Solicitation.mrpoc_person_id",
+    )
+    campaign_category_mappings_as_mrpoc = db.relationship(
+        "CampaignCategoryMRPOC",
+        back_populates="mrpoc",
+        lazy="selectin",
+        foreign_keys="CampaignCategoryMRPOC.mrpoc_person_id",
     )
 
     def __repr__(self) -> str:

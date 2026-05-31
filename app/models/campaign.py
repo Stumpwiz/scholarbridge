@@ -28,6 +28,12 @@ class Campaign(db.Model):
         back_populates="campaign",
         lazy="selectin",
     )
+    category_mrpoc_mappings = db.relationship(
+        "CampaignCategoryMRPOC",
+        back_populates="campaign",
+        lazy="selectin",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self) -> str:
         return f"<Campaign id={self.id} year={self.campaign_year} status={self.status}>"

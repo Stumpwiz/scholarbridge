@@ -16,30 +16,34 @@ from sqlalchemy.orm import selectinload
 
 from app.main import bp
 from app.extensions import db
-from app.models import Campaign, Contact, Partner, Person, Solicitation
-
-PARTNER_TYPE_OPTIONS = tuple(
-    sorted(
-        [
-            "Construction",
-            "Facilities Maintenance",
-            "Renovation",
-            "Utilities",
-            "Landscaping",
-            "Environmental Services",
-            "Food Services",
-            "Resident Services",
-            "Management Services",
-            "Financial Services",
-            "Insurance",
-            "Legal Services",
-            "Technology Services",
-            "Sustainability",
-            "Healthcare Services",
-            "Other",
-        ]
-    )
+from app.models import (
+    Campaign,
+    CampaignCategoryMRPOC,
+    Contact,
+    Partner,
+    Person,
+    Solicitation,
 )
+
+CANONICAL_PARTNER_TYPE_OPTIONS = (
+    "Food and Beverage",
+    "Finance",
+    "Insurance",
+    "Accounting",
+    "HR",
+    "IT",
+    "Security Services",
+    "Construction",
+    "Renovation",
+    "Moving",
+    "Packing",
+    "Medical Service Providers",
+    "Personal Service Providers",
+    "Cleaning Services and Supplies",
+    "Admin",
+)
+PARTNER_TYPE_NEEDS_REVIEW = "Needs Review"
+PARTNER_TYPE_OPTIONS = (PARTNER_TYPE_NEEDS_REVIEW, *CANONICAL_PARTNER_TYPE_OPTIONS)
 
 CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
 SOLICITATION_TRANCHE_OPTIONS = (1, 2, 3)
@@ -66,6 +70,11 @@ def health():
             "app": current_app.config.get("APP_NAME", "ScholarBridge"),
         }
     )
+
+
+@bp.before_app_request
+def normalize_partner_categories_for_realignment() -> None:
+    _normalize_legacy_partner_categories()
 
 
 @bp.get("/campaigns")
@@ -120,6 +129,8 @@ def campaign_detail(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     tranche_solicitations = _campaign_tranche_solicitations(campaign.id)
     available_partners = _available_partners_for_campaign(campaign.id)
+    category_mrpoc_map = _campaign_category_mrpoc_map(campaign.id)
+    mrpoc_people = _person_options()
     return render_template(
         "campaigns/detail.html",
         page_title=campaign.campaign_name,
@@ -127,6 +138,9 @@ def campaign_detail(campaign_id: int):
         tranche_solicitations=tranche_solicitations,
         available_partners=available_partners,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+        partner_categories=CANONICAL_PARTNER_TYPE_OPTIONS,
+        category_mrpoc_map=category_mrpoc_map,
+        mrpoc_people=mrpoc_people,
     )
 
 
@@ -173,6 +187,7 @@ def campaign_assign_partner(campaign_id: int):
         campaign_id=campaign.id,
         partner_id=partner.id,
         tranche=tranche,
+        mrpoc_person_id=_campaign_mrpoc_person_id_for_partner_category(campaign.id, partner.partner_type),
         status="not_contacted",
     )
     db.session.add(solicitation)
@@ -182,6 +197,51 @@ def campaign_assign_partner(campaign_id: int):
     return redirect(
         url_for("main.solicitation_edit", solicitation_id=solicitation.id, return_to="campaign")
     )
+
+
+@bp.post("/campaigns/<int:campaign_id>/mrpoc-mappings")
+def campaign_set_mrpoc_mapping(campaign_id: int):
+    campaign = db.get_or_404(Campaign, campaign_id)
+    partner_category = (request.form.get("partner_category") or "").strip()
+    mrpoc_person_id = _safe_int(request.form.get("mrpoc_person_id"))
+
+    if partner_category not in CANONICAL_PARTNER_TYPE_OPTIONS:
+        flash("Please select a valid partner category.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    if mrpoc_person_id is not None and db.session.get(Person, mrpoc_person_id) is None:
+        flash("Please select a valid MRPOC person.", "danger")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    mapping = db.session.scalar(
+        select(CampaignCategoryMRPOC).where(
+            CampaignCategoryMRPOC.campaign_id == campaign.id,
+            CampaignCategoryMRPOC.partner_category == partner_category,
+        )
+    )
+
+    if mrpoc_person_id is None:
+        if mapping is not None:
+            db.session.delete(mapping)
+            db.session.commit()
+            flash(f"MRPOC mapping cleared for {partner_category}.", "success")
+        else:
+            flash(f"No MRPOC mapping found for {partner_category}.", "warning")
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
+    if mapping is None:
+        mapping = CampaignCategoryMRPOC(
+            campaign_id=campaign.id,
+            partner_category=partner_category,
+            mrpoc_person_id=mrpoc_person_id,
+        )
+        db.session.add(mapping)
+    else:
+        mapping.mrpoc_person_id = mrpoc_person_id
+
+    db.session.commit()
+    flash(f"MRPOC mapping saved for {partner_category}.", "success")
+    return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
 
 
 @bp.route("/campaigns/<int:campaign_id>/edit", methods=["GET", "POST"])
@@ -218,12 +278,18 @@ def campaign_edit(campaign_id: int):
 @bp.get("/partners")
 def partner_list():
     partners = db.session.scalars(
-        select(Partner).order_by(Partner.partner_name.asc())
+        select(Partner).order_by(
+            (Partner.partner_type == PARTNER_TYPE_NEEDS_REVIEW).desc(),
+            Partner.partner_name.asc(),
+        )
     ).all()
+    needs_review_count = sum(1 for partner in partners if partner.partner_type == PARTNER_TYPE_NEEDS_REVIEW)
     return render_template(
         "partners/list.html",
         page_title="Partners",
         partners=partners,
+        needs_review_count=needs_review_count,
+        needs_review_value=PARTNER_TYPE_NEEDS_REVIEW,
     )
 
 
@@ -303,6 +369,7 @@ def solicitation_list():
             selectinload(Solicitation.campaign),
             selectinload(Solicitation.partner),
             selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.mrpoc),
         )
         .join(Solicitation.campaign)
         .join(Solicitation.partner)
@@ -352,7 +419,7 @@ def solicitation_create():
     campaigns, partners = _solicitation_form_options_for_create(
         selected_campaign_id=form_data["campaign_id"]
     )
-    solicitors = _solicitor_options()
+    solicitors = _person_options()
     if form_data["partner_id"] and all(
         partner.id != form_data["partner_id"] for partner in partners
     ):
@@ -389,7 +456,7 @@ def solicitation_edit(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
     form_data = _solicitation_to_form_data(solicitation)
     campaigns, partners = _solicitation_form_options()
-    solicitors = _solicitor_options()
+    solicitors = _person_options()
     return_to = _solicitation_return_to_value()
 
     if request.method == "POST":
@@ -427,7 +494,7 @@ def solicitation_edit(solicitation_id: int):
 @bp.route("/partners/new", methods=["GET", "POST"])
 def partner_create():
     form_data = {"is_active": True}
-    partner_types, legacy_partner_type = _partner_type_choices()
+    partner_types = _partner_type_choices()
 
     if request.method == "POST":
         form_data = _partner_form_data(request.form)
@@ -448,7 +515,6 @@ def partner_create():
         partner=None,
         form_data=form_data,
         partner_types=partner_types,
-        legacy_partner_type=legacy_partner_type,
     )
 
 
@@ -466,15 +532,11 @@ def partner_detail(partner_id: int):
 def partner_edit(partner_id: int):
     partner = db.get_or_404(Partner, partner_id)
     form_data = _partner_to_form_data(partner)
-    partner_types, legacy_partner_type = _partner_type_choices(
-        partner.partner_type
-    )
+    partner_types = _partner_type_choices()
 
     if request.method == "POST":
         form_data = _partner_form_data(request.form)
-        validation_error = _validate_partner_form(
-            form_data, legacy_partner_type=legacy_partner_type
-        )
+        validation_error = _validate_partner_form(form_data)
         if validation_error:
             flash(validation_error, "danger")
         else:
@@ -491,7 +553,6 @@ def partner_edit(partner_id: int):
         partner=partner,
         form_data=form_data,
         partner_types=partner_types,
-        legacy_partner_type=legacy_partner_type,
     )
 
 
@@ -671,16 +732,12 @@ def _partner_to_form_data(partner: Partner) -> dict:
     }
 
 
-def _validate_partner_form(
-    form_data: dict, legacy_partner_type: str | None = None
-) -> str | None:
+def _validate_partner_form(form_data: dict) -> str | None:
     if not form_data["partner_name"]:
         return "Partner name is required."
     partner_type = form_data["partner_type"]
     if partner_type:
         if partner_type in PARTNER_TYPE_OPTIONS:
-            return None
-        if legacy_partner_type and partner_type == legacy_partner_type:
             return None
         return "Please select a valid partner category."
     return None
@@ -826,11 +883,26 @@ def _validate_contact_form(form_data: dict) -> str | None:
     return None
 
 
-def _partner_type_choices(current_value: str | None = None) -> tuple[list[str], str | None]:
-    legacy_partner_type = None
-    if current_value and current_value not in PARTNER_TYPE_OPTIONS:
-        legacy_partner_type = current_value
-    return list(PARTNER_TYPE_OPTIONS), legacy_partner_type
+def _partner_type_choices() -> list[str]:
+    return list(PARTNER_TYPE_OPTIONS)
+
+
+def _normalize_legacy_partner_categories() -> int:
+    invalid_partners = db.session.scalars(
+        select(Partner).where(
+            Partner.partner_type.is_not(None),
+            Partner.partner_type != "",
+            Partner.partner_type.notin_(PARTNER_TYPE_OPTIONS),
+        )
+    ).all()
+
+    for partner in invalid_partners:
+        partner.partner_type = PARTNER_TYPE_NEEDS_REVIEW
+
+    if invalid_partners:
+        db.session.commit()
+
+    return len(invalid_partners)
 
 
 def _person_form_data(form=None) -> dict:
@@ -956,6 +1028,7 @@ def _solicitation_form_data(form=None) -> dict:
             "campaign_id": None,
             "partner_id": None,
             "solicitor_person_id": None,
+            "mrpoc_person_id": None,
             "tranche": 1,
             "business_volume": "",
             "amount_requested": "",
@@ -968,6 +1041,7 @@ def _solicitation_form_data(form=None) -> dict:
         "campaign_id": _safe_int(form.get("campaign_id")),
         "partner_id": _safe_int(form.get("partner_id")),
         "solicitor_person_id": _safe_int(form.get("solicitor_person_id")),
+        "mrpoc_person_id": _safe_int(form.get("mrpoc_person_id")),
         "tranche": _safe_int(form.get("tranche")),
         "business_volume": (form.get("business_volume") or "").strip(),
         "amount_requested": (form.get("amount_requested") or "").strip(),
@@ -982,6 +1056,7 @@ def _solicitation_to_form_data(solicitation: Solicitation) -> dict:
         "campaign_id": solicitation.campaign_id,
         "partner_id": solicitation.partner_id,
         "solicitor_person_id": solicitation.solicitor_person_id,
+        "mrpoc_person_id": solicitation.mrpoc_person_id,
         "tranche": solicitation.tranche,
         "business_volume": _money_for_form(solicitation.business_volume),
         "amount_requested": _money_for_form(solicitation.amount_requested),
@@ -1014,6 +1089,10 @@ def _validate_solicitation_form(
     solicitor_person_id = form_data["solicitor_person_id"]
     if solicitor_person_id is not None and db.session.get(Person, solicitor_person_id) is None:
         return "Please select a valid solicitor.", {}
+
+    mrpoc_person_id = form_data["mrpoc_person_id"]
+    if mrpoc_person_id is not None and db.session.get(Person, mrpoc_person_id) is None:
+        return "Please select a valid MRPOC.", {}
 
     tranche = form_data["tranche"]
     if tranche not in SOLICITATION_TRANCHE_OPTIONS:
@@ -1050,6 +1129,7 @@ def _validate_solicitation_form(
             "campaign_id": campaign_id,
             "partner_id": partner_id,
             "solicitor_person_id": solicitor_person_id,
+            "mrpoc_person_id": mrpoc_person_id,
             "tranche": tranche,
             "business_volume": business_volume,
             "amount_requested": amount_requested,
@@ -1094,7 +1174,7 @@ def _default_active_campaign_id() -> int | None:
     return None
 
 
-def _solicitor_options() -> list[Person]:
+def _person_options() -> list[Person]:
     return db.session.scalars(
         select(Person).order_by(
             Person.is_active.desc(),
@@ -1145,6 +1225,7 @@ def _campaign_tranche_solicitations(campaign_id: int) -> dict[int, list[Solicita
         .options(
             selectinload(Solicitation.partner),
             selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.mrpoc),
         )
         .join(Solicitation.partner)
         .where(Solicitation.campaign_id == campaign_id)
@@ -1156,3 +1237,26 @@ def _campaign_tranche_solicitations(campaign_id: int) -> dict[int, list[Solicita
         if solicitation.tranche in tranche_map:
             tranche_map[solicitation.tranche].append(solicitation)
     return tranche_map
+
+
+def _campaign_category_mrpoc_map(campaign_id: int) -> dict[str, CampaignCategoryMRPOC]:
+    mappings = db.session.scalars(
+        select(CampaignCategoryMRPOC)
+        .options(selectinload(CampaignCategoryMRPOC.mrpoc))
+        .where(CampaignCategoryMRPOC.campaign_id == campaign_id)
+    ).all()
+    return {mapping.partner_category: mapping for mapping in mappings}
+
+
+def _campaign_mrpoc_person_id_for_partner_category(
+    campaign_id: int, partner_category: str | None
+) -> int | None:
+    if not partner_category:
+        return None
+    mapping = db.session.scalar(
+        select(CampaignCategoryMRPOC.mrpoc_person_id).where(
+            CampaignCategoryMRPOC.campaign_id == campaign_id,
+            CampaignCategoryMRPOC.partner_category == partner_category,
+        )
+    )
+    return mapping

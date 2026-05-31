@@ -4,7 +4,12 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Partners</h1>
+    <div>
+        <h1 class="h4 mb-0">Partners</h1>
+        {% if needs_review_count %}
+            <p class="text-muted mb-0 small">{{ needs_review_count }} categories marked {{ needs_review_value }}.</p>
+        {% endif %}
+    </div>
     <a class="btn btn-primary btn-sm" href="{{ url_for('main.partner_create') }}">Add Partner</a>
 </div>
 
@@ -21,13 +26,19 @@
             </thead>
             <tbody>
             {% for partner in partners %}
-                <tr>
+                <tr {% if partner.partner_type == needs_review_value %}class="table-warning"{% endif %}>
                     <td>
                         <a href="{{ url_for('main.partner_detail', partner_id=partner.id) }}">
                             {{ partner.partner_name }}
                         </a>
                     </td>
-                    <td>{{ partner.partner_type or "—" }}</td>
+                    <td>
+                        {% if partner.partner_type == needs_review_value %}
+                            <span class="badge text-bg-warning">{{ needs_review_value }}</span>
+                        {% else %}
+                            {{ partner.partner_type or "—" }}
+                        {% endif %}
+                    </td>
                     <td>
                         {% if partner.is_active %}
                             <span class="badge text-bg-success">Active</span>
