@@ -283,6 +283,31 @@ Scope notes:
 - Exports/imports `Person` records only.
 - Does not include Users, Campaigns, Solicitations, Partners, or Contacts.
 
+## Partner Seed Export/Import (Development Utility)
+
+Use these scripts to preserve curated `Partner` records across SQLite rebuilds.
+
+Export Partners to seed JSON:
+
+```bash
+uv run python scripts/export_partners.py
+```
+
+Import Partners from seed JSON:
+
+```bash
+uv run python scripts/import_partners.py
+```
+
+Seed file path:
+
+- `data/seeds/partners.json`
+
+Scope notes:
+
+- Exports/imports `Partner` records only.
+- Does not include Campaigns, Solicitations, Contacts, Users, or Persons.
+
 ## Minimal Workflow
 
 - Keep architecture documents current before adding feature code.

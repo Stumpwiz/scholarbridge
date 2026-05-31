@@ -81,6 +81,7 @@ Stabilized conceptual decisions:
   - Security Services
   - Construction
   - Renovation
+  - Grounds
   - Moving
   - Packing
   - Medical Service Providers
@@ -450,6 +451,33 @@ Usage:
 Scope and limits:
 
 - Person-only utility (no User export/import).
+- No backup framework, migration framework, or generalized ETL behavior.
+
+## Partner Seed Preservation Utility
+
+Purpose:
+
+- Preserve curated `Partner` master records across local database rebuilds.
+
+Scripts:
+
+- `scripts/export_partners.py`
+- `scripts/import_partners.py`
+
+Seed path:
+
+- `data/seeds/partners.json`
+
+Usage:
+
+- Export:
+  - `uv run python scripts/export_partners.py`
+- Import:
+  - `uv run python scripts/import_partners.py`
+
+Scope and limits:
+
+- Partner-only utility (no Contact, Campaign, or Solicitation export/import).
 - No backup framework, migration framework, or generalized ETL behavior.
 
 ## Dependencies (Current Minimal)

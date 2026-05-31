@@ -69,6 +69,7 @@ The campaign workflow should be consistent year to year, simple for committee us
   - Security Services
   - Construction
   - Renovation
+  - Grounds
   - Moving
   - Packing
   - Medical Service Providers

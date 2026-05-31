@@ -40,6 +40,7 @@ PARTNER_TYPE_OPTIONS = {
     "Security Services",
     "Construction",
     "Renovation",
+    "Grounds",
     "Moving",
     "Packing",
     "Medical Service Providers",
