@@ -65,20 +65,28 @@
 
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">{{ solicitation.status.replace("_", " ").title() }}</dd>
-
-                    <dt class="col-sm-4">Business Volume</dt>
-                    <dd class="col-sm-8">${{ "%.2f"|format(solicitation.business_volume or 0) }}</dd>
-
-                    <dt class="col-sm-4">Amount Requested</dt>
-                    <dd class="col-sm-8">${{ "%.2f"|format(solicitation.amount_requested or 0) }}</dd>
-
-                    <dt class="col-sm-4">Amount Received</dt>
-                    <dd class="col-sm-8">${{ "%.2f"|format(solicitation.amount_received or 0) }}</dd>
                 </dl>
             </div>
         </div>
     </div>
     <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Financial Planning</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">Business Volume</dt>
+                    <dd class="col-sm-7">${{ "%.2f"|format(solicitation.business_volume or 0) }}</dd>
+
+                    <dt class="col-sm-5">Requested Amount</dt>
+                    <dd class="col-sm-7">${{ "%.2f"|format(solicitation.amount_requested or 0) }}</dd>
+
+                    <dt class="col-sm-5">Received Amount</dt>
+                    <dd class="col-sm-7">${{ "%.2f"|format(solicitation.amount_received or 0) }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-12">
         <div class="card h-100">
             <div class="card-header">Solicitation Management Notes</div>
             <div class="card-body">

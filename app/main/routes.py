@@ -278,19 +278,30 @@ def campaign_edit(campaign_id: int):
 
 @bp.get("/partners")
 def partner_list():
-    partners = db.session.scalars(
-        select(Partner).order_by(
-            (Partner.partner_type == PARTNER_TYPE_NEEDS_REVIEW).desc(),
-            Partner.partner_name.asc(),
-        )
-    ).all()
-    needs_review_count = sum(1 for partner in partners if partner.partner_type == PARTNER_TYPE_NEEDS_REVIEW)
+    partners = db.session.scalars(select(Partner)).all()
+    partners = sorted(
+        partners,
+        key=lambda partner: (
+            not _partner_category_is_incomplete(partner.partner_type),
+            _partner_sort_name(partner),
+            partner.id,
+        ),
+    )
+    category_review_count = sum(
+        1 for partner in partners if _partner_category_is_incomplete(partner.partner_type)
+    )
+    incomplete_partner_ids = {
+        partner.id
+        for partner in partners
+        if _partner_category_is_incomplete(partner.partner_type)
+    }
     return render_template(
         "partners/list.html",
         page_title="Partners",
         partners=partners,
-        needs_review_count=needs_review_count,
+        category_review_count=category_review_count,
         needs_review_value=PARTNER_TYPE_NEEDS_REVIEW,
+        incomplete_partner_ids=incomplete_partner_ids,
     )
 
 
@@ -742,6 +753,17 @@ def _validate_partner_form(form_data: dict) -> str | None:
             return None
         return "Please select a valid partner category."
     return None
+
+
+def _partner_category_is_incomplete(partner_type: str | None) -> bool:
+    if not partner_type:
+        return True
+    return partner_type == PARTNER_TYPE_NEEDS_REVIEW
+
+
+def _partner_sort_name(partner: Partner) -> str:
+    sort_name = partner.display_name or partner.partner_name or ""
+    return " ".join(sort_name.strip().lower().split())
 
 
 def _empty_to_none(value):

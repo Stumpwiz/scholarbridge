@@ -85,18 +85,24 @@
                 <div class="form-text">MRPOC is correspondence context; solicitor remains the operational owner.</div>
             </div>
 
-            <div class="row">
-                <div class="col-12 col-md-4 mb-3">
-                    <label for="business_volume" class="form-label">Business Volume ($)</label>
-                    <input type="text" class="form-control" id="business_volume" name="business_volume" value="{{ form_data.business_volume or '' }}">
-                </div>
-                <div class="col-12 col-md-4 mb-3">
-                    <label for="amount_requested" class="form-label">Ask Amount ($)</label>
-                    <input type="text" class="form-control" id="amount_requested" name="amount_requested" value="{{ form_data.amount_requested or '' }}">
-                </div>
-                <div class="col-12 col-md-4 mb-3">
-                    <label for="amount_received" class="form-label">Donation Amount ($)</label>
-                    <input type="text" class="form-control" id="amount_received" name="amount_received" value="{{ form_data.amount_received or '' }}">
+            <div class="card mb-3">
+                <div class="card-header">Financial Planning</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-12 col-md-4 mb-3">
+                            <label for="business_volume" class="form-label">Business Volume ($)</label>
+                            <input type="text" class="form-control" id="business_volume" name="business_volume" value="{{ form_data.business_volume or '' }}">
+                        </div>
+                        <div class="col-12 col-md-4 mb-3">
+                            <label for="amount_requested" class="form-label">Requested Amount ($)</label>
+                            <input type="text" class="form-control" id="amount_requested" name="amount_requested" value="{{ form_data.amount_requested or '' }}">
+                        </div>
+                        <div class="col-12 col-md-4 mb-3">
+                            <label for="amount_received" class="form-label">Received Amount ($)</label>
+                            <input type="text" class="form-control" id="amount_received" name="amount_received" value="{{ form_data.amount_received or '' }}">
+                        </div>
+                    </div>
+                    <div class="form-text mb-0">Business Volume is planning context and not an obligation to contribute.</div>
                 </div>
             </div>
 

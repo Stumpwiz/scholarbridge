@@ -162,6 +162,7 @@
                                     <th>Solicitor</th>
                                     <th>MRPOC</th>
                                     <th>Status</th>
+                                    <th>Business Volume</th>
                                     <th>Amount Requested</th>
                                     <th>Amount Received</th>
                                 </tr>
@@ -189,6 +190,7 @@
                                             {% endif %}
                                         </td>
                                         <td>{{ solicitation.status.replace("_", " ").title() }}</td>
+                                        <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>
                                         <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                                         <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
                                     </tr>

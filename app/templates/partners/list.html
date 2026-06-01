@@ -6,8 +6,8 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1 class="h4 mb-0">Partners</h1>
-        {% if needs_review_count %}
-            <p class="text-muted mb-0 small">{{ needs_review_count }} categories marked {{ needs_review_value }}.</p>
+        {% if category_review_count %}
+            <p class="text-muted mb-0 small">Partners needing category review: {{ category_review_count }}</p>
         {% endif %}
     </div>
     <a class="btn btn-primary btn-sm" href="{{ url_for('main.partner_create') }}">Add Partner</a>
@@ -26,7 +26,7 @@
             </thead>
             <tbody>
             {% for partner in partners %}
-                <tr {% if partner.partner_type == needs_review_value %}class="table-warning"{% endif %}>
+                <tr {% if partner.id in incomplete_partner_ids %}class="table-warning"{% endif %}>
                     <td>
                         <a href="{{ url_for('main.partner_detail', partner_id=partner.id) }}">
                             {{ partner.partner_name }}
@@ -35,6 +35,8 @@
                     <td>
                         {% if partner.partner_type == needs_review_value %}
                             <span class="badge text-bg-warning">{{ needs_review_value }}</span>
+                        {% elif not partner.partner_type %}
+                            <span class="badge text-bg-warning">Category Missing</span>
                         {% else %}
                             {{ partner.partner_type or "—" }}
                         {% endif %}
