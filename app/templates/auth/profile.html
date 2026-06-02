@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <h1 class="h4 mb-3">Profile</h1>
+        <div class="card mb-3">
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">{{ current_user.display_name }}</dd>
+                    <dt class="col-sm-4">Username</dt>
+                    <dd class="col-sm-8">{{ current_user.username }}</dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ current_user.email }}</dd>
+                    <dt class="col-sm-4">Role</dt>
+                    <dd class="col-sm-8 text-capitalize">{{ current_user.role }}</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if current_user.is_active %}
+                            <span class="badge text-bg-success">Active</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">Avatar</div>
+            <div class="card-body">
+                {% set avatar_src = url_for('static', filename=(current_user.avatar_path or default_avatar_path)) %}
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <img src="{{ avatar_src }}" alt="" class="rounded-circle border" width="64" height="64">
+                    <span class="text-muted small">PNG, JPG, JPEG, GIF, or WEBP</span>
+                </div>
+                <form method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="avatar_file" class="form-label">Upload Avatar</label>
+                        <input class="form-control" type="file" id="avatar_file" name="avatar_file" accept=".png,.jpg,.jpeg,.gif,.webp">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Save Avatar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

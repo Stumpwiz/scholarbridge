@@ -41,11 +41,34 @@
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.campaign_') %} active{% endif %}" href="{{ url_for('main.campaign_list') }}">Campaigns</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.solicitation_') %} active{% endif %}" href="{{ url_for('main.solicitation_list') }}">Solicitations</a></li>
                 <li class="nav-item"><span class="nav-link disabled">Reports</span></li>
-                <li class="nav-item"><span class="nav-link disabled">Letters</span></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.letter_') %} active{% endif %}" href="{{ url_for('main.letter_list') }}">Letters</a></li>
                 <li class="nav-item"><span class="nav-link disabled">Administration</span></li>
             </ul>
             <div class="d-flex pb-2 pb-lg-0">
-                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.health') }}">Health</a>
+                {% if current_user.is_authenticated %}
+                    {% set avatar_src = url_for('static', filename=(current_user.avatar_path or 'img/avatars/default-avatar.svg')) %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-inline-flex align-items-center gap-2" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <img src="{{ avatar_src }}" alt="" class="sb-user-avatar" aria-hidden="true">
+                            <span>{{ current_user.display_name }}</span>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{{ url_for('auth.profile') }}">Profile</a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('auth.change_password') }}">Change Password</a></li>
+                            {% if user_is_admin() %}
+                                <li><a class="dropdown-item" href="{{ url_for('auth.user_list') }}">User Management</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form method="post" action="{{ url_for('auth.logout') }}">
+                                    <button type="submit" class="dropdown-item">Logout</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('auth.login') }}">Login</a>
+                {% endif %}
             </div>
         </div>
     </div>

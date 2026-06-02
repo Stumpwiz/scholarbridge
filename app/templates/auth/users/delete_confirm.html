@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Delete User - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-7">
+        <h1 class="h4 mb-3">Delete User Account</h1>
+        <div class="card border-danger-subtle">
+            <div class="card-body">
+                <p class="mb-2">
+                    You are about to delete this authentication account:
+                </p>
+                <p class="mb-3">
+                    <strong>{{ user.display_name }}</strong><br>
+                    <span class="text-muted small">Username: {{ user.username }}</span><br>
+                    <span class="text-muted small">Email: {{ user.email }}</span>
+                </p>
+                <p class="text-muted small mb-3">
+                    This removes the user login only. Linked Person and operational records are preserved.
+                </p>
+                <form method="post" class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">Confirm Delete</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('auth.user_list') }}">Cancel</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

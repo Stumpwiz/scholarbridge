@@ -3,15 +3,20 @@
 {% block title %}{{ partner.partner_name }} - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
+{% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1 class="h4 mb-1">{{ partner.partner_name }}</h1>
         <p class="text-muted mb-0">{{ partner.display_name or "No display name set" }}</p>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.partner_edit', partner_id=partner.id) }}">
-        <i class="bi bi-pencil" aria-hidden="true"></i>
-        <span class="ms-1">Edit</span>
-    </a>
+    {% if can_edit %}
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.partner_edit', partner_id=partner.id) }}">
+            <i class="bi bi-pencil" aria-hidden="true"></i>
+            <span class="ms-1">Edit</span>
+        </a>
+    {% else %}
+        <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Edit</button>
+    {% endif %}
 </div>
 
 <div class="row g-3">
@@ -113,28 +118,34 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
-                                        <a
-                                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
-                                            href="{{ url_for('main.partner_contact_edit', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
-                                            title="Edit contact"
-                                            aria-label="Edit contact"
-                                        >
-                                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                                        </a>
-                                        <form
-                                            method="post"
-                                            action="{{ url_for('main.partner_contact_delete', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
-                                            class="d-inline ms-1"
-                                        >
-                                            <button
-                                                type="submit"
-                                                class="btn btn-outline-danger btn-sm sb-icon-btn"
-                                                title="Delete contact"
-                                                aria-label="Delete contact"
+                                        {% if can_edit %}
+                                            <a
+                                                class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                                                href="{{ url_for('main.partner_contact_edit', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
+                                                title="Edit contact"
+                                                aria-label="Edit contact"
                                             >
-                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                                            </a>
+                                            <form
+                                                method="post"
+                                                action="{{ url_for('main.partner_contact_delete', partner_id=partner.id, contact_id=contact.id, _anchor='contacts') }}"
+                                                class="d-inline ms-1"
+                                            >
+                                                <button
+                                                    type="submit"
+                                                    class="btn btn-outline-danger btn-sm sb-icon-btn"
+                                                    title="Delete contact"
+                                                    aria-label="Delete contact"
+                                                >
+                                                    <i class="bi bi-trash" aria-hidden="true"></i>
+                                                </button>
+                                            </form>
+                                        {% else %}
+                                            <button class="btn btn-outline-secondary btn-sm sb-icon-btn sb-action-muted" type="button" disabled>
+                                                <i class="bi bi-pencil" aria-hidden="true"></i>
                                             </button>
-                                        </form>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% if contact.notes %}
@@ -155,23 +166,34 @@
         </div>
     </div>
 
-    <div class="col-12 col-xl-6">
-        <div class="card h-100">
-            <div class="card-header">Add Contact</div>
-            <div class="card-body">
-                <form method="post" action="{{ url_for('main.partner_contact_create', partner_id=partner.id) }}">
-                    {% with form_data = contact_form_data, id_prefix = "add_contact" %}
-                        {% include "partners/_contact_form_fields.html" %}
-                    {% endwith %}
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">Add Contact</button>
-                    </div>
-                </form>
+    {% if can_edit %}
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-header">Add Contact</div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('main.partner_contact_create', partner_id=partner.id) }}">
+                        {% with form_data = contact_form_data, id_prefix = "add_contact" %}
+                            {% include "partners/_contact_form_fields.html" %}
+                        {% endwith %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Add Contact</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
+    {% else %}
+        <div class="col-12 col-xl-6">
+            <div class="card h-100">
+                <div class="card-header">Add Contact</div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">Reader access: contact updates are disabled.</p>
+                </div>
+            </div>
+        </div>
+    {% endif %}
 
-    {% if editing_contact %}
+    {% if editing_contact and can_edit %}
         <div class="col-12 col-xl-6">
             <div class="card h-100 border-secondary">
                 <div class="card-header">Edit Contact</div>

@@ -3,9 +3,14 @@
 {% block title %}Solicitations - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
+{% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Solicitations</h1>
-    <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Add Solicitation</a>
+    {% if can_edit %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Add Solicitation</a>
+    {% else %}
+        <button class="btn btn-secondary btn-sm" type="button" disabled>Add Solicitation</button>
+    {% endif %}
 </div>
 
 {% if solicitations %}
@@ -76,9 +81,15 @@
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
                     <td class="text-end">
-                        <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
-                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                        </a>
+                        {% if can_edit %}
+                            <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </a>
+                        {% else %}
+                            <button class="btn btn-outline-secondary btn-sm sb-icon-btn sb-action-muted" type="button" disabled>
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </button>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -89,7 +100,11 @@
     <div class="card">
         <div class="card-body">
             <p class="mb-3">No solicitations have been added yet.</p>
-            <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Create first solicitation</a>
+            {% if can_edit %}
+                <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Create first solicitation</a>
+            {% else %}
+                <button class="btn btn-secondary btn-sm" type="button" disabled>Create first solicitation</button>
+            {% endif %}
         </div>
     </div>
 {% endif %}

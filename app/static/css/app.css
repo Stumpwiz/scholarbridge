@@ -54,6 +54,79 @@
     justify-content: center;
 }
 
+.sb-user-avatar {
+    width: 1.25rem;
+    height: 1.25rem;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.sb-action-muted {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.sb-dashboard-card {
+    border-color: #dfe3e8;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.sb-dashboard-card:hover,
+.sb-dashboard-card:focus-within {
+    border-color: #b8c1ca;
+    box-shadow: 0 0.5rem 1rem rgba(33, 37, 41, 0.08) !important;
+    transform: translateY(-1px);
+}
+
+.sb-dashboard-icon {
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+
+.sb-dashboard-icon-partners {
+    color: #1d4f8a;
+    background-color: #e9f2ff;
+    border-color: #cfe1fb;
+}
+
+.sb-dashboard-icon-campaigns {
+    color: #2f6e37;
+    background-color: #ebf6ed;
+    border-color: #d4ead7;
+}
+
+.sb-dashboard-icon-solicitations {
+    color: #8f5f05;
+    background-color: #fff6e5;
+    border-color: #f6e2b8;
+}
+
+.sb-dashboard-icon-people {
+    color: #64379b;
+    background-color: #f3ebfb;
+    border-color: #e1d1f5;
+}
+
+.sb-dashboard-icon-letters {
+    color: #0d6d69;
+    background-color: #e8f7f6;
+    border-color: #c8eae8;
+}
+
+.sb-dashboard-icon-administration {
+    color: #4a4f55;
+    background-color: #f0f1f3;
+    border-color: #dee1e4;
+}
+
 @media (min-width: 992px) {
     .sb-navbar .navbar-nav .nav-link.active {
         border-bottom: 2px solid #8b1e3f;

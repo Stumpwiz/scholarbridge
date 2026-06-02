@@ -3,9 +3,14 @@
 {% block title %}People - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
+{% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">People</h1>
-    <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Add Person</a>
+    {% if can_edit %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Add Person</a>
+    {% else %}
+        <button class="btn btn-secondary btn-sm" type="button" disabled>Add Person</button>
+    {% endif %}
 </div>
 
 {% if people %}
@@ -36,14 +41,20 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        <a
-                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
-                            href="{{ url_for('main.person_edit', person_id=person.id) }}"
-                            title="Edit person"
-                            aria-label="Edit person"
-                        >
-                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                        </a>
+                        {% if can_edit %}
+                            <a
+                                class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                                href="{{ url_for('main.person_edit', person_id=person.id) }}"
+                                title="Edit person"
+                                aria-label="Edit person"
+                            >
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </a>
+                        {% else %}
+                            <button class="btn btn-outline-secondary btn-sm sb-icon-btn sb-action-muted" type="button" disabled>
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </button>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -54,7 +65,11 @@
     <div class="card">
         <div class="card-body">
             <p class="mb-3">No people have been added yet.</p>
-            <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Create first person</a>
+            {% if can_edit %}
+                <a class="btn btn-primary btn-sm" href="{{ url_for('main.person_create') }}">Create first person</a>
+            {% else %}
+                <button class="btn btn-secondary btn-sm" type="button" disabled>Create first person</button>
+            {% endif %}
         </div>
     </div>
 {% endif %}

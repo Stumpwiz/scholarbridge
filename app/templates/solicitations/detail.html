@@ -3,6 +3,7 @@
 {% block title %}Solicitation #{{ solicitation.id }} - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
+{% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
         <h1 class="h4 mb-1">Solicitation #{{ solicitation.id }}</h1>
@@ -11,16 +12,20 @@
             {% if solicitation.partner %} • {{ solicitation.partner.partner_name }}{% endif %}
         </p>
     </div>
-    {% if return_to == "campaign" %}
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, return_to='campaign') }}">
-            <i class="bi bi-pencil" aria-hidden="true"></i>
-            <span class="ms-1">Edit</span>
-        </a>
+    {% if can_edit %}
+        {% if return_to == "campaign" %}
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, return_to='campaign') }}">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+                <span class="ms-1">Edit</span>
+            </a>
+        {% else %}
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
+                <i class="bi bi-pencil" aria-hidden="true"></i>
+                <span class="ms-1">Edit</span>
+            </a>
+        {% endif %}
     {% else %}
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
-            <i class="bi bi-pencil" aria-hidden="true"></i>
-            <span class="ms-1">Edit</span>
-        </a>
+        <button class="btn btn-outline-secondary btn-sm" type="button" disabled>Edit</button>
     {% endif %}
 </div>
 

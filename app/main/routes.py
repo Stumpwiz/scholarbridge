@@ -11,9 +11,11 @@ from flask import (
     request,
     url_for,
 )
+from flask_login import current_user
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from app.auth.permissions import editor_required
 from app.main import bp
 from app.extensions import db
 from app.models import (
@@ -58,9 +60,25 @@ SOLICITATION_STATUS_OPTIONS = (
 )
 
 
+@bp.before_request
+def require_authenticated_user():
+    if request.endpoint == "main.health":
+        return None
+    if request.endpoint is None:
+        return None
+    if current_user.is_authenticated:
+        return None
+    return redirect(url_for("auth.login", next=request.full_path if request.query_string else request.path))
+
+
 @bp.get("/")
 def index():
     return render_template("index.html", page_title="Home")
+
+
+@bp.get("/letters")
+def letter_list():
+    return render_template("letters/list.html", page_title="Letters")
 
 
 @bp.get("/health")
@@ -93,6 +111,7 @@ def campaign_list():
 
 
 @bp.route("/campaigns/new", methods=["GET", "POST"])
+@editor_required
 def campaign_create():
     form_data = _campaign_form_data()
 
@@ -130,6 +149,12 @@ def campaign_detail(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     tranche_solicitations = _campaign_tranche_solicitations(campaign.id)
     available_partners = _available_partners_for_campaign(campaign.id)
+    uncategorized_available_count = sum(
+        1 for partner in available_partners if _partner_category_is_incomplete(partner.partner_type)
+    )
+    available_partners = [
+        partner for partner in available_partners if not _partner_category_is_incomplete(partner.partner_type)
+    ]
     category_mrpoc_map = _campaign_category_mrpoc_map(campaign.id)
     mrpoc_people = _person_options()
     return render_template(
@@ -138,6 +163,7 @@ def campaign_detail(campaign_id: int):
         campaign=campaign,
         tranche_solicitations=tranche_solicitations,
         available_partners=available_partners,
+        uncategorized_available_count=uncategorized_available_count,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         partner_categories=CANONICAL_PARTNER_TYPE_OPTIONS,
         category_mrpoc_map=category_mrpoc_map,
@@ -146,6 +172,7 @@ def campaign_detail(campaign_id: int):
 
 
 @bp.post("/campaigns/<int:campaign_id>/assign-partner")
+@editor_required
 def campaign_assign_partner(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     tranche = _safe_int(request.form.get("tranche"))
@@ -184,6 +211,13 @@ def campaign_assign_partner(campaign_id: int):
             )
         )
 
+    if _partner_category_is_incomplete(partner.partner_type):
+        flash(
+            "Partner must be categorized before assignment. Update the partner category and try again.",
+            "danger",
+        )
+        return redirect(url_for("main.campaign_detail", campaign_id=campaign.id))
+
     solicitation = Solicitation(
         campaign_id=campaign.id,
         partner_id=partner.id,
@@ -201,6 +235,7 @@ def campaign_assign_partner(campaign_id: int):
 
 
 @bp.post("/campaigns/<int:campaign_id>/mrpoc-mappings")
+@editor_required
 def campaign_set_mrpoc_mapping(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     partner_category = (request.form.get("partner_category") or "").strip()
@@ -246,6 +281,7 @@ def campaign_set_mrpoc_mapping(campaign_id: int):
 
 
 @bp.route("/campaigns/<int:campaign_id>/edit", methods=["GET", "POST"])
+@editor_required
 def campaign_edit(campaign_id: int):
     campaign = db.get_or_404(Campaign, campaign_id)
     form_data = _campaign_to_form_data(campaign)
@@ -323,6 +359,7 @@ def person_list():
 
 
 @bp.route("/people/new", methods=["GET", "POST"])
+@editor_required
 def person_create():
     form_data = _person_form_data()
 
@@ -348,6 +385,7 @@ def person_create():
 
 
 @bp.route("/people/<int:person_id>/edit", methods=["GET", "POST"])
+@editor_required
 def person_edit(person_id: int):
     person = db.get_or_404(Person, person_id)
     form_data = _person_to_form_data(person)
@@ -400,6 +438,7 @@ def solicitation_list():
 
 
 @bp.route("/solicitations/new", methods=["GET", "POST"])
+@editor_required
 def solicitation_create():
     form_data = _solicitation_form_data()
 
@@ -464,6 +503,7 @@ def solicitation_detail(solicitation_id: int):
 
 
 @bp.route("/solicitations/<int:solicitation_id>/edit", methods=["GET", "POST"])
+@editor_required
 def solicitation_edit(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
     form_data = _solicitation_to_form_data(solicitation)
@@ -504,6 +544,7 @@ def solicitation_edit(solicitation_id: int):
 
 
 @bp.route("/partners/new", methods=["GET", "POST"])
+@editor_required
 def partner_create():
     form_data = {"is_active": True}
     partner_types = _partner_type_choices()
@@ -541,6 +582,7 @@ def partner_detail(partner_id: int):
 
 
 @bp.route("/partners/<int:partner_id>/edit", methods=["GET", "POST"])
+@editor_required
 def partner_edit(partner_id: int):
     partner = db.get_or_404(Partner, partner_id)
     form_data = _partner_to_form_data(partner)
@@ -569,6 +611,7 @@ def partner_edit(partner_id: int):
 
 
 @bp.post("/partners/<int:partner_id>/contacts/new")
+@editor_required
 def partner_contact_create(partner_id: int):
     partner = db.get_or_404(Partner, partner_id)
     contact_form_data = _contact_form_data(request.form)
@@ -609,6 +652,7 @@ def partner_contact_create(partner_id: int):
     "/partners/<int:partner_id>/contacts/<int:contact_id>/edit",
     methods=["GET", "POST"],
 )
+@editor_required
 def partner_contact_edit(partner_id: int, contact_id: int):
     partner = db.get_or_404(Partner, partner_id)
     contact = db.get_or_404(Contact, contact_id)
@@ -652,6 +696,7 @@ def partner_contact_edit(partner_id: int, contact_id: int):
 
 
 @bp.post("/partners/<int:partner_id>/contacts/<int:contact_id>/delete")
+@editor_required
 def partner_contact_delete(partner_id: int, contact_id: int):
     partner = db.get_or_404(Partner, partner_id)
     contact = db.get_or_404(Contact, contact_id)

@@ -3,9 +3,14 @@
 {% block title %}Campaigns - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
+{% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Campaigns</h1>
-    <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Add Campaign</a>
+    {% if can_edit %}
+        <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Add Campaign</a>
+    {% else %}
+        <button class="btn btn-secondary btn-sm" type="button" disabled>Add Campaign</button>
+    {% endif %}
 </div>
 
 {% if active_count > 1 %}
@@ -22,7 +27,7 @@
                 <th>Year</th>
                 <th>Name</th>
                 <th>Status</th>
-                <th></th>
+                <th class="text-end">Actions</th>
             </tr>
             </thead>
             <tbody>
@@ -46,14 +51,20 @@
                         {% endif %}
                     </td>
                     <td class="text-end">
-                        <a
-                            class="btn btn-outline-secondary btn-sm sb-icon-btn"
-                            href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}"
-                            title="Edit campaign"
-                            aria-label="Edit campaign"
-                        >
-                            <i class="bi bi-pencil" aria-hidden="true"></i>
-                        </a>
+                        {% if can_edit %}
+                            <a
+                                class="btn btn-outline-secondary btn-sm sb-icon-btn"
+                                href="{{ url_for('main.campaign_edit', campaign_id=campaign.id) }}"
+                                title="Edit campaign"
+                                aria-label="Edit campaign"
+                            >
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </a>
+                        {% else %}
+                            <button class="btn btn-outline-secondary btn-sm sb-icon-btn sb-action-muted" type="button" disabled title="Reader access">
+                                <i class="bi bi-pencil" aria-hidden="true"></i>
+                            </button>
+                        {% endif %}
                     </td>
                 </tr>
             {% endfor %}
@@ -64,7 +75,11 @@
     <div class="card">
         <div class="card-body">
             <p class="mb-3">No campaigns have been added yet.</p>
-            <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Create first campaign</a>
+            {% if can_edit %}
+                <a class="btn btn-primary btn-sm" href="{{ url_for('main.campaign_create') }}">Create first campaign</a>
+            {% else %}
+                <button class="btn btn-secondary btn-sm" type="button" disabled>Create first campaign</button>
+            {% endif %}
         </div>
     </div>
 {% endif %}
