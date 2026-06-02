@@ -12,7 +12,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.auth.permissions import editor_required
@@ -413,7 +413,14 @@ def person_edit(person_id: int):
 
 @bp.get("/solicitations")
 def solicitation_list():
-    solicitations = db.session.scalars(
+    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
+    solicitor_filter_people = _assigned_solicitor_filter_options()
+    solicitor_filter_ids = {person.id for person in solicitor_filter_people}
+    if selected_solicitor_id not in solicitor_filter_ids:
+        selected_solicitor_id = None
+
+    partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
+    query = (
         select(Solicitation)
         .options(
             selectinload(Solicitation.campaign),
@@ -423,9 +430,14 @@ def solicitation_list():
         )
         .join(Solicitation.campaign)
         .join(Solicitation.partner)
-        .order_by(
+    )
+    if selected_solicitor_id is not None:
+        query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
+
+    solicitations = db.session.scalars(
+        query.order_by(
             Solicitation.tranche.asc(),
-            Partner.partner_name.asc(),
+            partner_sort_name.asc(),
             Campaign.campaign_year.desc(),
             Solicitation.id.asc(),
         )
@@ -434,6 +446,8 @@ def solicitation_list():
         "solicitations/list.html",
         page_title="Solicitations",
         solicitations=solicitations,
+        solicitor_filter_people=solicitor_filter_people,
+        selected_solicitor_id=selected_solicitor_id,
     )
 
 
@@ -1245,6 +1259,20 @@ def _default_active_campaign_id() -> int | None:
 def _person_options() -> list[Person]:
     return db.session.scalars(
         select(Person).order_by(
+            Person.is_active.desc(),
+            Person.last_name.asc(),
+            Person.first_name.asc(),
+            Person.id.asc(),
+        )
+    ).all()
+
+
+def _assigned_solicitor_filter_options() -> list[Person]:
+    return db.session.scalars(
+        select(Person)
+        .join(Solicitation, Solicitation.solicitor_person_id == Person.id)
+        .distinct()
+        .order_by(
             Person.is_active.desc(),
             Person.last_name.asc(),
             Person.first_name.asc(),

@@ -121,12 +121,6 @@
     border-color: #c8eae8;
 }
 
-.sb-dashboard-icon-administration {
-    color: #4a4f55;
-    background-color: #f0f1f3;
-    border-color: #dee1e4;
-}
-
 @media (min-width: 992px) {
     .sb-navbar .navbar-nav .nav-link.active {
         border-bottom: 2px solid #8b1e3f;
