@@ -1,5 +1,5 @@
 <div class="row">
-    <div class="col-12 col-md-6 mb-3">
+    <div class="col-12 col-md-5 mb-3">
         <label for="{{ id_prefix }}_first_name" class="form-label">First Name</label>
         <input
             type="text"
@@ -9,7 +9,18 @@
             value="{{ form_data.first_name or '' }}"
         >
     </div>
-    <div class="col-12 col-md-6 mb-3">
+    <div class="col-12 col-md-2 mb-3">
+        <label for="{{ id_prefix }}_middle_initial" class="form-label">Middle Initial</label>
+        <input
+            type="text"
+            class="form-control"
+            id="{{ id_prefix }}_middle_initial"
+            name="middle_initial"
+            maxlength="1"
+            value="{{ form_data.middle_initial or '' }}"
+        >
+    </div>
+    <div class="col-12 col-md-5 mb-3">
         <label for="{{ id_prefix }}_last_name" class="form-label">Last Name</label>
         <input
             type="text"

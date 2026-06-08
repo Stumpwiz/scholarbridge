@@ -10,6 +10,7 @@ class Contact(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     first_name = db.Column(db.String(120), nullable=True)
+    middle_initial = db.Column(db.String(1), nullable=True)
     last_name = db.Column(db.String(120), nullable=True)
     title = db.Column(db.String(120), nullable=True)
     email = db.Column(db.String(255), nullable=True)

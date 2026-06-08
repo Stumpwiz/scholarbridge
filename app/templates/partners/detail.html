@@ -99,7 +99,7 @@
                             </thead>
                             <tbody>
                             {% for contact in contacts %}
-                                {% set contact_name = ((contact.first_name or "") ~ " " ~ (contact.last_name or "")).strip() %}
+                                {% set contact_name = ((contact.first_name or "") ~ ((" " ~ contact.middle_initial) if contact.middle_initial else "") ~ " " ~ (contact.last_name or "")).strip() %}
                                 <tr>
                                     <td>
                                         {{ contact_name or "No name provided" }}

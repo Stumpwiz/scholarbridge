@@ -1,5 +1,6 @@
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
+from io import BytesIO
 
 from flask import (
     abort,
@@ -9,6 +10,7 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     url_for,
 )
 from flask_login import current_user
@@ -16,6 +18,11 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.auth.permissions import editor_required
+from app.main.letter_service import (
+    SolicitationLetterError,
+    build_solicitation_letter_context,
+    generate_solicitation_pdf_bytes,
+)
 from app.main import bp
 from app.extensions import db
 from app.models import (
@@ -78,7 +85,45 @@ def index():
 
 @bp.get("/letters")
 def letter_list():
-    return render_template("letters/list.html", page_title="Letters")
+    selected_partner_id = _safe_int(request.args.get("partner_id"))
+    partners = _letter_partner_options()
+    partner_ids = {partner.id for partner in partners}
+    if selected_partner_id not in partner_ids:
+        selected_partner_id = None
+
+    return render_template(
+        "letters/list.html",
+        page_title="Letters",
+        partners=partners,
+        selected_partner_id=selected_partner_id,
+    )
+
+
+@bp.get("/letters/solicitation.pdf")
+def letter_solicitation_pdf():
+    partner_id = _safe_int(request.args.get("partner_id"))
+    if partner_id is None:
+        flash("Please select a partner to generate a letter.", "danger")
+        return redirect(url_for("main.letter_list"))
+
+    download = request.args.get("download") == "1"
+
+    try:
+        context = build_solicitation_letter_context(partner_id)
+        pdf_bytes = generate_solicitation_pdf_bytes(context)
+    except SolicitationLetterError as exc:
+        current_app.logger.exception("Solicitation letter generation failed: %s", exc)
+        flash("Unable to generate solicitation PDF. Check partner/contact data and try again.", "danger")
+        return redirect(url_for("main.letter_list", partner_id=partner_id))
+
+    filename_stub = _slugify_filename_part(context.get("company") or f"partner-{partner_id}")
+    download_name = f"solicitation-{filename_stub}.pdf"
+    return send_file(
+        BytesIO(pdf_bytes),
+        mimetype="application/pdf",
+        as_attachment=download,
+        download_name=download_name,
+    )
 
 
 @bp.get("/health")
@@ -629,7 +674,7 @@ def partner_edit(partner_id: int):
 def partner_contact_create(partner_id: int):
     partner = db.get_or_404(Partner, partner_id)
     contact_form_data = _contact_form_data(request.form)
-    validation_error = _validate_contact_form(contact_form_data)
+    validation_error, normalized_contact_data = _validate_contact_form(contact_form_data)
 
     if validation_error:
         flash(validation_error, "danger")
@@ -639,19 +684,20 @@ def partner_contact_create(partner_id: int):
             editing_contact=None,
         )
 
-    if contact_form_data["is_primary"]:
+    if normalized_contact_data["is_primary"]:
         _unset_other_primary_contacts(partner.id)
 
     contact = Contact(
         partner_id=partner.id,
-        first_name=contact_form_data["first_name"],
-        last_name=contact_form_data["last_name"],
-        title=contact_form_data["title"],
-        email=contact_form_data["email"],
-        phone=contact_form_data["phone"],
-        notes=contact_form_data["notes"],
-        is_primary=contact_form_data["is_primary"],
-        is_active=contact_form_data["is_active"],
+        first_name=normalized_contact_data["first_name"],
+        middle_initial=normalized_contact_data["middle_initial"],
+        last_name=normalized_contact_data["last_name"],
+        title=normalized_contact_data["title"],
+        email=normalized_contact_data["email"],
+        phone=normalized_contact_data["phone"],
+        notes=normalized_contact_data["notes"],
+        is_primary=normalized_contact_data["is_primary"],
+        is_active=normalized_contact_data["is_active"],
     )
     db.session.add(contact)
 
@@ -676,7 +722,7 @@ def partner_contact_edit(partner_id: int, contact_id: int):
 
     if request.method == "POST":
         contact_form_data = _contact_form_data(request.form)
-        validation_error = _validate_contact_form(contact_form_data)
+        validation_error, normalized_contact_data = _validate_contact_form(contact_form_data)
 
         if validation_error:
             flash(validation_error, "danger")
@@ -687,10 +733,18 @@ def partner_contact_edit(partner_id: int, contact_id: int):
                 edit_form_data=contact_form_data,
             )
 
-        for key in ("first_name", "last_name", "title", "email", "phone", "notes"):
-            setattr(contact, key, contact_form_data[key])
-        contact.is_primary = contact_form_data["is_primary"]
-        contact.is_active = contact_form_data["is_active"]
+        for key in (
+            "first_name",
+            "middle_initial",
+            "last_name",
+            "title",
+            "email",
+            "phone",
+            "notes",
+        ):
+            setattr(contact, key, normalized_contact_data[key])
+        contact.is_primary = normalized_contact_data["is_primary"]
+        contact.is_active = normalized_contact_data["is_active"]
 
         if contact.is_primary:
             _unset_other_primary_contacts(partner.id, except_contact_id=contact.id)
@@ -912,10 +966,17 @@ def _safe_int(value) -> int | None:
         return None
 
 
+def _slugify_filename_part(value: str) -> str:
+    cleaned = "".join(character if character.isalnum() else "-" for character in value.lower())
+    collapsed = "-".join(part for part in cleaned.split("-") if part)
+    return collapsed or "partner"
+
+
 def _contact_form_data(form=None) -> dict:
     if form is None:
         return {
             "first_name": "",
+            "middle_initial": "",
             "last_name": "",
             "title": "",
             "email": "",
@@ -927,6 +988,7 @@ def _contact_form_data(form=None) -> dict:
 
     return {
         "first_name": _empty_to_none(form.get("first_name")),
+        "middle_initial": (form.get("middle_initial") or "").strip(),
         "last_name": _empty_to_none(form.get("last_name")),
         "title": _empty_to_none(form.get("title")),
         "email": _empty_to_none(form.get("email")),
@@ -940,6 +1002,7 @@ def _contact_form_data(form=None) -> dict:
 def _contact_to_form_data(contact: Contact) -> dict:
     return {
         "first_name": contact.first_name or "",
+        "middle_initial": contact.middle_initial or "",
         "last_name": contact.last_name or "",
         "title": contact.title or "",
         "email": contact.email or "",
@@ -950,7 +1013,7 @@ def _contact_to_form_data(contact: Contact) -> dict:
     }
 
 
-def _validate_contact_form(form_data: dict) -> str | None:
+def _validate_contact_form(form_data: dict) -> tuple[str | None, dict]:
     has_identifying_value = any(
         [
             form_data["first_name"],
@@ -961,12 +1024,37 @@ def _validate_contact_form(form_data: dict) -> str | None:
         ]
     )
     if not has_identifying_value:
-        return "Enter at least a name, title, email, or phone to save a contact."
-    return None
+        return "Enter at least a name, title, email, or phone to save a contact.", {}
+
+    middle_initial = _empty_to_none(form_data["middle_initial"])
+    if middle_initial:
+        middle_initial = middle_initial[0].upper()
+
+    return (
+        None,
+        {
+            "first_name": form_data["first_name"],
+            "middle_initial": middle_initial,
+            "last_name": form_data["last_name"],
+            "title": form_data["title"],
+            "email": form_data["email"],
+            "phone": form_data["phone"],
+            "notes": form_data["notes"],
+            "is_primary": form_data["is_primary"],
+            "is_active": form_data["is_active"],
+        },
+    )
 
 
 def _partner_type_choices() -> list[str]:
     return list(PARTNER_TYPE_OPTIONS)
+
+
+def _letter_partner_options() -> list[Partner]:
+    partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
+    return db.session.scalars(
+        select(Partner).order_by(partner_sort_name.asc(), Partner.id.asc())
+    ).all()
 
 
 def _normalize_legacy_partner_categories() -> int:

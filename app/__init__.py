@@ -49,6 +49,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
 
     with app.app_context():
         _ensure_user_schema_columns()
+        _ensure_contact_schema_columns()
 
     from app.auth import bp as auth_bp
     from app.main import bp as main_bp
@@ -79,6 +80,28 @@ def _ensure_user_schema_columns() -> None:
         statements.append("ALTER TABLE users ADD COLUMN avatar_path VARCHAR(255)")
     if "password_changed_at" not in existing_columns:
         statements.append("ALTER TABLE users ADD COLUMN password_changed_at DATETIME")
+
+    for statement in statements:
+        db.session.execute(text(statement))
+
+    if statements:
+        db.session.commit()
+
+
+def _ensure_contact_schema_columns() -> None:
+    db_uri = str(db.engine.url)
+    if not db_uri.startswith("sqlite"):
+        return
+
+    inspector = inspect(db.engine)
+    if "contacts" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("contacts")}
+    statements: list[str] = []
+
+    if "middle_initial" not in existing_columns:
+        statements.append("ALTER TABLE contacts ADD COLUMN middle_initial VARCHAR(1)")
 
     for statement in statements:
         db.session.execute(text(statement))

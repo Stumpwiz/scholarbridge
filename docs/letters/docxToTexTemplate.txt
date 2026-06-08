@@ -1,0 +1,16 @@
+| Mail Merge Field   | ScholarBridge Variable               |
+| ------------------ | -------------------------------------|
+| Salutation         | contacts.title                       |
+| Contact_First_Name | contacts.first_name                  |
+| Contact_Last_Name  | contacts.last_name                   |
+| Company            | partners.partner_name                |
+| Address_1          | partners.address_1                   |
+| Address_s          | partners.address_2                   |
+| City               | partners.city                        |
+| State              | partners.state                       |
+| Zip                | partners.postal_code                 |
+| amount             | solicitations.amount_requested       |
+| Solicitor_name     | persons.first_name persons.last_name |
+| number             | persons.phone or persons.mobile_phone|
+| email              | persons.email                        |
+| MR_Contact         | persons.first_name persons.last_name |
