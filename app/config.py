@@ -8,6 +8,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///scholarbridge.db")
 
+    @staticmethod
+    def is_sqlite_uri(db_url: str) -> bool:
+        return db_url.startswith("sqlite:")
+
     @classmethod
     def resolve_database_uri(cls, instance_path: str) -> str:
         """Resolve relative SQLite URIs into the Flask instance directory."""
@@ -24,3 +28,7 @@ class Config:
             return f"sqlite:///{db_file}"
 
         return db_url
+
+    @classmethod
+    def should_use_batch_migrations(cls, db_url: str) -> bool:
+        return cls.is_sqlite_uri(db_url)

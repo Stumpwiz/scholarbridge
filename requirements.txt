@@ -5,3 +5,4 @@ Flask-SQLAlchemy
 python-dotenv
 pandas
 openpyxl
+psycopg[binary]

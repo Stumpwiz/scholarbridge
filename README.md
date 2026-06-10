@@ -193,19 +193,25 @@ uv venv
 uv sync
 ```
 
-3. Run the application:
+3. Ensure local PostgreSQL database/user exists and `.env` has a PostgreSQL URL:
 
 ```bash
-uv run flask --app run.py run --debug
+DATABASE_URL=postgresql+psycopg://scholarbridge:scholarbridge@localhost:5432/scholarbridge
 ```
 
-4. Initialize or upgrade the database schema:
+4. Initialize or upgrade the PostgreSQL schema:
 
 ```bash
 uv run flask --app run.py init-db
 ```
 
-Equivalent Alembic commands:
+5. Run the application:
+
+```bash
+uv run flask --app run.py run --debug
+```
+
+Equivalent Alembic command:
 
 ```bash
 uv run flask --app run.py db upgrade
@@ -218,8 +224,27 @@ uv run flask --app run.py db migrate -m "describe change"
 uv run flask --app run.py db upgrade
 ```
 
-For an existing SQLite database that predates Alembic and must be preserved, stamp it to the
-baseline revision once, then run upgrades:
+## SQLite to PostgreSQL Data Migration
+
+If you have current development data in SQLite, move it into PostgreSQL with:
+
+```bash
+SCHOLARBRIDGE_ALLOW_DATA_MUTATION=1 \
+uv run python scripts/migrate_sqlite_to_postgres.py \
+  --source-sqlite-url sqlite:///instance/scholarbridge.db \
+  --target-postgres-url postgresql+psycopg://scholarbridge:scholarbridge@localhost:5432/scholarbridge \
+  --truncate-target \
+  --allow-data-mutation
+```
+
+Notes:
+
+- Run PostgreSQL migrations (`init-db` / `db upgrade`) before this copy step.
+- The script preserves table IDs and updates PostgreSQL sequences.
+- The script can also copy `alembic_version` (default behavior).
+- Keep `SQLITE_DATABASE_URL` in `.env` if you want default source URL lookup for the script.
+
+For a legacy SQLite database that predates Alembic, stamp it once before upgrading/copying:
 
 ```bash
 uv run flask --app run.py db stamp f96fd0b1ba49

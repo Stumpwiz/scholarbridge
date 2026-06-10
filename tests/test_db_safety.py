@@ -45,6 +45,14 @@ class DbSafetyTests(unittest.TestCase):
                 instance_path="/tmp/sb-instance",
             )
 
+    def test_postgres_uri_is_not_treated_as_development_sqlite_db(self):
+        self.assertFalse(
+            is_development_database_uri(
+                "postgresql+psycopg://sb:sb@localhost:5432/scholarbridge",
+                instance_path="/tmp/sb-instance",
+            )
+        )
+
     def test_data_mutation_requires_opt_in(self):
         previous = os.environ.get(DATA_MUTATION_ENV_FLAG)
         try:

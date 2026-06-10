@@ -17,9 +17,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     os.makedirs(app.instance_path, exist_ok=True)
 
     app.config.from_object(config_class)
-    app.config["SQLALCHEMY_DATABASE_URI"] = config_class.resolve_database_uri(
-        app.instance_path
-    )
+    resolved_db_uri = config_class.resolve_database_uri(app.instance_path)
+    app.config["SQLALCHEMY_DATABASE_URI"] = resolved_db_uri
     if app.config.get("TESTING"):
         assert_testing_uses_isolated_database(
             str(app.config["SQLALCHEMY_DATABASE_URI"]),
@@ -27,7 +26,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         )
 
     db.init_app(app)
-    migrate.init_app(app, db, render_as_batch=True)
+    migrate.init_app(
+        app,
+        db,
+        render_as_batch=config_class.should_use_batch_migrations(resolved_db_uri),
+    )
 
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"

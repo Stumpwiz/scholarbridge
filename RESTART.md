@@ -21,7 +21,7 @@ ScholarBridge should evolve spreadsheet-era operations into a maintainable syste
 
 - Flask
 - SQLAlchemy
-- SQLite (initially)
+- PostgreSQL (development baseline), with legacy SQLite migration support
 - Bootstrap
 - Jinja2
 - XeLaTeX (later, for PDF generation)
@@ -110,10 +110,12 @@ Project structure added:
 Current runtime behavior:
 
 - App loads configuration from `.env` (with `.env.example` template).
-- SQLite URI defaults to `instance/scholarbridge.db` via relative `DATABASE_URL=sqlite:///scholarbridge.db`.
+- PostgreSQL is the development baseline via `DATABASE_URL`.
+- Legacy SQLite migration source URI can be kept in `SQLITE_DATABASE_URL`.
 - Flask-SQLAlchemy initializes cleanly.
 - Flask-Login initializes with placeholder `user_loader` (no login workflows yet).
 - Bootstrap navigation shell renders with v1-aligned placeholder sections.
+- `scripts/migrate_sqlite_to_postgres.py` supports one-shot SQLite to PostgreSQL table copy.
 
 Phase 1A deferrals:
 
