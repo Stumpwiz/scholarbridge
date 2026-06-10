@@ -199,14 +199,32 @@ uv sync
 uv run flask --app run.py run --debug
 ```
 
-4. Initialize the database (first run or after schema changes):
+4. Initialize or upgrade the database schema:
 
 ```bash
 uv run flask --app run.py init-db
 ```
 
-For local SQLite upgrades where new columns were added (for example partner mailing-address fields),
-rebuild the local database file before re-running `init-db`.
+Equivalent Alembic commands:
+
+```bash
+uv run flask --app run.py db upgrade
+```
+
+Create a new migration after model changes:
+
+```bash
+uv run flask --app run.py db migrate -m "describe change"
+uv run flask --app run.py db upgrade
+```
+
+For an existing SQLite database that predates Alembic and must be preserved, stamp it to the
+baseline revision once, then run upgrades:
+
+```bash
+uv run flask --app run.py db stamp f96fd0b1ba49
+uv run flask --app run.py db upgrade
+```
 
 Default local URL:
 

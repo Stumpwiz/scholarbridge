@@ -1,4 +1,5 @@
 import click
+from flask_migrate import upgrade as db_upgrade
 from sqlalchemy import func, or_
 
 from app import create_app
@@ -11,10 +12,10 @@ app = create_app()
 
 @app.cli.command("init-db")
 def init_db_command():
-    """Initialize database tables for currently defined models."""
+    """Upgrade database schema to the latest migration."""
     with app.app_context():
-        db.create_all()
-    print("Database initialized.")
+        db_upgrade()
+    print("Database migrated to latest revision.")
 
 
 @app.cli.command("seed-committee-users")
