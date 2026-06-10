@@ -30,9 +30,24 @@ ScholarBridge is intended to help the committee manage:
 
 ## Current Repository Stage
 
-This repository is now in **Phase 2B.1: Solicitation workflow refinement**.
+This repository is now in **Phase 2D.1: Partner category realignment**, with the
+**2026-06-10 PostgreSQL platform migration milestone completed**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
+
+## Platform Milestone (2026-06-10)
+
+Completed:
+
+- GitHub repository created and configured.
+- GitHub Actions CI established (`.github/workflows/tests.yml`).
+- CI migrated to PostgreSQL service testing (no SQLite CI dependency).
+- Alembic migrations validated and corrected for PostgreSQL compatibility.
+- Local PostgreSQL development database operational on Development Host.
+- ScholarBridge now runs successfully against PostgreSQL.
+- Legacy SQLite data migrated to PostgreSQL via `scripts/migrate_sqlite_to_postgres.py`.
+- Data migration verified by matching row counts between SQLite and PostgreSQL.
+- Application login and core workflows verified after PostgreSQL cutover.
 
 ## Phase 1A Scope
 
@@ -193,19 +208,28 @@ uv venv
 uv sync
 ```
 
-3. Ensure local PostgreSQL database/user exists and `.env` has a PostgreSQL URL:
+3. Ensure local PostgreSQL database/user exists:
+
+```bash
+createuser -s scholarbridge
+psql -c "ALTER USER scholarbridge WITH PASSWORD 'scholarbridge';"
+createdb -O scholarbridge scholarbridge
+```
+
+4. Set PostgreSQL as primary runtime DB in `.env`:
 
 ```bash
 DATABASE_URL=postgresql+psycopg://scholarbridge:scholarbridge@localhost:5432/scholarbridge
+SQLITE_DATABASE_URL=sqlite:///instance/scholarbridge.db
 ```
 
-4. Initialize or upgrade the PostgreSQL schema:
+5. Initialize or upgrade the PostgreSQL schema:
 
 ```bash
 uv run flask --app run.py init-db
 ```
 
-5. Run the application:
+6. Run the application:
 
 ```bash
 uv run flask --app run.py run --debug
@@ -224,9 +248,25 @@ uv run flask --app run.py db migrate -m "describe change"
 uv run flask --app run.py db upgrade
 ```
 
+## Testing and CI
+
+Local test run:
+
+```bash
+uv run python -m unittest discover -s tests
+```
+
+GitHub Actions:
+
+- Workflow: `.github/workflows/tests.yml`
+- Runtime DB in CI: PostgreSQL 16 service (`scholarbridge_test`)
+- CI steps: install deps, run Alembic upgrade, run test suite
+
 ## SQLite to PostgreSQL Data Migration
 
-If you have current development data in SQLite, move it into PostgreSQL with:
+SQLite is now a legacy/backup source only. PostgreSQL is the primary development database.
+
+Migration command used for SQLite -> PostgreSQL cutover:
 
 ```bash
 SCHOLARBRIDGE_ALLOW_DATA_MUTATION=1 \
@@ -242,7 +282,8 @@ Notes:
 - Run PostgreSQL migrations (`init-db` / `db upgrade`) before this copy step.
 - The script preserves table IDs and updates PostgreSQL sequences.
 - The script can also copy `alembic_version` (default behavior).
-- Keep `SQLITE_DATABASE_URL` in `.env` if you want default source URL lookup for the script.
+- Keep `SQLITE_DATABASE_URL` in `.env` for legacy source lookup/reference.
+- Verify migration by comparing row counts between SQLite and PostgreSQL tables.
 
 For a legacy SQLite database that predates Alembic, stamp it once before upgrading/copying:
 
@@ -303,7 +344,7 @@ Importer guardrails:
 
 ## People Seed Export/Import (Development Utility)
 
-Use these scripts to preserve `Person` records across SQLite rebuilds.
+Use these scripts to preserve `Person` records for backup/reference workflows.
 
 Export People to seed JSON:
 
@@ -328,7 +369,7 @@ Scope notes:
 
 ## Partner Seed Export/Import (Development Utility)
 
-Use these scripts to preserve curated `Partner` records across SQLite rebuilds.
+Use these scripts to preserve curated `Partner` records for backup/reference workflows.
 
 Export Partners to seed JSON:
 

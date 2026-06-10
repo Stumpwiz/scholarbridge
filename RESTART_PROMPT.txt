@@ -1,0 +1,33 @@
+ScholarBridge Restart Prompt
+
+Project Status
+- Date baseline: 2026-06-10
+- Current stage: Phase 2D.1 (Partner category realignment) with PostgreSQL migration completed.
+- Repository: GitHub repo is established and configured.
+- CI: GitHub Actions is active and runs Alembic + tests against PostgreSQL.
+
+Current Architecture
+- Flask application factory architecture
+- SQLAlchemy ORM with Flask-Migrate/Alembic
+- PostgreSQL as primary development/runtime database
+- SQLite retained only as legacy backup/reference source
+- Bootstrap + Jinja2 server-rendered UI
+- XeLaTeX correspondence generation pipeline (present, pending committee-approved refinement)
+
+Completed Milestones
+- Partner, Contact, Campaign, Solicitation workflows implemented
+- Letters and mailing list workflows in place
+- Database safety protections implemented
+- Alembic migrations adopted and validated
+- PostgreSQL compatibility fixes applied to baseline migration defaults
+- Local PostgreSQL development environment operational on Development Host
+- SQLite -> PostgreSQL data transfer completed via scripts/migrate_sqlite_to_postgres.py
+- Post-migration validation completed via matching row counts
+- Login and core application workflows verified successfully on PostgreSQL
+
+Recommended Next Steps
+1. Evaluate and finalize committee-approved correspondence generation requirements.
+2. Implement correspondence generation updates (template governance, workflow UX, output validation).
+3. Expand automated test coverage around correspondence and mailing workflows on PostgreSQL.
+4. Finalize GitHub CI/CD path for AWS deployment readiness (build, migration, smoke checks).
+5. Prepare deployment runbook updates (environment variables, backup/restore, rollback procedures).

@@ -2,6 +2,13 @@
 
 This roadmap is phased to reduce risk, preserve committee continuity, and deliver usable improvements early.
 
+## Current Platform Status (as of 2026-06-10)
+
+- PostgreSQL is the primary development/runtime database.
+- Legacy SQLite data migration to PostgreSQL has been completed and verified.
+- GitHub Actions CI is active and runs migrations/tests against PostgreSQL.
+- Next major functional decision: committee-approved correspondence generation implementation.
+
 ## Phase 0: Discovery and Modeling
 
 - Confirm committee terminology and solicitation management definitions
@@ -23,8 +30,9 @@ This roadmap is phased to reduce risk, preserve committee continuity, and delive
 - Add practical search/filter capabilities for committee operations
 - Support low-friction data edits during active campaign management
 
-## Phase 3: Letter Generation
+## Phase 3: Committee-Approved Correspondence Generation
 
+- Finalize committee-approved correspondence requirements and template governance
 - Standardize acknowledgment content inputs and templates
 - Add printable/exportable correspondence generation flow
 - Prepare for XeLaTeX-based PDF output integration

@@ -4,6 +4,18 @@ This file provides resume context for future assistants and maintainers.
 
 Current stage: **Phase 2D.1 (Partner category realignment)**.
 
+## Milestone Log
+
+### 2026-06-10: PostgreSQL Migration + CI Platform Cutover
+
+- GitHub repository setup completed and remote workflow baseline established.
+- GitHub Actions CI (`.github/workflows/tests.yml`) configured and running on PostgreSQL.
+- Alembic baseline migration defaults corrected for PostgreSQL compatibility and validated on both SQLite and PostgreSQL upgrade paths.
+- Local PostgreSQL development environment on Development Host stabilized as primary runtime DB.
+- Legacy SQLite development data migrated to PostgreSQL using `scripts/migrate_sqlite_to_postgres.py`.
+- Migration verification completed via matching row counts across core tables between SQLite and PostgreSQL.
+- Application login and primary workflows validated successfully after PostgreSQL cutover.
+
 The project remains architecture-first. A minimal Flask runtime scaffold exists and the first conservative vertical slice (Partner) is now implemented.
 
 ## Project Snapshot
@@ -17,11 +29,12 @@ The project remains architecture-first. A minimal Flask runtime scaffold exists 
 
 ScholarBridge should evolve spreadsheet-era operations into a maintainable system without dismissing existing committee practices. The current phase establishes a conservative runtime foundation before domain workflows are built.
 
-## Intended Stack (Planned, Not Yet Implemented)
+## Current Stack
 
 - Flask
 - SQLAlchemy
-- PostgreSQL (development baseline), with legacy SQLite migration support
+- PostgreSQL (primary development/runtime database)
+- SQLite (legacy backup/reference source only)
 - Bootstrap
 - Jinja2
 - XeLaTeX (later, for PDF generation)
@@ -105,7 +118,7 @@ Project structure added:
 - `app/templates/base.html` and `app/templates/index.html`
 - `app/static/css/` and `app/static/js/` placeholders
 - `run.py` app entrypoint + `flask init-db` command
-- `instance/` directory for SQLite runtime artifacts
+- `instance/` directory for runtime artifacts (including legacy SQLite backups/reference files)
 
 Current runtime behavior:
 
@@ -116,6 +129,7 @@ Current runtime behavior:
 - Flask-Login initializes with placeholder `user_loader` (no login workflows yet).
 - Bootstrap navigation shell renders with v1-aligned placeholder sections.
 - `scripts/migrate_sqlite_to_postgres.py` supports one-shot SQLite to PostgreSQL table copy.
+- Core application workflows (including authentication/login) have been validated on PostgreSQL.
 
 Phase 1A deferrals:
 
