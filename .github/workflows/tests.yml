@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: sqlite:///instance/scholarbridge_test.db
+      FLASK_APP: run.py
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Create instance directory
+        run: mkdir -p instance
+
+      - name: Run migrations
+        run: uv run flask db upgrade
+
+      - name: Run tests
+        run: uv run python -m unittest discover -s tests
