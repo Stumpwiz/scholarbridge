@@ -29,6 +29,35 @@ def build_solicitation_letter_context(partner_id: int) -> dict:
 
     contact = _pick_contact(partner.contacts)
     solicitation = _pick_solicitation(partner.id)
+    return _build_solicitation_letter_context(partner, contact, solicitation)
+
+
+def build_solicitation_letter_context_for_solicitation(solicitation_id: int) -> dict:
+    solicitation = db.session.scalar(
+        select(Solicitation)
+        .options(
+            selectinload(Solicitation.partner).selectinload(Partner.contacts),
+            selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.mrpoc),
+            selectinload(Solicitation.campaign),
+        )
+        .where(Solicitation.id == solicitation_id)
+    )
+    if solicitation is None:
+        raise SolicitationLetterError("Solicitation not found.")
+    if solicitation.partner is None:
+        raise SolicitationLetterError("Solicitation partner not found.")
+
+    partner = solicitation.partner
+    contact = _pick_contact(partner.contacts)
+    return _build_solicitation_letter_context(partner, contact, solicitation)
+
+
+def _build_solicitation_letter_context(
+    partner: Partner,
+    contact: Contact | None,
+    solicitation: Solicitation | None,
+) -> dict:
 
     solicitor = solicitation.solicitor if solicitation is not None else None
     mrpoc = solicitation.mrpoc if solicitation is not None else None

@@ -25,6 +25,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app import create_app
+from app.db_safety import require_data_mutation_opt_in
 from app.extensions import db
 from app.models import Contact, Partner
 
@@ -95,6 +96,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Parse and summarize intended actions without writing database changes.",
     )
+    parser.add_argument(
+        "--allow-data-mutation",
+        action="store_true",
+        help="Explicitly allow database writes for import/reset operations.",
+    )
     return parser.parse_args()
 
 
@@ -107,6 +113,12 @@ def main() -> int:
     if not spreadsheet_path.exists():
         print(f"ERROR: Spreadsheet not found: {spreadsheet_path}")
         return 1
+
+    if not args.dry_run:
+        require_data_mutation_opt_in(
+            "import vendor data",
+            allow_flag=args.allow_data_mutation,
+        )
 
     app = create_app()
     with app.app_context():

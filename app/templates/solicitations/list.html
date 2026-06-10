@@ -47,12 +47,12 @@
                 <th>Business Volume</th>
                 <th>Requested</th>
                 <th>Received</th>
-                <th>Edit</th>
+                <th>Open</th>
             </tr>
             </thead>
             <tbody>
             {% for solicitation in solicitations %}
-                <tr>
+                <tr {% if solicitation.id in incomplete_solicitation_ids %}class="table-warning"{% endif %}>
                     <td>
                         {% if solicitation.campaign %}
                             {{ solicitation.campaign.campaign_year }}
@@ -61,11 +61,13 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if solicitation.partner %}
-                            {{ solicitation.partner.partner_name }}
-                        {% else %}
-                            —
-                        {% endif %}
+                        <a href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
+                            {% if solicitation.partner %}
+                                {{ solicitation.partner.partner_name }}
+                            {% else %}
+                                Solicitation #{{ solicitation.id }}
+                            {% endif %}
+                        </a>
                     </td>
                     <td>Tranche {{ solicitation.tranche }}</td>
                     <td>
@@ -83,24 +85,21 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if solicitation.status == "donated" %}
-                            <span class="badge text-bg-success">Donated</span>
-                        {% elif solicitation.status == "declined" %}
-                            <span class="badge text-bg-secondary">Declined</span>
-                        {% elif solicitation.status == "closed" %}
-                            <span class="badge text-bg-dark">Closed</span>
-                        {% elif solicitation.status == "responded" %}
-                            <span class="badge text-bg-primary">Responded</span>
-                        {% elif solicitation.status == "contacted" %}
-                            <span class="badge text-bg-info">Contacted</span>
+                        {% if solicitation.id in incomplete_solicitation_ids %}
+                            <span class="badge text-bg-warning">Incomplete</span>
+                        {% elif solicitation.id in letter_ready_solicitation_ids %}
+                            <span class="badge text-bg-success">Ready</span>
                         {% else %}
-                            <span class="badge text-bg-light border text-dark">Not Contacted</span>
+                            <span class="badge text-bg-primary">Ready</span>
                         {% endif %}
                     </td>
                     <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
-                    <td class="text-end">
+                    <td class="text-end text-nowrap">
+                        <a class="btn btn-outline-primary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}" title="Open solicitation" aria-label="Open solicitation">
+                            <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+                        </a>
                         {% if can_edit %}
                             <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
                                 <i class="bi bi-pencil" aria-hidden="true"></i>

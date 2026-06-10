@@ -5,11 +5,13 @@ Import Person records from a lightweight JSON seed file.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 from typing import Any
 
 from app import create_app
+from app.db_safety import require_data_mutation_opt_in
 from app.extensions import db
 from app.models import Person
 
@@ -65,6 +67,21 @@ def _clean_value(payload: dict[str, Any], key: str) -> Any:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Import Person records from data/seeds/people.json."
+    )
+    parser.add_argument(
+        "--allow-data-mutation",
+        action="store_true",
+        help="Explicitly allow database writes for this import run.",
+    )
+    args = parser.parse_args()
+
+    require_data_mutation_opt_in(
+        "import people seed data",
+        allow_flag=args.allow_data_mutation,
+    )
+
     if not INPUT_PATH.exists():
         print(f"ERROR: Seed file not found: {INPUT_PATH}")
         return 1

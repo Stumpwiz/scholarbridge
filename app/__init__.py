@@ -6,6 +6,7 @@ from flask_login import current_user
 from sqlalchemy import inspect, text
 
 from app.config import Config
+from app.db_safety import assert_testing_uses_isolated_database
 from app.extensions import db, login_manager
 from app.models import User
 
@@ -20,6 +21,11 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     app.config["SQLALCHEMY_DATABASE_URI"] = config_class.resolve_database_uri(
         app.instance_path
     )
+    if app.config.get("TESTING"):
+        assert_testing_uses_isolated_database(
+            str(app.config["SQLALCHEMY_DATABASE_URI"]),
+            app.instance_path,
+        )
 
     db.init_app(app)
 
@@ -48,6 +54,8 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         }
 
     with app.app_context():
+        # SAFETY: Startup performs only conservative schema-column checks and must
+        # never auto-create/reset/seed ScholarBridge development data.
         _ensure_user_schema_columns()
         _ensure_contact_schema_columns()
 

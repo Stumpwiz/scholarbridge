@@ -2,6 +2,7 @@ import click
 from sqlalchemy import func, or_
 
 from app import create_app
+from app.db_safety import require_data_mutation_opt_in
 from app.extensions import db
 from app.models import Person, User
 
@@ -19,8 +20,18 @@ def init_db_command():
 @app.cli.command("seed-committee-users")
 @click.option("--password", default="ChangeMe123!", show_default=True, help="Initial password for seeded users.")
 @click.option("--force-password-reset", is_flag=True, help="Reset password for existing seeded users.")
-def seed_committee_users_command(password: str, force_password_reset: bool):
+@click.option(
+    "--allow-data-mutation",
+    is_flag=True,
+    help="Explicitly allow demo/seed data writes for this command.",
+)
+def seed_committee_users_command(password: str, force_password_reset: bool, allow_data_mutation: bool):
     """Seed initial committee users for demo authentication workflows."""
+    require_data_mutation_opt_in(
+        "seed committee users",
+        allow_flag=allow_data_mutation,
+    )
+
     committee = (
         {"first": "George", "last": "Wright", "username": "george.wright", "fallback_email": "geo@loyola.edu",
          "role": User.ROLE_ADMIN},

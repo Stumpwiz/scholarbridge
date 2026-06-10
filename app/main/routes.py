@@ -20,8 +20,13 @@ from sqlalchemy.orm import selectinload
 from app.auth.permissions import editor_required
 from app.main.letter_service import (
     SolicitationLetterError,
-    build_solicitation_letter_context,
+    build_solicitation_letter_context_for_solicitation,
     generate_solicitation_pdf_bytes,
+)
+from app.main.status import (
+    partner_is_incomplete,
+    solicitation_is_incomplete,
+    solicitation_is_letter_ready,
 )
 from app.main import bp
 from app.extensions import db
@@ -85,38 +90,75 @@ def index():
 
 @bp.get("/letters")
 def letter_list():
-    selected_partner_id = _safe_int(request.args.get("partner_id"))
-    partners = _letter_partner_options()
-    partner_ids = {partner.id for partner in partners}
-    if selected_partner_id not in partner_ids:
-        selected_partner_id = None
+    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
+    solicitor_filter_people = _assigned_solicitor_filter_options()
+    solicitor_filter_ids = {person.id for person in solicitor_filter_people}
+    if selected_solicitor_id not in solicitor_filter_ids:
+        selected_solicitor_id = None
+
+    solicitations = _letter_solicitation_options(selected_solicitor_id=selected_solicitor_id)
+    incomplete_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation_is_incomplete(solicitation)
+    }
+    letter_ready_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation_is_letter_ready(solicitation)
+    }
+    solicitations = sorted(
+        solicitations,
+        key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
+    )
 
     return render_template(
         "letters/list.html",
         page_title="Letters",
-        partners=partners,
-        selected_partner_id=selected_partner_id,
+        solicitations=solicitations,
+        incomplete_solicitation_ids=incomplete_solicitation_ids,
+        letter_ready_solicitation_ids=letter_ready_solicitation_ids,
+        solicitor_filter_people=solicitor_filter_people,
+        selected_solicitor_id=selected_solicitor_id,
     )
 
 
 @bp.get("/letters/solicitation.pdf")
 def letter_solicitation_pdf():
-    partner_id = _safe_int(request.args.get("partner_id"))
-    if partner_id is None:
-        flash("Please select a partner to generate a letter.", "danger")
+    solicitation_id = _safe_int(request.args.get("solicitation_id"))
+    if solicitation_id is None:
+        flash("Please select a solicitation to generate a letter.", "danger")
         return redirect(url_for("main.letter_list"))
 
     download = request.args.get("download") == "1"
 
+    solicitation = db.session.scalar(
+        select(Solicitation)
+        .options(
+            selectinload(Solicitation.partner),
+            selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.mrpoc),
+            selectinload(Solicitation.campaign),
+        )
+        .where(Solicitation.id == solicitation_id)
+    )
+    if solicitation is None:
+        flash("Solicitation not found.", "danger")
+        return redirect(url_for("main.letter_list"))
+
+    if not solicitation_is_letter_ready(solicitation):
+        flash("Solicitation is incomplete. Update solicitation details before generating a letter.", "warning")
+        return redirect(url_for("main.solicitation_edit", solicitation_id=solicitation.id))
+
     try:
-        context = build_solicitation_letter_context(partner_id)
+        context = build_solicitation_letter_context_for_solicitation(solicitation_id)
         pdf_bytes = generate_solicitation_pdf_bytes(context)
     except SolicitationLetterError as exc:
         current_app.logger.exception("Solicitation letter generation failed: %s", exc)
         flash("Unable to generate solicitation PDF. Check partner/contact data and try again.", "danger")
-        return redirect(url_for("main.letter_list", partner_id=partner_id))
+        return redirect(url_for("main.letter_list", solicitor_id=solicitation.solicitor_person_id))
 
-    filename_stub = _slugify_filename_part(context.get("company") or f"partner-{partner_id}")
+    filename_stub = _slugify_filename_part(context.get("company") or f"solicitation-{solicitation_id}")
     download_name = f"solicitation-{filename_stub}.pdf"
     return send_file(
         BytesIO(pdf_bytes),
@@ -363,25 +405,22 @@ def partner_list():
     partners = sorted(
         partners,
         key=lambda partner: (
-            not _partner_category_is_incomplete(partner.partner_type),
+            not partner_is_incomplete(partner),
             _partner_sort_name(partner),
             partner.id,
         ),
     )
-    category_review_count = sum(
-        1 for partner in partners if _partner_category_is_incomplete(partner.partner_type)
-    )
+    incomplete_partner_count = sum(1 for partner in partners if partner_is_incomplete(partner))
     incomplete_partner_ids = {
         partner.id
         for partner in partners
-        if _partner_category_is_incomplete(partner.partner_type)
+        if partner_is_incomplete(partner)
     }
     return render_template(
         "partners/list.html",
         page_title="Partners",
         partners=partners,
-        category_review_count=category_review_count,
-        needs_review_value=PARTNER_TYPE_NEEDS_REVIEW,
+        incomplete_partner_count=incomplete_partner_count,
         incomplete_partner_ids=incomplete_partner_ids,
     )
 
@@ -487,10 +526,26 @@ def solicitation_list():
             Solicitation.id.asc(),
         )
     ).all()
+    incomplete_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation_is_incomplete(solicitation)
+    }
+    letter_ready_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation_is_letter_ready(solicitation)
+    }
+    solicitations = sorted(
+        solicitations,
+        key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
+    )
     return render_template(
         "solicitations/list.html",
         page_title="Solicitations",
         solicitations=solicitations,
+        incomplete_solicitation_ids=incomplete_solicitation_ids,
+        letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
     )
@@ -1050,10 +1105,22 @@ def _partner_type_choices() -> list[str]:
     return list(PARTNER_TYPE_OPTIONS)
 
 
-def _letter_partner_options() -> list[Partner]:
+def _letter_solicitation_options(selected_solicitor_id: int | None = None) -> list[Solicitation]:
     partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
+    query = (
+        select(Solicitation)
+        .options(
+            selectinload(Solicitation.partner),
+            selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.campaign),
+        )
+        .join(Solicitation.partner)
+    )
+    if selected_solicitor_id is not None:
+        query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
+
     return db.session.scalars(
-        select(Partner).order_by(partner_sort_name.asc(), Partner.id.asc())
+        query.order_by(partner_sort_name.asc(), Solicitation.id.asc())
     ).all()
 
 

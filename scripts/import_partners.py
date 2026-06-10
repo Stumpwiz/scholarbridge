@@ -5,11 +5,13 @@ Import Partner records from a lightweight JSON seed file.
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 from typing import Any
 
 from app import create_app
+from app.db_safety import require_data_mutation_opt_in
 from app.extensions import db
 from app.models import Partner
 
@@ -62,6 +64,21 @@ def _partner_match_key(payload: dict[str, Any]) -> str:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Import Partner records from data/seeds/partners.json."
+    )
+    parser.add_argument(
+        "--allow-data-mutation",
+        action="store_true",
+        help="Explicitly allow database writes for this import run.",
+    )
+    args = parser.parse_args()
+
+    require_data_mutation_opt_in(
+        "import partner seed data",
+        allow_flag=args.allow_data_mutation,
+    )
+
     if not INPUT_PATH.exists():
         print(f"ERROR: Seed file not found: {INPUT_PATH}")
         return 1

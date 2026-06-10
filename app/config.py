@@ -8,10 +8,10 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///scholarbridge.db")
 
-    @staticmethod
-    def resolve_database_uri(instance_path: str) -> str:
+    @classmethod
+    def resolve_database_uri(cls, instance_path: str) -> str:
         """Resolve relative SQLite URIs into the Flask instance directory."""
-        db_url = Config.DATABASE_URL
+        db_url = cls.DATABASE_URL
 
         # Relative sqlite URL (e.g., sqlite:///scholarbridge.db)
         if db_url.startswith("sqlite:///") and not db_url.startswith("sqlite:////"):
