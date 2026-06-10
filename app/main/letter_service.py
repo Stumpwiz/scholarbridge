@@ -73,7 +73,7 @@ def _build_solicitation_letter_context(
     contact_first_name = _clean(contact.first_name if contact else None)
     contact_last_name = _clean(contact.last_name if contact else None)
     contact_display_name = " ".join(
-        part for part in (salutation, contact_first_name, contact_last_name) if part
+        part for part in (contact_first_name, contact_last_name) if part
     )
     dear_salutation = salutation or "Sir or Madam"
     dear_last_name = contact_last_name or ""
@@ -134,6 +134,15 @@ def generate_solicitation_pdf_bytes(context: dict) -> bytes:
         return pdf_path.read_bytes()
 
 
+def build_solicitation_mailing_list_text(solicitations: list[Solicitation]) -> str:
+    blocks = [
+        _solicitation_envelope_block(solicitation)
+        for solicitation in solicitations
+    ]
+    blocks = [block for block in blocks if block]
+    return "\n\n".join(blocks)
+
+
 def _pick_contact(contacts: list[Contact]) -> Contact | None:
     if not contacts:
         return None
@@ -148,6 +157,44 @@ def _pick_contact(contacts: list[Contact]) -> Contact | None:
         ),
     )
     return ranked[0]
+
+
+def _solicitation_envelope_block(solicitation: Solicitation) -> str:
+    partner = solicitation.partner
+    if partner is None:
+        return ""
+
+    contact = _pick_contact(partner.contacts)
+
+    contact_first_name = _clean(contact.first_name if contact else None)
+    contact_last_name = _clean(contact.last_name if contact else None)
+    contact_display_name = " ".join(
+        part for part in (contact_first_name, contact_last_name) if part
+    )
+
+    city = _clean(partner.city)
+    state = _clean(partner.state)
+    zip_code = _clean(partner.postal_code)
+    city_state_zip = ""
+    if city or state or zip_code:
+        city_state_zip = f"{city}{', ' if city and state else ''}{state} {zip_code}".strip()
+
+    lines = []
+    if contact_display_name:
+        lines.append(contact_display_name)
+    company = _clean(partner.partner_name)
+    if company:
+        lines.append(company)
+    address_1 = _clean(partner.address_1)
+    if address_1:
+        lines.append(address_1)
+    address_2 = _clean(partner.address_2)
+    if address_2:
+        lines.append(address_2)
+    if city_state_zip:
+        lines.append(city_state_zip)
+
+    return "\n".join(lines)
 
 
 def _pick_solicitation(partner_id: int) -> Solicitation | None:

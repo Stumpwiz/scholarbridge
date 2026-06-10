@@ -1,6 +1,5 @@
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
-from io import BytesIO
 
 from flask import (
     abort,
@@ -20,8 +19,17 @@ from sqlalchemy.orm import selectinload
 from app.auth.permissions import editor_required
 from app.main.letter_service import (
     SolicitationLetterError,
+    build_solicitation_mailing_list_text,
     build_solicitation_letter_context_for_solicitation,
     generate_solicitation_pdf_bytes,
+)
+from app.main.letter_storage import (
+    list_generated_mailing_list_files,
+    list_generated_solicitation_letter_files,
+    mailing_list_path_for_filename,
+    save_generated_mailing_list,
+    save_solicitation_letter_pdf,
+    solicitation_letter_path,
 )
 from app.main.status import (
     partner_is_incomplete,
@@ -112,12 +120,19 @@ def letter_list():
         key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
     )
 
+    generated_solicitation_letters = _generated_solicitation_letter_rows(
+        selected_solicitor_id=selected_solicitor_id
+    )
+    generated_mailing_lists = _generated_mailing_list_rows()
+
     return render_template(
         "letters/list.html",
         page_title="Letters",
         solicitations=solicitations,
         incomplete_solicitation_ids=incomplete_solicitation_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
+        generated_solicitation_letters=generated_solicitation_letters,
+        generated_mailing_lists=generated_mailing_lists,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
     )
@@ -126,11 +141,10 @@ def letter_list():
 @bp.get("/letters/solicitation.pdf")
 def letter_solicitation_pdf():
     solicitation_id = _safe_int(request.args.get("solicitation_id"))
+    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
     if solicitation_id is None:
         flash("Please select a solicitation to generate a letter.", "danger")
-        return redirect(url_for("main.letter_list"))
-
-    download = request.args.get("download") == "1"
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
 
     solicitation = db.session.scalar(
         select(Solicitation)
@@ -144,7 +158,7 @@ def letter_solicitation_pdf():
     )
     if solicitation is None:
         flash("Solicitation not found.", "danger")
-        return redirect(url_for("main.letter_list"))
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
 
     if not solicitation_is_letter_ready(solicitation):
         flash("Solicitation is incomplete. Update solicitation details before generating a letter.", "warning")
@@ -153,19 +167,123 @@ def letter_solicitation_pdf():
     try:
         context = build_solicitation_letter_context_for_solicitation(solicitation_id)
         pdf_bytes = generate_solicitation_pdf_bytes(context)
+        output_path = save_solicitation_letter_pdf(solicitation.id, pdf_bytes)
     except SolicitationLetterError as exc:
         current_app.logger.exception("Solicitation letter generation failed: %s", exc)
         flash("Unable to generate solicitation PDF. Check partner/contact data and try again.", "danger")
         return redirect(url_for("main.letter_list", solicitor_id=solicitation.solicitor_person_id))
 
-    filename_stub = _slugify_filename_part(context.get("company") or f"solicitation-{solicitation_id}")
-    download_name = f"solicitation-{filename_stub}.pdf"
-    return send_file(
-        BytesIO(pdf_bytes),
-        mimetype="application/pdf",
-        as_attachment=download,
-        download_name=download_name,
+    flash(f"Generated {output_path.name}.", "success")
+    return redirect(
+        url_for(
+            "main.letter_list",
+            solicitor_id=selected_solicitor_id if selected_solicitor_id is not None else solicitation.solicitor_person_id,
+        )
     )
+
+
+@bp.get("/letters/generated/solicitation/<int:solicitation_id>.pdf")
+def letter_generated_solicitation_pdf(solicitation_id: int):
+    output_path = solicitation_letter_path(solicitation_id)
+    if not output_path.exists():
+        flash("Generated solicitation letter not found.", "warning")
+        return redirect(url_for("main.letter_list"))
+
+    return send_file(
+        output_path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=output_path.name,
+    )
+
+
+@bp.post("/letters/mailing-list")
+def letter_generate_mailing_list():
+    selected_solicitor_id = _safe_int(request.form.get("solicitor_id"))
+    visible_solicitations = _letter_solicitation_options(selected_solicitor_id=selected_solicitor_id)
+    incomplete_solicitation_ids = {
+        solicitation.id
+        for solicitation in visible_solicitations
+        if solicitation_is_incomplete(solicitation)
+    }
+    visible_solicitations = sorted(
+        visible_solicitations,
+        key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
+    )
+    ready_solicitation_ids = [
+        solicitation.id
+        for solicitation in visible_solicitations
+        if solicitation_is_letter_ready(solicitation)
+    ]
+    if not ready_solicitation_ids:
+        flash("No ready solicitations are available for mailing-list generation.", "warning")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    ready_solicitations = db.session.scalars(
+        select(Solicitation)
+        .options(selectinload(Solicitation.partner).selectinload(Partner.contacts))
+        .where(Solicitation.id.in_(ready_solicitation_ids))
+    ).all()
+    ready_by_id = {solicitation.id: solicitation for solicitation in ready_solicitations}
+    ready_solicitations = [
+        ready_by_id[solicitation_id]
+        for solicitation_id in ready_solicitation_ids
+        if solicitation_id in ready_by_id
+    ]
+    if not ready_solicitations:
+        flash("No ready solicitations are available for mailing-list generation.", "warning")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    mailing_list_text = build_solicitation_mailing_list_text(ready_solicitations)
+    output_path = save_generated_mailing_list(mailing_list_text)
+    flash(f"Generated mailing list {output_path.name}.", "success")
+    return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+
+@bp.get("/letters/generated/mailing-lists/<path:filename>")
+def letter_generated_mailing_list_view(filename: str):
+    output_path = mailing_list_path_for_filename(filename)
+    if output_path is None or not output_path.exists():
+        flash("Generated mailing list not found.", "warning")
+        return redirect(url_for("main.letter_list"))
+
+    return send_file(
+        output_path,
+        mimetype="text/plain",
+        as_attachment=False,
+        download_name=output_path.name,
+    )
+
+
+@bp.get("/letters/generated/mailing-lists/<path:filename>/download")
+def letter_generated_mailing_list_download(filename: str):
+    output_path = mailing_list_path_for_filename(filename)
+    if output_path is None or not output_path.exists():
+        flash("Generated mailing list not found.", "warning")
+        return redirect(url_for("main.letter_list"))
+
+    return send_file(
+        output_path,
+        mimetype="text/plain",
+        as_attachment=True,
+        download_name=output_path.name,
+    )
+
+
+@bp.post("/letters/generated/mailing-lists/<path:filename>/delete")
+def letter_generated_mailing_list_delete(filename: str):
+    output_path = mailing_list_path_for_filename(filename)
+    if output_path is None:
+        flash("Generated mailing list not found.", "warning")
+        return redirect(url_for("main.letter_list"))
+
+    if not output_path.exists() or not output_path.is_file():
+        flash("Generated mailing list not found.", "warning")
+        return redirect(url_for("main.letter_list"))
+
+    output_path.unlink()
+    flash(f"Deleted mailing list {output_path.name}.", "success")
+    return redirect(url_for("main.letter_list"))
 
 
 @bp.get("/health")
@@ -1122,6 +1240,58 @@ def _letter_solicitation_options(selected_solicitor_id: int | None = None) -> li
     return db.session.scalars(
         query.order_by(partner_sort_name.asc(), Solicitation.id.asc())
     ).all()
+
+
+def _generated_solicitation_letter_rows(selected_solicitor_id: int | None = None) -> list[dict]:
+    generated_files = list_generated_solicitation_letter_files()
+    if not generated_files:
+        return []
+
+    solicitation_ids = [item.solicitation_id for item in generated_files]
+    solicitation_query = (
+        select(Solicitation)
+        .options(selectinload(Solicitation.partner))
+        .where(Solicitation.id.in_(solicitation_ids))
+    )
+    if selected_solicitor_id is not None:
+        solicitation_query = solicitation_query.where(
+            Solicitation.solicitor_person_id == selected_solicitor_id
+        )
+
+    solicitations = db.session.scalars(solicitation_query).all()
+    solicitation_by_id = {solicitation.id: solicitation for solicitation in solicitations}
+
+    rows = []
+    for generated_file in generated_files:
+        solicitation = solicitation_by_id.get(generated_file.solicitation_id)
+        if selected_solicitor_id is not None and solicitation is None:
+            continue
+        partner = solicitation.partner if solicitation is not None else None
+        rows.append(
+            {
+                "filename": generated_file.filename,
+                "solicitation_id": generated_file.solicitation_id,
+                "generated_at": generated_file.generated_at,
+                "partner_name": (
+                    (partner.display_name or partner.partner_name)
+                    if partner is not None
+                    else "—"
+                ),
+            }
+        )
+
+    return rows
+
+
+def _generated_mailing_list_rows() -> list[dict]:
+    files = list_generated_mailing_list_files()
+    return [
+        {
+            "filename": item.filename,
+            "created_at": item.created_at,
+        }
+        for item in files
+    ]
 
 
 def _normalize_legacy_partner_categories() -> int:
