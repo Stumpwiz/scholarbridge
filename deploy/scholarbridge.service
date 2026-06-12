@@ -1,0 +1,23 @@
+[Unit]
+Description=ScholarBridge Gunicorn Service
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=scholarbridge
+Group=www-data
+WorkingDirectory=/opt/scholarbridge
+EnvironmentFile=/etc/scholarbridge/scholarbridge.env
+Environment=PATH=/opt/scholarbridge/.venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/opt/scholarbridge/.venv/bin/gunicorn -c /opt/scholarbridge/deploy/gunicorn.conf.py run:app
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Allow writes for uploads and generated letters.
+ReadWritePaths=/opt/scholarbridge/instance /opt/scholarbridge/app/static/img/avatars/uploads
+
+[Install]
+WantedBy=multi-user.target
