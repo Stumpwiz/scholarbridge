@@ -54,6 +54,10 @@ Thumbs.db
 *.sql.gz
 *.tar.gz
 
+# Runtime-uploaded avatars
+app/static/img/avatars/uploads/*
+!app/static/img/avatars/uploads/.gitkeep
+
 # Coverage / testing
 .coverage
 htmlcov/

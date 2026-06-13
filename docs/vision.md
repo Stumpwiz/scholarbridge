@@ -1,6 +1,6 @@
 # Vision
 
-ScholarBridge exists to strengthen the Example Scholarship Committee's ability to manage donor and patron relationships over time. The system is evolving into a lightweight donor solicitation management CRM that helps the committee operate consistently year after year, even as membership changes.
+ScholarBridge exists to strengthen a scholarship committee's ability to manage donor and patron relationships over time. The system is evolving into a lightweight donor solicitation management CRM that helps committees operate consistently year after year, even as membership changes.
 
 ## Operational Goals
 

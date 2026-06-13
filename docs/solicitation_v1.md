@@ -51,7 +51,7 @@ Solicitation is the central operational entity in ScholarBridge. It resolves the
 
 - `mrpoc_person_id` references `Person`.
 - A Person may be MRPOC for many Solicitation records.
-- This captures Example Organization internal liaison context for correspondence copying and operational coordination.
+- This captures internal liaison context for correspondence copying and operational coordination.
 
 ### User relationship (indirect only)
 
@@ -71,14 +71,14 @@ Rationale: these fields define the core participation record.
 ### Stewardship roles
 
 - `solicitor_person_id` (optional in v1 implementation): operational owner responsible for outreach and follow-up.
-- `mrpoc_person_id` (optional): Example Organization point of contact for coordination/copying.
+- `mrpoc_person_id` (optional): organization point of contact for coordination/copying.
 
 Rationale: role clarity supports accountability, handoff continuity, and workload planning.
 
 ### Campaign planning
 
 - `tranche` (optional but strongly recommended): solicitation wave indicator within campaign.
-- `business_volume` (optional): approximate annual dollar business volume between Partner and Example Organization.
+- `business_volume` (optional): approximate annual dollar business volume between Partner and the organization.
 - `amount_requested` (optional): planned ask amount for this campaign/partner context.
 
 Rationale: these fields support planning decisions and wave-based execution.
@@ -132,7 +132,7 @@ v1 recommendation:
 
 ## Business Volume Semantics
 
-`business_volume` represents the approximate dollar volume of business conducted between a Partner and Example Organization, supplied by Example Health Services financial staff.
+`business_volume` represents the approximate dollar volume of business conducted between a Partner and the organization, supplied by finance staff.
 
 Intended usage:
 
@@ -164,11 +164,11 @@ Therefore `solicitor_person_id` references `Person`.
 
 ## MRPOC Semantics
 
-MRPOC = **Example Organization Point of Contact**.
+MRPOC = **Organization Point of Contact**.
 
 Known v1 intent:
 
-- typically (possibly always) a Example Organization employee
+- typically an organization staff member
 - included for correspondence-copy and coordination context
 - represented as `mrpoc_person_id` referencing `Person`
 - auto-assigned when a campaign has a category-to-MRPOC mapping for the partner category

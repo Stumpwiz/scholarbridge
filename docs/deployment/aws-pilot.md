@@ -7,8 +7,8 @@ This runbook is for a small pilot deployment on AWS with:
 - one ARM64 EC2 instance (recommended: `t4g.small`)
 - PostgreSQL on the same instance
 - Flask behind Gunicorn + Nginx
-- DNS via IONOS CNAME to AWS, matching the existing `clerk.example.org` pattern
-- HTTPS handled with the same mechanism used for `clerk.example.org`
+- DNS via your provider CNAME to AWS using the same pattern as your existing subdomain deployment
+- HTTPS handled with the same mechanism used for your existing subdomain deployment
 - nightly backups retained for 30 days
 
 This is intentionally a pilot setup, not a scaled production architecture.
@@ -27,7 +27,7 @@ Deployment completed successfully on 2026-06-12.
 
 - Public URL: `https://scholarbridge.example.org`
 - Elastic IP configured
-- DNS configured through IONOS
+- DNS configured through your provider
 - HTTPS enabled and validated
 - Automatic certificate renewal enabled
 - Nightly PostgreSQL backups configured
@@ -46,7 +46,7 @@ Deployment completed successfully on 2026-06-12.
 Before starting, confirm:
 
 - AWS account access with permissions to manage EC2, networking, and related resources.
-- IONOS DNS access for `example.org` record management.
+- DNS provider access for your domain record management.
 - SSH key access for the EC2 instance.
 - GitHub repository access for ScholarBridge.
 - Working familiarity with PostgreSQL administration basics (`psql`, `pg_dump`, `pg_restore`).
@@ -60,7 +60,7 @@ AWS CONSOLE
   -> POSTGRESQL SHELL (psql) setup
   -> EC2 INSTANCE (SSH SESSION) application deployment
   -> EC2 INSTANCE (SSH SESSION) Nginx/systemd setup
-  -> IONOS DNS CONSOLE configuration
+  -> DNS PROVIDER CONSOLE configuration
   -> WEB BROWSER VALIDATION smoke tests
   -> EC2 INSTANCE (SSH SESSION) backup configuration
 ```
@@ -69,7 +69,7 @@ AWS CONSOLE
 
 ```text
 Internet
-  -> HTTPS endpoint for scholarbridge.example.org (same TLS mechanism as clerk.example.org)
+  -> HTTPS endpoint for `scholarbridge.example.org` (using the same TLS mechanism as your existing subdomain deployment)
   -> EC2 ARM64 (Amazon Linux 2023 or Ubuntu 24.04)
      -> Nginx (reverse proxy on :80 local host)
      -> Gunicorn (127.0.0.1:8000)
@@ -87,7 +87,7 @@ Internet
 2. Use OS image `Ubuntu Server 24.04 LTS ARM64`.
 3. Attach security group `scholarbridge-pilot`.
 4. Attach or allocate networking that matches your existing pilot approach (public reachability and SSH access pattern).
-5. Record the public hostname/IP that IONOS CNAME will point to.
+5. Record the public hostname/IP that your DNS CNAME will point to.
 6. Ensure SSH access works with your deployment key before proceeding.
 
 ## 6. Required Secrets and Environment
@@ -208,7 +208,7 @@ uv run flask --app run.py db upgrade
 
 On source machine (already-migrated PostgreSQL):
 
-**Execution Context: LOCAL DEVELOPMENT MACHINE (Development Host)**
+**Execution Context: LOCAL DEVELOPMENT MACHINE**
 
 ```bash
 pg_dump -h <source-host> -U <source-user> -d <source-db> -F c -f scholarbridge_pilot.dump
@@ -216,7 +216,7 @@ pg_dump -h <source-host> -U <source-user> -d <source-db> -F c -f scholarbridge_p
 
 Copy dump artifact to EC2:
 
-**Execution Context: LOCAL DEVELOPMENT MACHINE (Development Host)**
+**Execution Context: LOCAL DEVELOPMENT MACHINE**
 
 ```bash
 scp scholarbridge_pilot.dump <ec2-user>@<ec2-host>:/tmp/
@@ -289,15 +289,15 @@ sudo systemctl restart nginx
 
 ### 11.1 Create or Update DNS Record
 
-**Execution Context: IONOS DNS CONSOLE**
+**Execution Context: DNS PROVIDER CONSOLE**
 
-1. Create/confirm CNAME `scholarbridge.example.org` to the AWS endpoint, mirroring the working `clerk.example.org` pattern.
+1. Create/confirm CNAME `scholarbridge.example.org` to the AWS endpoint, mirroring your existing subdomain CNAME pattern.
 
 ### 11.2 Configure HTTPS
 
 **Execution Context: AWS CONSOLE and/or EC2 INSTANCE (SSH SESSION)**
 
-1. Apply the same HTTPS mechanism currently used for `clerk.example.org`.
+1. Apply the same HTTPS mechanism currently used for your existing subdomain deployment.
 2. Ensure the certificate is attached/active for `scholarbridge.example.org` using that existing mechanism.
 
 ## 12. Backup and Restore (30-day retention)

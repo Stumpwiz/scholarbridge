@@ -2,7 +2,7 @@
 
 ## 1. Purpose of the System
 
-ScholarBridge exists to help the Example Scholarship Committee manage donor and patron relationships with consistency, care, and historical awareness. It is intended to support committee work, not replace committee judgment. The system should make routine tasks easier, improve record clarity, and reduce dependence on any one person’s memory or spreadsheet habits.
+ScholarBridge exists to help scholarship committees manage donor and patron relationships with consistency, care, and historical awareness. It is intended to support committee work, not replace committee judgment. The system should make routine tasks easier, improve record clarity, and reduce dependence on any one person’s memory or spreadsheet habits.
 
 ## 2. Current Committee Workflow Realities
 

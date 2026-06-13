@@ -77,7 +77,7 @@ The campaign workflow should be consistent year to year, simple for committee us
   - Cleaning Services and Supplies
   - Admin
 - Mapping is campaign-specific, so the same category may resolve to different MRPOCs in different years.
-- MRPOCs are generally Example Organization employees.
+- MRPOCs are generally organization staff members.
 - MRPOC assignments may change between Campaigns.
 - Mid-campaign remapping is not a v1 concern.
 - Missing category mapping does not block solicitation creation; MRPOC remains blank until manually set.

@@ -34,8 +34,13 @@ def seed_committee_users_command(password: str, force_password_reset: bool, allo
     )
 
     committee = (
-        {"first": "George", "last": "Wright", "username": "george.wright", "fallback_email": "geo@loyola.edu",
-         "role": User.ROLE_ADMIN},
+        {
+            "first": "Example",
+            "last": "Administrator",
+            "username": "example.admin",
+            "fallback_email": "maintainer@example.org",
+            "role": User.ROLE_ADMIN,
+        },
     )
 
     with app.app_context():

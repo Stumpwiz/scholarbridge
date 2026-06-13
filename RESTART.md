@@ -15,7 +15,7 @@ Current stage: **Phase 2D.1 (Partner category realignment), deployed and operati
   - local PostgreSQL
   - Gunicorn + Nginx + systemd
   - Elastic IP
-  - IONOS DNS configuration
+  - DNS configuration
   - HTTPS enabled/validated with automatic certificate renewal
   - nightly PostgreSQL backups with 30-day retention
 - Functional validation completed in deployed environment:
@@ -31,7 +31,7 @@ Current stage: **Phase 2D.1 (Partner category realignment), deployed and operati
 - GitHub repository setup completed and remote workflow baseline established.
 - GitHub Actions CI (`.github/workflows/tests.yml`) configured and running on PostgreSQL.
 - Alembic baseline migration defaults corrected for PostgreSQL compatibility and validated on both SQLite and PostgreSQL upgrade paths.
-- Local PostgreSQL development environment on Development Host stabilized as primary runtime DB.
+- Local PostgreSQL development environment stabilized as primary runtime DB.
 - Legacy SQLite development data migrated to PostgreSQL using `scripts/migrate_sqlite_to_postgres.py`.
 - Migration verification completed via matching row counts across core tables between SQLite and PostgreSQL.
 - Application login and primary workflows validated successfully after PostgreSQL cutover.
@@ -41,7 +41,7 @@ The project remains architecture-first. A minimal Flask runtime scaffold exists 
 ## Project Snapshot
 
 - Name: ScholarBridge
-- Domain: Donor/patron CRM for the Example Scholarship Committee
+- Domain: Donor/patron CRM for a scholarship committee
 - Goal: Institutional continuity, solicitation management quality, and historical traceability
 - Current operational baseline: legacy spreadsheet process
 
@@ -62,7 +62,7 @@ ScholarBridge should evolve spreadsheet-era operations into a maintainable syste
 ## Environment and Deployment Context
 
 - AWS pilot deployment status: live and operational at `https://scholarbridge.example.org` (since 2026-06-12)
-- Development machine: Ubuntu ARM64 ("Development Host") with PyCharm
+- Development machine: Ubuntu ARM64 with PyCharm
 - Primary deployment runtime: EC2 + local PostgreSQL + Gunicorn + Nginx + systemd
 - AWS pilot region: `us-east-1`
 - AWS pilot instance type: `t4g.small`

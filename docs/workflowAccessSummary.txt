@@ -16,7 +16,7 @@ Current Workflow
 
 4. A Solicitor is assigned to each Partner participation record.
 
-5. A Example Organization Point of Contact (MRPOC) is assigned automatically based on the Partner's category.
+5. An Organization Point of Contact (MRPOC) is assigned automatically based on the Partner's category.
 
 6. Solicitation activities are tracked throughout the campaign:
 
