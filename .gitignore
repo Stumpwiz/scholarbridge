@@ -34,6 +34,7 @@ data/original/*
 # Miscellaneous
 docs/meetings/*
 docs/prompts/*
+docs/*.pptx
 
 # OS clutter
 .DS_Store
