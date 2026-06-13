@@ -2,11 +2,15 @@
 
 This roadmap is phased to reduce risk, preserve committee continuity, and deliver usable improvements early.
 
-## Current Platform Status (as of 2026-06-10)
+## Current Platform Status (as of 2026-06-12)
 
 - PostgreSQL is the primary development/runtime database.
 - Legacy SQLite data migration to PostgreSQL has been completed and verified.
 - GitHub Actions CI is active and runs migrations/tests against PostgreSQL.
+- AWS pilot deployment is live at `https://scholarbridge.example.org`.
+- AWS pilot runtime: EC2 `t4g.small` (ARM64), Ubuntu 24.04 LTS, local PostgreSQL, Gunicorn, Nginx, systemd.
+- HTTPS is enabled/validated with automatic certificate renewal.
+- Nightly PostgreSQL backups are configured with 30-day retention.
 - Next major functional decision: committee-approved correspondence generation implementation.
 
 ## Phase 0: Discovery and Modeling
@@ -47,7 +51,6 @@ This roadmap is phased to reduce risk, preserve committee continuity, and delive
 
 ## Phase 5: Deployment and Multi-User Operation
 
-- Harden local Apache-hosted Flask deployment on Windows 11
-- Add operational procedures for backup, restore, and updates
-- Prepare Linux-compatible deployment path
-- Introduce multi-user handling, roles, and operational governance controls
+- [Completed] Deploy ScholarBridge AWS pilot environment and validate core workflows.
+- [Completed] Add operational procedures for backup, restore, and rollback (`docs/deployment/aws-pilot.md`).
+- [In Progress] Introduce multi-user handling, roles, and operational governance controls.

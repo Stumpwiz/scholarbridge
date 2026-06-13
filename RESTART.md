@@ -2,9 +2,29 @@
 
 This file provides resume context for future assistants and maintainers.
 
-Current stage: **Phase 2D.1 (Partner category realignment)**.
+Current stage: **Phase 2D.1 (Partner category realignment), deployed and operational on AWS pilot as of 2026-06-12**.
 
 ## Milestone Log
+
+### 2026-06-12: AWS Pilot Deployment Go-Live
+
+- ScholarBridge deployed successfully to AWS pilot environment.
+- Public URL live: `https://scholarbridge.example.org`.
+- Infrastructure/runtime confirmed:
+  - EC2 `t4g.small` (ARM64), Ubuntu 24.04 LTS
+  - local PostgreSQL
+  - Gunicorn + Nginx + systemd
+  - Elastic IP
+  - IONOS DNS configuration
+  - HTTPS enabled/validated with automatic certificate renewal
+  - nightly PostgreSQL backups with 30-day retention
+- Functional validation completed in deployed environment:
+  - login
+  - partner management
+  - contact management
+  - campaign workflow
+  - solicitation letter generation
+  - PDF generation and PDF download
 
 ### 2026-06-10: PostgreSQL Migration + CI Platform Cutover
 
@@ -41,9 +61,14 @@ ScholarBridge should evolve spreadsheet-era operations into a maintainable syste
 
 ## Environment and Deployment Context
 
-- Initial deployment target: local Apache-hosted Flask application on Windows 11
+- AWS pilot deployment status: live and operational at `https://scholarbridge.example.org` (since 2026-06-12)
 - Development machine: Ubuntu ARM64 ("Development Host") with PyCharm
-- Design requirement: preserve future Linux deployment compatibility
+- Primary deployment runtime: EC2 + local PostgreSQL + Gunicorn + Nginx + systemd
+- AWS pilot region: `us-east-1`
+- AWS pilot instance type: `t4g.small`
+- AWS pilot OS: `Ubuntu Server 24.04 LTS ARM64`
+- AWS pilot security group: `scholarbridge-pilot`
+- AWS pilot deployment model: `EC2 + local PostgreSQL + Gunicorn + Nginx`
 
 ## Stabilized Core Entities (Conceptual v1)
 
@@ -512,4 +537,4 @@ See `pyproject.toml` / `requirements.txt`:
 1. Treat `docs/schema_v1.md` and `docs/ui_concepts.md` as the implementation baseline unless committee policy changes.
 2. Keep next phases conservative and server-rendered.
 3. Keep Solicitation enhancements incremental (correspondence dates and automation remain deferred).
-4. Preserve local Windows deployment compatibility and Linux portability when adding runtime behavior.
+4. Preserve AWS pilot runtime compatibility and Linux portability when adding runtime behavior.

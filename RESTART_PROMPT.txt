@@ -1,8 +1,8 @@
 ScholarBridge Restart Prompt
 
 Project Status
-- Date baseline: 2026-06-10
-- Current stage: Phase 2D.1 (Partner category realignment) with PostgreSQL migration completed.
+- Date baseline: 2026-06-12
+- Current stage: Phase 2D.1 (Partner category realignment) with PostgreSQL migration completed and AWS pilot deployment operational.
 - Repository: GitHub repo is established and configured.
 - CI: GitHub Actions is active and runs Alembic + tests against PostgreSQL.
 
@@ -24,10 +24,16 @@ Completed Milestones
 - SQLite -> PostgreSQL data transfer completed via scripts/migrate_sqlite_to_postgres.py
 - Post-migration validation completed via matching row counts
 - Login and core application workflows verified successfully on PostgreSQL
+- AWS pilot deployment completed on 2026-06-12
+- Public URL live: https://scholarbridge.example.org
+- Runtime stack validated in deployment: EC2 t4g.small (ARM64), Ubuntu 24.04, PostgreSQL, Gunicorn, Nginx, systemd
+- HTTPS enabled/validated with automatic certificate renewal
+- Nightly PostgreSQL backups configured with 30-day retention
+- Deployed-environment validation completed: login, partner/contact management, campaign workflow, solicitation letter/PDF generation and download
 
 Recommended Next Steps
 1. Evaluate and finalize committee-approved correspondence generation requirements.
 2. Implement correspondence generation updates (template governance, workflow UX, output validation).
 3. Expand automated test coverage around correspondence and mailing workflows on PostgreSQL.
-4. Finalize GitHub CI/CD path for AWS deployment readiness (build, migration, smoke checks).
-5. Prepare deployment runbook updates (environment variables, backup/restore, rollback procedures).
+4. Add post-deployment smoke-check and backup-verify routines to regular operations.
+5. Define pilot feedback capture and issue triage cadence for committee users.

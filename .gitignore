@@ -43,9 +43,15 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Logs
 *.log
+
+# Database dumps / backup artifacts
+*.dump
+*.sql.gz
+*.tar.gz
 
 # Coverage / testing
 .coverage
@@ -61,3 +67,4 @@ build/
 
 # macOS/Linux editor clutter
 *~
+/docs/deployment/deploymentDetails.txt

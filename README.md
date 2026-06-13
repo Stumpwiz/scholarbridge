@@ -20,18 +20,21 @@ ScholarBridge is intended to help the committee manage:
 - Clear solicitation management lifecycle tracking
 - Low operational complexity for non-technical users
 - Incremental migration from spreadsheet habits to structured workflows
-- Compatibility with current local deployment and future platform growth
+- Compatibility with current AWS pilot deployment and future platform growth
 
-## Deployment Context (Initial)
+## Deployment Context (Current)
 
-- Local Apache-hosted Flask application on Windows 11
+- Pilot production deployment: `https://scholarbridge.example.org` (AWS, live as of 2026-06-12)
+- AWS runtime: EC2 `t4g.small` (ARM64), Ubuntu 24.04 LTS, local PostgreSQL, Gunicorn, Nginx, systemd
+- DNS: IONOS CNAME to AWS endpoint with HTTPS enabled/validated and auto-renewal configured
+- Backups: nightly PostgreSQL backups with 30-day retention
 - Development on Ubuntu ARM64 (Development Host) using PyCharm
-- Future Linux deployment compatibility expected from the outset
 
 ## Current Repository Stage
 
 This repository is now in **Phase 2D.1: Partner category realignment**, with the
-**2026-06-10 PostgreSQL platform migration milestone completed**.
+**2026-06-10 PostgreSQL platform migration milestone completed** and the
+**2026-06-12 AWS pilot deployment milestone completed**.
 
 Documentation remains the architectural source of truth, and the runtime foundation is now in place for conservative implementation phases.
 
@@ -48,6 +51,24 @@ Completed:
 - Legacy SQLite data migrated to PostgreSQL via `scripts/migrate_sqlite_to_postgres.py`.
 - Data migration verified by matching row counts between SQLite and PostgreSQL.
 - Application login and core workflows verified after PostgreSQL cutover.
+
+## Deployment Milestone (2026-06-12)
+
+Completed:
+
+- ScholarBridge deployed successfully to AWS pilot environment.
+- Public URL live: `https://scholarbridge.example.org`.
+- Runtime stack operational: EC2 `t4g.small` (ARM64), Ubuntu 24.04 LTS, PostgreSQL, Gunicorn, Nginx, systemd.
+- Elastic IP attached and DNS configured via IONOS.
+- HTTPS enabled/validated with automatic certificate renewal.
+- Nightly PostgreSQL backups enabled with 30-day retention.
+- Functional validation completed:
+  - login
+  - partner management
+  - contact management
+  - campaign workflow
+  - solicitation letter generation
+  - PDF generation and download
 
 ## Phase 1A Scope
 
