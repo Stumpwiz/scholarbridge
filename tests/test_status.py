@@ -7,6 +7,8 @@ from app.main.status import (
     solicitation_is_letter_ready,
 )
 
+_MISSING = object()
+
 
 def _partner(*, partner_type="Insurance", contacts=None):
     return SimpleNamespace(partner_type=partner_type, contacts=contacts or [])
@@ -25,13 +27,24 @@ def _solicitation(
     *,
     partner=None,
     solicitor_person_id=1,
+    solicitor=_MISSING,
+    mrpoc=_MISSING,
     business_volume=1000,
     amount_requested=500,
 ):
+    default_person = SimpleNamespace(
+        first_name="First",
+        last_name="Last",
+        email="person@example.com",
+        phone="4105551212",
+        mobile_phone=None,
+        other_phone=None,
+    )
     return SimpleNamespace(
         partner=partner if partner is not None else _partner(),
         solicitor_person_id=solicitor_person_id,
-        solicitor=None,
+        solicitor=default_person if solicitor is _MISSING else solicitor,
+        mrpoc=default_person if mrpoc is _MISSING else mrpoc,
         business_volume=business_volume,
         amount_requested=amount_requested,
     )
@@ -66,7 +79,31 @@ class StatusHelperTests(unittest.TestCase):
         )
 
     def test_solicitation_without_solicitor_is_incomplete(self):
-        self.assertTrue(solicitation_is_incomplete(_solicitation(solicitor_person_id=None)))
+        self.assertTrue(
+            solicitation_is_incomplete(_solicitation(solicitor_person_id=None, solicitor=None))
+        )
+
+    def test_solicitation_without_required_solicitor_fields_is_incomplete(self):
+        solicitor = SimpleNamespace(
+            first_name="First",
+            last_name="Last",
+            email=None,
+            phone="4105551212",
+            mobile_phone=None,
+            other_phone=None,
+        )
+        self.assertTrue(solicitation_is_incomplete(_solicitation(solicitor=solicitor)))
+
+    def test_solicitation_without_required_mrpoc_fields_is_incomplete(self):
+        mrpoc = SimpleNamespace(
+            first_name="First",
+            last_name=None,
+            email="mr@example.com",
+            phone="4105551212",
+            mobile_phone=None,
+            other_phone=None,
+        )
+        self.assertTrue(solicitation_is_incomplete(_solicitation(mrpoc=mrpoc)))
 
     def test_solicitation_without_business_volume_is_incomplete(self):
         self.assertTrue(solicitation_is_incomplete(_solicitation(business_volume=None)))

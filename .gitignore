@@ -35,6 +35,7 @@ data/original/*
 docs/meetings/*
 docs/prompts/*
 docs/*.pptx
+/docs/private/
 
 # OS clutter
 .DS_Store
@@ -72,4 +73,4 @@ build/
 
 # macOS/Linux editor clutter
 *~
-/docs/deployment/deploymentDetails.txt
+

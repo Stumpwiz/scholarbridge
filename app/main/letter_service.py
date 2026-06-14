@@ -1,35 +1,20 @@
 from __future__ import annotations
 
-import subprocess
-from datetime import date
 from decimal import Decimal
-from pathlib import Path
-from tempfile import TemporaryDirectory
 
-from flask import current_app, render_template
+from flask import current_app
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
-from app.models import Campaign, Contact, Partner, Solicitation
+from app.models import Contact, Partner, Solicitation
+from app.services.docx_template_service import DocxTemplateError, DocxTemplateService
+from app.services.formatters import clean, month_year, normalize_phone
+from app.services.letters import get_letter_template
 
 
 class SolicitationLetterError(RuntimeError):
     """Raised when solicitation letter generation fails."""
-
-
-def build_solicitation_letter_context(partner_id: int) -> dict:
-    partner = db.session.scalar(
-        select(Partner)
-        .options(selectinload(Partner.contacts))
-        .where(Partner.id == partner_id)
-    )
-    if partner is None:
-        raise SolicitationLetterError("Partner not found.")
-
-    contact = _pick_contact(partner.contacts)
-    solicitation = _pick_solicitation(partner.id)
-    return _build_solicitation_letter_context(partner, contact, solicitation)
 
 
 def build_solicitation_letter_context_for_solicitation(solicitation_id: int) -> dict:
@@ -63,15 +48,11 @@ def _build_solicitation_letter_context(
     mrpoc = solicitation.mrpoc if solicitation is not None else None
     amount_requested = solicitation.amount_requested if solicitation is not None else None
 
-    today = date.today()
-    formatted_date = f"{today.strftime('%B')} {today.day}, {today.year}"
-    logo_path = (
-        Path(current_app.root_path) / "static" / "img" / "branding" / "scholarshipProgramLogo.png"
-    )
+    formatted_date = month_year()
 
-    salutation = _clean(contact.title if contact else None)
-    contact_first_name = _clean(contact.first_name if contact else None)
-    contact_last_name = _clean(contact.last_name if contact else None)
+    salutation = clean(contact.title if contact else None)
+    contact_first_name = clean(contact.first_name if contact else None)
+    contact_last_name = clean(contact.last_name if contact else None)
     contact_display_name = " ".join(
         part for part in (contact_first_name, contact_last_name) if part
     )
@@ -79,59 +60,53 @@ def _build_solicitation_letter_context(
     dear_last_name = contact_last_name or ""
     dear_line = " ".join(part for part in (dear_salutation, dear_last_name) if part).strip()
 
-    context = {
+    city = clean(partner.city)
+    state = clean(partner.state)
+    zip_code = clean(partner.postal_code)
+    city_state_zip = ""
+    if city or state or zip_code:
+        city_state_zip = f"{city}{', ' if city and state else ''}{state} {zip_code}".strip()
+
+    solicitor_phone = _first_phone(getattr(solicitor, "phone", None), getattr(solicitor, "mobile_phone", None))
+    mrpoc_phone = _first_phone(getattr(mrpoc, "phone", None), getattr(mrpoc, "mobile_phone", None))
+
+    return {
         "letter_date": formatted_date,
         "salutation": salutation,
         "contact_first_name": contact_first_name,
         "contact_last_name": contact_last_name,
+        "recipient_line": " ".join(
+            part for part in (salutation, contact_first_name, contact_last_name) if part
+        ).strip(),
         "contact_display_name": contact_display_name,
-        "company": _clean(partner.partner_name),
-        "address_1": _clean(partner.address_1),
-        "address_2": _clean(partner.address_2),
-        "city": _clean(partner.city),
-        "state": _clean(partner.state),
-        "zip_code": _clean(partner.postal_code),
+        "company": clean(partner.partner_name),
+        "address_1": clean(partner.address_1),
+        "address_2": clean(partner.address_2),
+        "city": city,
+        "state": state,
+        "zip_code": zip_code,
+        "city_state_zip": city_state_zip,
         "amount_requested": _format_currency(amount_requested),
+        "amount_requested_no_symbol": _format_currency(amount_requested).replace("$", ""),
         "solicitor_name": _person_name(solicitor),
-        "solicitor_number": _clean(getattr(solicitor, "phone", None) or getattr(solicitor, "mobile_phone", None)),
-        "solicitor_email": _clean(getattr(solicitor, "email", None)),
+        "solicitor_number": normalize_phone(solicitor_phone),
+        "solicitor_email": clean(getattr(solicitor, "email", None)),
         "mr_contact": _person_name(mrpoc),
+        "mr_contact_phone": normalize_phone(mrpoc_phone),
         "dear_line": dear_line or "Sir or Madam",
-        "logo_path": logo_path.as_posix(),
+        "cc_line": f"cc: {_person_name(mrpoc)}".strip(),
     }
-    return {key: _latex_escape(str(value)) for key, value in context.items()}
 
 
 def generate_solicitation_pdf_bytes(context: dict) -> bytes:
-    rendered_tex = render_template("letters/solicitation.tex.j2", **context)
-
-    with TemporaryDirectory(prefix="scholarbridge-letter-") as temp_dir:
-        temp_path = Path(temp_dir)
-        tex_file = temp_path / "solicitation.tex"
-        tex_file.write_text(rendered_tex, encoding="utf-8")
-
-        result = subprocess.run(
-            [
-                "xelatex",
-                "-interaction=nonstopmode",
-                "-halt-on-error",
-                "solicitation.tex",
-            ],
-            cwd=temp_path,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        if result.returncode != 0:
-            output = "\n".join(part for part in [result.stdout, result.stderr] if part).strip()
-            raise SolicitationLetterError(f"XeLaTeX failed while generating the PDF.\n{output}")
-
-        pdf_path = temp_path / "solicitation.pdf"
-        if not pdf_path.exists():
-            raise SolicitationLetterError("XeLaTeX completed but did not produce a PDF.")
-
-        return pdf_path.read_bytes()
+    letter_template = get_letter_template("solicitation")
+    template_path = letter_template.resolve_template_path(app_root_path=current_app.root_path)
+    render_plan = letter_template.build_render_plan(context)
+    renderer = DocxTemplateService()
+    try:
+        return renderer.render_pdf_bytes(template_path=template_path, plan=render_plan)
+    except DocxTemplateError as exc:
+        raise SolicitationLetterError(str(exc)) from exc
 
 
 def build_solicitation_mailing_list_text(solicitations: list[Solicitation]) -> str:
@@ -166,15 +141,15 @@ def _solicitation_envelope_block(solicitation: Solicitation) -> str:
 
     contact = _pick_contact(partner.contacts)
 
-    contact_first_name = _clean(contact.first_name if contact else None)
-    contact_last_name = _clean(contact.last_name if contact else None)
+    contact_first_name = clean(contact.first_name if contact else None)
+    contact_last_name = clean(contact.last_name if contact else None)
     contact_display_name = " ".join(
         part for part in (contact_first_name, contact_last_name) if part
     )
 
-    city = _clean(partner.city)
-    state = _clean(partner.state)
-    zip_code = _clean(partner.postal_code)
+    city = clean(partner.city)
+    state = clean(partner.state)
+    zip_code = clean(partner.postal_code)
     city_state_zip = ""
     if city or state or zip_code:
         city_state_zip = f"{city}{', ' if city and state else ''}{state} {zip_code}".strip()
@@ -182,13 +157,13 @@ def _solicitation_envelope_block(solicitation: Solicitation) -> str:
     lines = []
     if contact_display_name:
         lines.append(contact_display_name)
-    company = _clean(partner.partner_name)
+    company = clean(partner.partner_name)
     if company:
         lines.append(company)
-    address_1 = _clean(partner.address_1)
+    address_1 = clean(partner.address_1)
     if address_1:
         lines.append(address_1)
-    address_2 = _clean(partner.address_2)
+    address_2 = clean(partner.address_2)
     if address_2:
         lines.append(address_2)
     if city_state_zip:
@@ -197,25 +172,11 @@ def _solicitation_envelope_block(solicitation: Solicitation) -> str:
     return "\n".join(lines)
 
 
-def _pick_solicitation(partner_id: int) -> Solicitation | None:
-    return db.session.scalar(
-        select(Solicitation)
-        .options(
-            selectinload(Solicitation.campaign),
-            selectinload(Solicitation.solicitor),
-            selectinload(Solicitation.mrpoc),
-        )
-        .join(Campaign, Campaign.id == Solicitation.campaign_id)
-        .where(Solicitation.partner_id == partner_id)
-        .order_by(Campaign.campaign_year.desc(), Solicitation.id.desc())
-    )
-
-
 def _person_name(person) -> str:
     if person is None:
         return ""
-    first_name = _clean(getattr(person, "preferred_name", None) or getattr(person, "first_name", None))
-    last_name = _clean(getattr(person, "last_name", None))
+    first_name = clean(getattr(person, "preferred_name", None) or getattr(person, "first_name", None))
+    last_name = clean(getattr(person, "last_name", None))
     return " ".join(part for part in (first_name, last_name) if part)
 
 
@@ -225,23 +186,9 @@ def _format_currency(value: Decimal | None) -> str:
     return f"${value:,.2f}"
 
 
-def _clean(value: str | None) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
-def _latex_escape(value: str) -> str:
-    replacements = {
-        "\\": r"\textbackslash{}",
-        "&": r"\&",
-        "%": r"\%",
-        "$": r"\$",
-        "#": r"\#",
-        "_": r"\_",
-        "{": r"\{",
-        "}": r"\}",
-        "~": r"\textasciitilde{}",
-        "^": r"\textasciicircum{}",
-    }
-    return "".join(replacements.get(character, character) for character in value)
+def _first_phone(*values: str | None) -> str:
+    for value in values:
+        cleaned = clean(value)
+        if cleaned:
+            return cleaned
+    return ""

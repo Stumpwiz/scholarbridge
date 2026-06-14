@@ -36,9 +36,31 @@ class LettersQueueTests(unittest.TestCase):
             user.set_password("password123")
             db.session.add(user)
 
-            solicitor_a = Person(first_name="Alex", last_name="Adams")
-            solicitor_b = Person(first_name="Blair", last_name="Baker")
-            db.session.add_all([solicitor_a, solicitor_b])
+            solicitor_a = Person(
+                first_name="Alex",
+                last_name="Adams",
+                email="alex.adams@example.com",
+                phone="4105551212",
+            )
+            solicitor_b = Person(
+                first_name="Blair",
+                last_name="Baker",
+                email="blair.baker@example.com",
+                phone="410.555.1213",
+            )
+            mrpoc_a = Person(
+                first_name="Morgan",
+                last_name="Reed",
+                email="morgan.reed@example.com",
+                phone="(410) 555-1214",
+            )
+            mrpoc_b = Person(
+                first_name="Casey",
+                last_name="Shaw",
+                email="casey.shaw@example.com",
+                phone="410-555-1215",
+            )
+            db.session.add_all([solicitor_a, solicitor_b, mrpoc_a, mrpoc_b])
 
             campaign = Campaign(
                 campaign_year=2026,
@@ -97,6 +119,7 @@ class LettersQueueTests(unittest.TestCase):
                 partner_id=partner_ready.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_a.id,
+                mrpoc_person_id=mrpoc_a.id,
                 business_volume=5000,
                 amount_requested=1250,
             )
@@ -104,6 +127,7 @@ class LettersQueueTests(unittest.TestCase):
                 partner_id=partner_incomplete.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_a.id,
+                mrpoc_person_id=mrpoc_a.id,
                 business_volume=4000,
                 amount_requested=1000,
             )
@@ -111,6 +135,7 @@ class LettersQueueTests(unittest.TestCase):
                 partner_id=partner_ready_no_display.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
+                mrpoc_person_id=mrpoc_b.id,
                 business_volume=2200,
                 amount_requested=700,
             )
@@ -118,6 +143,7 @@ class LettersQueueTests(unittest.TestCase):
                 partner_id=partner_incomplete_2.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
+                mrpoc_person_id=mrpoc_b.id,
                 business_volume=3300,
                 amount_requested=950,
             )
@@ -211,6 +237,24 @@ class LettersQueueTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
 
+        self.assertIn("Solicitation is incomplete.", html)
+        self.assertIn("Update solicitation details before generating a letter.", html)
+        self.assertIn("Edit Solicitation", html)
+
+    def test_letter_generation_is_blocked_when_required_contact_data_is_missing(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            self.assertIsNotNone(solicitation)
+            self.assertIsNotNone(solicitation.solicitor)
+            solicitation.solicitor.email = None
+            db.session.commit()
+
+        response = self.client.get(
+            f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
         self.assertIn("Solicitation is incomplete.", html)
         self.assertIn("Update solicitation details before generating a letter.", html)
         self.assertIn("Edit Solicitation", html)

@@ -33,9 +33,31 @@ class SolicitationListUiTests(unittest.TestCase):
             user.set_password("password123")
             db.session.add(user)
 
-            solicitor_a = Person(first_name="Alex", last_name="Assigned")
-            solicitor_b = Person(first_name="Blair", last_name="Assigned")
-            db.session.add_all([solicitor_a, solicitor_b])
+            solicitor_a = Person(
+                first_name="Alex",
+                last_name="Assigned",
+                email="alex.assigned@example.com",
+                phone="410-555-1100",
+            )
+            solicitor_b = Person(
+                first_name="Blair",
+                last_name="Assigned",
+                email="blair.assigned@example.com",
+                phone="410-555-1101",
+            )
+            mrpoc_a = Person(
+                first_name="Morgan",
+                last_name="Ridge",
+                email="morgan.ridge@example.com",
+                phone="410-555-1102",
+            )
+            mrpoc_b = Person(
+                first_name="Casey",
+                last_name="Vale",
+                email="casey.vale@example.com",
+                phone="410-555-1103",
+            )
+            db.session.add_all([solicitor_a, solicitor_b, mrpoc_a, mrpoc_b])
 
             campaign = Campaign(
                 campaign_year=2026,
@@ -63,6 +85,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 partner_id=alpha_ready_partner.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_a.id,
+                mrpoc_person_id=mrpoc_a.id,
                 tranche=1,
                 business_volume=5000,
                 amount_requested=1000,
@@ -71,6 +94,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 partner_id=beta_incomplete_partner.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_a.id,
+                mrpoc_person_id=mrpoc_a.id,
                 tranche=1,
                 business_volume=1500,
                 amount_requested=300,
@@ -79,6 +103,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 partner_id=delta_incomplete_partner.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
+                mrpoc_person_id=mrpoc_b.id,
                 tranche=1,
                 business_volume=None,
                 amount_requested=400,
@@ -87,6 +112,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 partner_id=gamma_ready_partner.id,
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
+                mrpoc_person_id=mrpoc_b.id,
                 tranche=1,
                 business_volume=2500,
                 amount_requested=None,

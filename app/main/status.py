@@ -49,6 +49,26 @@ def _solicitation_has_solicitor(solicitation: Any) -> bool:
     )
 
 
+def _person_has_required_letter_fields(person: Any) -> bool:
+    if person is None:
+        return False
+
+    phone = (
+        getattr(person, "phone", None)
+        or getattr(person, "mobile_phone", None)
+        or getattr(person, "other_phone", None)
+    )
+    return not any(
+        _is_missing(value)
+        for value in (
+            getattr(person, "first_name", None),
+            getattr(person, "last_name", None),
+            getattr(person, "email", None),
+            phone,
+        )
+    )
+
+
 def solicitation_is_incomplete(solicitation: Any) -> bool:
     if solicitation is None:
         return True
@@ -57,6 +77,12 @@ def solicitation_is_incomplete(solicitation: Any) -> bool:
         return True
 
     if not _solicitation_has_solicitor(solicitation):
+        return True
+
+    if not _person_has_required_letter_fields(getattr(solicitation, "solicitor", None)):
+        return True
+
+    if not _person_has_required_letter_fields(getattr(solicitation, "mrpoc", None)):
         return True
 
     return _is_missing(getattr(solicitation, "business_volume", None))
