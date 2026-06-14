@@ -1,0 +1,22 @@
+.git/
+.github/
+.pytest_cache/
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Not required on production runtime image
+tests/
+docs/
+data/
+
+# Production-only assets that must never be overwritten
+.env
+.env.*
+docs/private/
+instance/
+generated_letters/
+logs/
+*.log
+app/static/img/avatars/uploads/

@@ -1,4 +1,4 @@
-name: Tests
+name: CI/CD
 
 on:
   push:
@@ -48,4 +48,43 @@ jobs:
         run: uv run flask db upgrade
 
       - name: Run tests
-        run: uv run python -m unittest discover -s tests
+        run: uv run pytest -q
+
+  deploy:
+    name: Deploy To Production
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SCHOLARBRIDGE_PROD_SSH_PRIVATE_KEY }}
+
+      - name: Configure known_hosts
+        env:
+          SCHOLARBRIDGE_PROD_SSH_KNOWN_HOSTS: ${{ secrets.SCHOLARBRIDGE_PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SCHOLARBRIDGE_PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.SCHOLARBRIDGE_PROD_SSH_HOST }}
+          DEPLOY_USER: ${{ secrets.SCHOLARBRIDGE_PROD_SSH_USER }}
+          DEPLOY_SSH_PORT: ${{ secrets.SCHOLARBRIDGE_PROD_SSH_PORT }}
+          DEPLOY_PATH: /opt/scholarbridge
+          DEPLOY_STAGING_PATH: /tmp/scholarbridge-release
+          DEPLOY_APP_USER: scholarbridge
+          DEPLOY_SERVICE: scholarbridge.service
+          DEPLOY_HEALTHCHECK_URL: http://127.0.0.1:8000/health
+        run: bash scripts/deploy_via_ssh.sh
