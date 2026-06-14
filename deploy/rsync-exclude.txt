@@ -13,6 +13,7 @@ data/
 
 # Production-only assets that must never be overwritten
 .env
+.env*
 .env.*
 docs/private/
 instance/
