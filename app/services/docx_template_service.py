@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 import subprocess
+from datetime import datetime, UTC
 from dataclasses import dataclass, field
 from html import escape
+from shutil import copy2
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Mapping
@@ -16,6 +19,7 @@ class DocxTemplateError(RuntimeError):
 
 W_PARAGRAPH_RE = re.compile(r"<w:p\b[^>]*>.*?</w:p>", re.DOTALL)
 W_TEXT_RE = re.compile(r"<w:t(\s[^>]*)?>(.*?)</w:t>", re.DOTALL)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -68,31 +72,58 @@ class DocxTemplateService:
             temp_path = Path(temp_dir)
             docx_path = temp_path / "rendered.docx"
             self.render_docx(template_path=template_path, output_path=docx_path, plan=plan)
-            self._convert_docx_to_pdf(docx_path=docx_path, output_dir=temp_path)
+            try:
+                self._convert_docx_to_pdf(docx_path=docx_path, output_dir=temp_path)
+            except DocxTemplateError:
+                preserved_path = self._preserve_failed_docx(docx_path)
+                logger.error(
+                    "DOCX-to-PDF conversion failed; preserved rendered DOCX at %s",
+                    preserved_path,
+                )
+                raise
             pdf_path = temp_path / "rendered.pdf"
             if not pdf_path.exists():
                 raise DocxTemplateError("LibreOffice completed but did not produce a PDF.")
             return pdf_path.read_bytes()
 
+    def _preserve_failed_docx(self, docx_path: Path) -> Path:
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S%fZ")
+        preserved_path = Path("/tmp") / f"failed-rendered-{timestamp}.docx"
+        copy2(docx_path, preserved_path)
+        return preserved_path
+
     def _convert_docx_to_pdf(self, *, docx_path: Path, output_dir: Path) -> None:
+        profile_dir = output_dir / "soffice-profile"
+        profile_dir.mkdir(parents=True, exist_ok=True)
+        user_installation_uri = profile_dir.resolve().as_uri()
+        command = [
+            "soffice",
+            "--headless",
+            f"-env:UserInstallation={user_installation_uri}",
+            "--convert-to",
+            "pdf",
+            "--outdir",
+            str(output_dir),
+            str(docx_path),
+        ]
+        expected_pdf_path = output_dir / f"{docx_path.stem}.pdf"
         result = subprocess.run(
-            [
-                "soffice",
-                "--headless",
-                "--convert-to",
-                "pdf",
-                "--outdir",
-                str(output_dir),
-                str(docx_path),
-            ],
+            command,
             cwd=output_dir,
             capture_output=True,
             text=True,
             check=False,
         )
         if result.returncode != 0:
-            output = "\n".join(part for part in [result.stdout, result.stderr] if part).strip()
-            raise DocxTemplateError(f"LibreOffice failed while generating the PDF.\n{output}")
+            raise DocxTemplateError(
+                "LibreOffice failed while generating the PDF.\n"
+                f"command: {' '.join(command)}\n"
+                f"return_code: {result.returncode}\n"
+                f"docx_input_path: {docx_path}\n"
+                f"expected_pdf_output_path: {expected_pdf_path}\n"
+                f"stdout: {result.stdout!r}\n"
+                f"stderr: {result.stderr!r}"
+            )
 
     def _render_document_xml(self, *, document_xml: str, plan: DocxRenderPlan) -> str:
         xml = document_xml
