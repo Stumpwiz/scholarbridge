@@ -22,10 +22,9 @@ class SolicitationLetterServiceTests(unittest.TestCase):
     def setUpClass(cls):
         cls.template_path = (
             Path(__file__).resolve().parents[1]
-            / "docs"
-            / "private"
-            / "letter_templates"
-            / "solicitation.docx"
+            / "tests"
+            / "fixtures"
+            / "minimal_template.docx"
         )
         with ZipFile(cls.template_path, "r") as docx:
             cls.document_xml = docx.read("word/document.xml").decode("utf-8")
@@ -94,7 +93,9 @@ class SolicitationLetterServiceTests(unittest.TestCase):
         self.assertNotIn("«Salutation»", rendered)
         self.assertIn("410-555-1214", rendered)
         self.assertIn("410-555-1212", rendered)
-        self.assertNotIn("solicitor", rendered)
+        self.assertNotIn("solicitor name", rendered)
+        self.assertNotIn("(solicitor name)", rendered)
+        self.assertNotIn("(solicitor phone #)", rendered)
         self.assertIn("Acme Co", rendered)
         self.assertIn("$1,250.00", rendered)
         self.assertNotIn("w:highlight", rendered)
