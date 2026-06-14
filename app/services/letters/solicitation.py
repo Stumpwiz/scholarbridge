@@ -58,7 +58,7 @@ def build_solicitation_render_plan(context: dict) -> DocxRenderPlan:
                     "Program in this important and worthwhile initiative. "
                     "In the interim if you would have any questions prior to my reaching you, "
                     f"please do feel free to contact {context['solicitor_name']} at "
-                    f"{context['solicitor_number']}"
+                    f"{context['solicitor_number']}."
                 ),
                 starts_with="In a few days",
             ),
