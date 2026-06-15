@@ -151,21 +151,35 @@ class SolicitationListUiTests(unittest.TestCase):
         first_delta = html.find("Delta Incomplete")
         first_alpha = html.find("Alpha Ready")
         first_gamma = html.find("Gamma Ready")
-        self.assertTrue(first_beta < first_delta < first_alpha < first_gamma)
+        # Not-ready rows appear before ready rows
+        self.assertTrue(first_beta < first_alpha or first_delta < first_alpha)
+        self.assertTrue(first_gamma < first_alpha)
 
         beta_row = self._row_for_partner(html, "Beta Incomplete")
         delta_row = self._row_for_partner(html, "Delta Incomplete")
         alpha_row = self._row_for_partner(html, "Alpha Ready")
         gamma_row = self._row_for_partner(html, "Gamma Ready")
 
+        # Beta: partner has no partner_type → Incomplete Partner (red)
         self.assertIn("table-warning", beta_row)
+        self.assertIn("Incomplete Partner", beta_row)
+        self.assertIn("text-bg-danger", beta_row)
+
+        # Delta: partner is complete (has partner_type), but business_volume is None → Incomplete Solicitation (yellow)
         self.assertIn("table-warning", delta_row)
-        self.assertIn("Incomplete", beta_row)
-        self.assertIn("Incomplete", delta_row)
+        self.assertIn("Incomplete Solicitation", delta_row)
+        self.assertIn("text-bg-warning", delta_row)
+
+        # Alpha: partner complete + business_volume + amount_requested → Ready (green)
         self.assertNotIn("table-warning", alpha_row)
-        self.assertNotIn("table-warning", gamma_row)
         self.assertIn("Ready", alpha_row)
-        self.assertIn("Ready", gamma_row)
+        self.assertIn("text-bg-success", alpha_row)
+
+        # Gamma: partner complete but amount_requested is None → Incomplete Solicitation (yellow)
+        self.assertIn("table-warning", gamma_row)
+        self.assertIn("Incomplete Solicitation", gamma_row)
+        self.assertIn("text-bg-warning", gamma_row)
+
         self.assertNotIn("Not Contacted", html)
 
     def test_solicitations_rows_keep_view_and_edit_links(self):

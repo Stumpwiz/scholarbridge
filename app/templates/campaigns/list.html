@@ -4,6 +4,65 @@
 
 {% block content %}
 {% set can_edit = user_can_edit() %}
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ stats.total }}</div>
+                <div class="small text-muted">Total Campaigns</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-success">{{ stats.active }}</div>
+                <div class="small text-muted">Active</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-primary">{{ stats.total_solicitations }}</div>
+                <div class="small text-muted">Total Solicitations</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-success">${{ "{:,.0f}".format(stats.total_received) }}</div>
+                <div class="small text-muted">Total Received</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">${{ "{:,.0f}".format(stats.total_business_volume) }}</div>
+                <div class="small text-muted">Business Volume</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">${{ "{:,.0f}".format(stats.total_requested) }}</div>
+                <div class="small text-muted">Amount Requested</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-warning">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-warning">{{ stats.not_ready_solicitations }}</div>
+                <div class="small text-muted">Not Ready Solicitations</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">Campaigns</h1>
     {% if can_edit %}

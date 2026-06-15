@@ -13,6 +13,71 @@
     {% endif %}
 </div>
 
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ stats.total }}</div>
+                <div class="small text-muted">Total Solicitations</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-success">{{ stats.ready }}</div>
+                <div class="small text-muted">Ready</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-warning">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-warning">{{ stats.not_ready }}</div>
+                <div class="small text-muted">Not Ready</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-primary">{{ stats.by_status.get('donated', 0) }}</div>
+                <div class="small text-muted">Donated</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">${{ "{:,.0f}".format(stats.total_requested) }}</div>
+                <div class="small text-muted">Amount Requested</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-success">${{ "{:,.0f}".format(stats.total_received) }}</div>
+                <div class="small text-muted">Amount Received</div>
+            </div>
+        </div>
+    </div>
+    {% for tranche in [1, 2, 3] %}
+        {% if stats.by_tranche.get(tranche) %}
+        <div class="col-4 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-2">
+                    <div class="fs-5 fw-semibold">{{ stats.by_tranche.get(tranche, 0) }}</div>
+                    <div class="small text-muted">Tranche {{ tranche }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+</div>
+
 <form method="get" action="{{ url_for('main.solicitation_list') }}" class="row g-2 align-items-end mb-3">
     <div class="col-12 col-md-5 col-lg-4">
         <label for="solicitor_id" class="form-label mb-1">Filter by Solicitor</label>
@@ -85,12 +150,12 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if solicitation.id in incomplete_solicitation_ids %}
-                            <span class="badge text-bg-warning">Incomplete</span>
-                        {% elif solicitation.id in letter_ready_solicitation_ids %}
-                            <span class="badge text-bg-success">Ready</span>
+                        {% if solicitation.id in incomplete_partner_ids %}
+                            <span class="badge text-bg-danger">Incomplete Partner</span>
+                        {% elif solicitation.id in incomplete_solicitation_ids %}
+                            <span class="badge text-bg-warning">Incomplete Solicitation</span>
                         {% else %}
-                            <span class="badge text-bg-primary">Ready</span>
+                            <span class="badge text-bg-success">Ready</span>
                         {% endif %}
                     </td>
                     <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>

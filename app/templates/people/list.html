@@ -4,6 +4,67 @@
 
 {% block content %}
 {% set can_edit = user_can_edit() %}
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ stats.total_people }}</div>
+                <div class="small text-muted">Total People</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-success">{{ stats.active_people }}</div>
+                <div class="small text-muted">Active</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-primary">{{ stats.mrpoc_count }}</div>
+                <div class="small text-muted">MRPOCs / Solicitors</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ stats.total_users }}</div>
+                <div class="small text-muted">System Users</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-2 mb-4">
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.admin_users }}</div>
+                <div class="small text-muted">Admins</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.editor_users }}</div>
+                <div class="small text-muted">Editors</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.reader_users }}</div>
+                <div class="small text-muted">Readers</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h1 class="h4 mb-0">People</h1>
     {% if can_edit %}

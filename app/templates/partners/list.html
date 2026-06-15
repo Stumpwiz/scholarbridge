@@ -18,6 +18,83 @@
     {% endif %}
 </div>
 
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ stats.total }}</div>
+                <div class="small text-muted">Total Partners</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-success">{{ stats.active }}</div>
+                <div class="small text-muted">Active</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-primary">{{ stats.donated }}</div>
+                <div class="small text-muted">Donated</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-warning">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-warning">{{ stats.missing_primary_contact }}</div>
+                <div class="small text-muted">Missing Primary Contact</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="row g-2 mb-4">
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.contacted }}</div>
+                <div class="small text-muted">Contacted</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.responded }}</div>
+                <div class="small text-muted">Responded</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.declined }}</div>
+                <div class="small text-muted">Declined</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.closed }}</div>
+                <div class="small text-muted">Closed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">{{ stats.inactive }}</div>
+                <div class="small text-muted">Inactive</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if partners %}
     <div class="table-responsive">
         <table class="table table-striped table-hover align-middle">

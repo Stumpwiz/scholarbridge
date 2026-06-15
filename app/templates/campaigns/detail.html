@@ -21,6 +21,72 @@
     </div>
 </div>
 
+<div class="row g-2 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold">{{ detail_stats.sol_count }}</div>
+                <div class="small text-muted">Solicitations</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-warning">
+            <div class="card-body py-2">
+                <div class="fs-3 fw-bold text-warning">{{ detail_stats.not_ready }}</div>
+                <div class="small text-muted">Not Ready</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">${{ "{:,.0f}".format(detail_stats.total_bv) }}</div>
+                <div class="small text-muted">Business Volume</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold">${{ "{:,.0f}".format(detail_stats.total_req) }}</div>
+                <div class="small text-muted">Amount Requested</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-success">${{ "{:,.0f}".format(detail_stats.total_rec) }}</div>
+                <div class="small text-muted">Amount Received</div>
+            </div>
+        </div>
+    </div>
+    {% for tranche in [1, 2, 3] %}
+        {% if detail_stats.tranche_counts.get(tranche) %}
+        <div class="col-4 col-md-2">
+            <div class="card text-center h-100">
+                <div class="card-body py-2">
+                    <div class="fs-5 fw-semibold">{{ detail_stats.tranche_counts.get(tranche, 0) }}</div>
+                    <div class="small text-muted">Tranche {{ tranche }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endfor %}
+    {% set donated = detail_stats.status_counts.get('donated', 0) %}
+    {% if donated %}
+    <div class="col-4 col-md-2">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-primary">{{ donated }}</div>
+                <div class="small text-muted">Donated</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
 <div class="card mb-3">
     <div class="card-header">Assign Partner to Tranche</div>
     <div class="card-body">

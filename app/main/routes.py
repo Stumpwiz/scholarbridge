@@ -38,6 +38,14 @@ from app.main.status import (
 )
 from app.main import bp
 from app.extensions import db
+from app.services.dashboard_stats import (
+    campaign_detail_stats,
+    campaign_stats,
+    dashboard_highlights,
+    partner_stats,
+    people_stats,
+    solicitation_stats,
+)
 from app.models import (
     Campaign,
     CampaignCategoryMRPOC,
@@ -93,7 +101,8 @@ def require_authenticated_user():
 
 @bp.get("/")
 def index():
-    return render_template("index.html", page_title="Home")
+    highlights = dashboard_highlights()
+    return render_template("index.html", page_title="Home", highlights=highlights)
 
 
 @bp.get("/letters")
@@ -307,11 +316,13 @@ def campaign_list():
         select(Campaign).order_by(Campaign.campaign_year.desc())
     ).all()
     active_count = sum(1 for campaign in campaigns if campaign.status == "active")
+    stats = campaign_stats()
     return render_template(
         "campaigns/list.html",
         page_title="Campaigns",
         campaigns=campaigns,
         active_count=active_count,
+        stats=stats,
     )
 
 
@@ -362,6 +373,7 @@ def campaign_detail(campaign_id: int):
     ]
     category_mrpoc_map = _campaign_category_mrpoc_map(campaign.id)
     mrpoc_people = _person_options()
+    detail_stats = campaign_detail_stats(campaign.id)
     return render_template(
         "campaigns/detail.html",
         page_title=campaign.campaign_name,
@@ -373,6 +385,7 @@ def campaign_detail(campaign_id: int):
         partner_categories=CANONICAL_PARTNER_TYPE_OPTIONS,
         category_mrpoc_map=category_mrpoc_map,
         mrpoc_people=mrpoc_people,
+        detail_stats=detail_stats,
     )
 
 
@@ -534,12 +547,14 @@ def partner_list():
         for partner in partners
         if partner_is_incomplete(partner)
     }
+    stats = partner_stats()
     return render_template(
         "partners/list.html",
         page_title="Partners",
         partners=partners,
         incomplete_partner_count=incomplete_partner_count,
         incomplete_partner_ids=incomplete_partner_ids,
+        stats=stats,
     )
 
 
@@ -553,10 +568,12 @@ def person_list():
             Person.id.asc(),
         )
     ).all()
+    stats = people_stats()
     return render_template(
         "people/list.html",
         page_title="People",
         people=people,
+        stats=stats,
     )
 
 
@@ -644,10 +661,17 @@ def solicitation_list():
             Solicitation.id.asc(),
         )
     ).all()
+    from app.main.status import solicitation_is_ready as _sol_is_ready  # noqa: PLC0415
+    from app.main.status import partner_is_incomplete as _partner_incomplete  # noqa: PLC0415
+    incomplete_partner_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if _partner_incomplete(getattr(solicitation, "partner", None))
+    }
     incomplete_solicitation_ids = {
         solicitation.id
         for solicitation in solicitations
-        if solicitation_is_incomplete(solicitation)
+        if not _sol_is_ready(solicitation)
     }
     letter_ready_solicitation_ids = {
         solicitation.id
@@ -658,14 +682,17 @@ def solicitation_list():
         solicitations,
         key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
     )
+    stats = solicitation_stats()
     return render_template(
         "solicitations/list.html",
         page_title="Solicitations",
         solicitations=solicitations,
+        incomplete_partner_ids=incomplete_partner_ids,
         incomplete_solicitation_ids=incomplete_solicitation_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
+        stats=stats,
     )
 
 
