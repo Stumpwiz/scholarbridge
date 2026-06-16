@@ -12,7 +12,7 @@
     <div class="col-12 col-md-5 col-lg-4">
         <label for="solicitor_id" class="form-label mb-1">Filter by Solicitor</label>
         <select class="form-select form-select-sm" id="solicitor_id" name="solicitor_id">
-            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>All</option>
+            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>Clear Filter</option>
             {% for person in solicitor_filter_people %}
                 <option value="{{ person.id }}" {% if selected_solicitor_id == person.id %}selected{% endif %}>
                     {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
@@ -24,7 +24,7 @@
         <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
     </div>
     <div class="col-12 col-md-auto">
-        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.letter_list') }}">All</a>
+        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.letter_list') }}">Clear Filter</a>
     </div>
 </form>
 
