@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from pathlib import Path
 
 from flask import current_app
 from sqlalchemy import select
@@ -99,9 +100,17 @@ def _build_solicitation_letter_context(
 
 
 def generate_solicitation_pdf_bytes(context: dict) -> bytes:
+    from app.services.letters.solicitation import (
+        _SIGNATURE_RELATIVE_PATH,
+        build_solicitation_render_plan,
+    )
     letter_template = get_letter_template("solicitation")
     template_path = letter_template.resolve_template_path(app_root_path=current_app.root_path)
-    render_plan = letter_template.build_render_plan(context)
+    project_root = Path(current_app.root_path).parent
+    signature_path = project_root / _SIGNATURE_RELATIVE_PATH
+    render_plan = build_solicitation_render_plan(
+        context, signature_image_path=signature_path if signature_path.exists() else None
+    )
     renderer = DocxTemplateService()
     try:
         return renderer.render_pdf_bytes(template_path=template_path, plan=render_plan)

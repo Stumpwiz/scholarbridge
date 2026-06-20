@@ -1,10 +1,16 @@
 from __future__ import annotations
 
-from app.services.docx_template_service import DocxRenderPlan, ParagraphTextRule
+from pathlib import Path
+
+from app.services.docx_template_service import DocxRenderPlan, ImageInsertion, ParagraphTextRule
 from app.services.letters.types import LetterTemplate
 
+_SIGNATURE_WIDTH_CM = 2.5
+_SIGNATURE_HEIGHT_CM = 2.5 * (131 / 756)  # preserve aspect ratio: ~0.43 cm
+_SIGNATURE_RELATIVE_PATH = Path("docs") / "private" / "img" / "claireSingleSig.jpg"
 
-def build_solicitation_render_plan(context: dict) -> DocxRenderPlan:
+
+def build_solicitation_render_plan(context: dict, *, signature_image_path: Path | None = None) -> DocxRenderPlan:
     return DocxRenderPlan(
         placeholder_map={
             "«Company»": context["company"],
@@ -74,6 +80,18 @@ def build_solicitation_render_plan(context: dict) -> DocxRenderPlan:
             }
         },
         strip_highlight=True,
+        image_insertions=(
+            (
+                ImageInsertion(
+                    after_text="Sincerely,",
+                    image_path=signature_image_path,
+                    width_cm=_SIGNATURE_WIDTH_CM,
+                    height_cm=_SIGNATURE_HEIGHT_CM,
+                ),
+            )
+            if signature_image_path is not None
+            else ()
+        ),
     )
 
 

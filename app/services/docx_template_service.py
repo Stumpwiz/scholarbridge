@@ -12,6 +12,8 @@ from tempfile import TemporaryDirectory
 from typing import Mapping
 from zipfile import ZIP_DEFLATED, ZipFile
 
+_EMU_PER_CM = 914400
+
 
 class DocxTemplateError(RuntimeError):
     """Raised when DOCX template rendering fails."""
@@ -32,12 +34,22 @@ class ParagraphTextRule:
 
 
 @dataclass(frozen=True)
+class ImageInsertion:
+    """Insert an inline image after the first paragraph whose text equals `after_text`."""
+    after_text: str
+    image_path: Path
+    width_cm: float
+    height_cm: float
+
+
+@dataclass(frozen=True)
 class DocxRenderPlan:
     placeholder_map: Mapping[str, str]
     remove_paragraph_if_empty: Mapping[str, str] = field(default_factory=dict)
     paragraph_text_rules: tuple[ParagraphTextRule, ...] = ()
     part_replacements: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     strip_highlight: bool = False
+    image_insertions: tuple[ImageInsertion, ...] = ()
 
 
 class DocxTemplateService:
@@ -52,6 +64,9 @@ class DocxTemplateService:
             raise DocxTemplateError(f"DOCX template not found: {template_path}")
 
         with ZipFile(template_path, "r") as source:
+            existing_rels = source.read("word/_rels/document.xml.rels").decode("utf-8")
+            next_rid, image_rid_map = _allocate_image_rids(existing_rels, plan.image_insertions)
+
             with ZipFile(output_path, "w", ZIP_DEFLATED) as target:
                 for info in source.infolist():
                     content = source.read(info.filename)
@@ -59,6 +74,11 @@ class DocxTemplateService:
                         content = self._render_document_xml(
                             document_xml=content.decode("utf-8"),
                             plan=plan,
+                            image_rid_map=image_rid_map,
+                        ).encode("utf-8")
+                    elif info.filename == "word/_rels/document.xml.rels" and plan.image_insertions:
+                        content = _inject_image_relationships(
+                            content.decode("utf-8"), image_rid_map
                         ).encode("utf-8")
                     elif info.filename in plan.part_replacements:
                         xml = content.decode("utf-8")
@@ -66,6 +86,10 @@ class DocxTemplateService:
                             xml = xml.replace(original, replacement)
                         content = xml.encode("utf-8")
                     target.writestr(info, content)
+
+                for insertion in plan.image_insertions:
+                    media_name = f"word/media/{insertion.image_path.name}"
+                    target.writestr(media_name, insertion.image_path.read_bytes())
 
     def render_pdf_bytes(self, *, template_path: Path, plan: DocxRenderPlan) -> bytes:
         with TemporaryDirectory(prefix="scholarbridge-docx-") as temp_dir:
@@ -125,7 +149,7 @@ class DocxTemplateService:
                 f"stderr: {result.stderr!r}"
             )
 
-    def _render_document_xml(self, *, document_xml: str, plan: DocxRenderPlan) -> str:
+    def _render_document_xml(self, *, document_xml: str, plan: DocxRenderPlan, image_rid_map: dict | None = None) -> str:
         xml = document_xml
 
         for token, value in plan.remove_paragraph_if_empty.items():
@@ -146,6 +170,12 @@ class DocxTemplateService:
 
         if plan.strip_highlight:
             xml = re.sub(r"<w:highlight\b[^>]*/>", "", xml)
+
+        if image_rid_map:
+            for insertion in plan.image_insertions:
+                rid = image_rid_map.get(insertion)
+                if rid:
+                    xml = _insert_image_after_paragraph(xml, insertion, rid)
 
         return xml
 
@@ -202,3 +232,88 @@ def _clean(value: str | None) -> str:
     if value is None:
         return ""
     return str(value).strip()
+
+
+def _allocate_image_rids(
+    existing_rels_xml: str, insertions: tuple[ImageInsertion, ...]
+) -> tuple[int, dict]:
+    """Return (next_rid_int, {ImageInsertion: rId_string}) for each insertion."""
+    existing_ids = re.findall(r'Id="rId(\d+)"', existing_rels_xml)
+    next_rid = max((int(n) for n in existing_ids), default=0) + 1
+    rid_map: dict[ImageInsertion, str] = {}
+    for insertion in insertions:
+        rid_map[insertion] = f"rId{next_rid}"
+        next_rid += 1
+    return next_rid, rid_map
+
+
+def _inject_image_relationships(rels_xml: str, rid_map: dict) -> str:
+    """Add image relationship entries before the closing </Relationships> tag."""
+    image_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"
+    new_entries = []
+    for insertion, rid in rid_map.items():
+        target = f"media/{insertion.image_path.name}"
+        new_entries.append(
+            f'<Relationship Id="{rid}" Type="{image_type}" Target="{target}"/>'
+        )
+    return rels_xml.replace("</Relationships>", "".join(new_entries) + "</Relationships>")
+
+
+def _insert_image_after_paragraph(xml: str, insertion: ImageInsertion, rid: str) -> str:
+    """Insert an inline-image paragraph immediately after the first paragraph matching after_text."""
+    cx = int(insertion.width_cm * _EMU_PER_CM)
+    cy = int(insertion.height_cm * _EMU_PER_CM)
+    drawing_para = (
+        '<w:p xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+        ' xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"'
+        ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        ' xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"'
+        ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+        "<w:pPr><w:spacing w:after=\"0\"/></w:pPr>"
+        "<w:r><w:drawing>"
+        "<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">"
+        f"<wp:extent cx=\"{cx}\" cy=\"{cy}\"/>"
+        "<wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>"
+        "<wp:docPr id=\"1\" name=\"Signature\"/>"
+        "<wp:cNvGraphicFramePr>"
+        "<a:graphicFrameLocks xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+        " noChangeAspect=\"1\"/>"
+        "</wp:cNvGraphicFramePr>"
+        "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
+        "<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+        "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+        "<pic:nvPicPr>"
+        "<pic:cNvPr id=\"0\" name=\"Signature\"/>"
+        "<pic:cNvPicPr/>"
+        "</pic:nvPicPr>"
+        "<pic:blipFill>"
+        f"<a:blip r:embed=\"{rid}\"/>"
+        "<a:stretch><a:fillRect/></a:stretch>"
+        "</pic:blipFill>"
+        "<pic:spPr>"
+        "<a:xfrm><a:off x=\"0\" y=\"0\"/>"
+        f"<a:ext cx=\"{cx}\" cy=\"{cy}\"/>"
+        "</a:xfrm>"
+        "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+        "</pic:spPr>"
+        "</pic:pic>"
+        "</a:graphicData>"
+        "</a:graphic>"
+        "</wp:inline>"
+        "</w:drawing></w:r></w:p>"
+    )
+
+    inserted = False
+
+    def maybe_insert(match):
+        nonlocal inserted
+        para_xml = match.group(0)
+        if inserted:
+            return para_xml
+        text = paragraph_text(para_xml).strip()
+        if text == insertion.after_text:
+            inserted = True
+            return para_xml + drawing_para
+        return para_xml
+
+    return W_PARAGRAPH_RE.sub(maybe_insert, xml)

@@ -214,5 +214,122 @@ class SolicitationLetterServiceTests(unittest.TestCase):
         )
 
 
+class ImageInsertionTests(unittest.TestCase):
+    """Tests for the signature image insertion pipeline."""
+
+    def _make_docx_with_sincerely(self, tmp_path: Path) -> Path:
+        """Create a minimal DOCX with a 'Sincerely,' paragraph."""
+        src = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "minimal_template.docx"
+        import shutil
+        dest = tmp_path / "with_sincerely.docx"
+        shutil.copy2(src, dest)
+
+        # Inject a Sincerely paragraph into document.xml
+        with ZipFile(dest, "r") as z:
+            names = z.namelist()
+            parts = {n: z.read(n) for n in names}
+
+        doc_xml = parts["word/document.xml"].decode("utf-8")
+        sincerely_para = "<w:p><w:r><w:t>Sincerely,</w:t></w:r></w:p>"
+        doc_xml = doc_xml.replace("</w:body>", sincerely_para + "</w:body>")
+        parts["word/document.xml"] = doc_xml.encode("utf-8")
+
+        import zipfile
+        with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
+            for name, data in parts.items():
+                z.writestr(name, data)
+        return dest
+
+    def test_image_inserted_after_sincerely_in_docx(self):
+        """Signature image paragraph appears after 'Sincerely,' in rendered DOCX."""
+        from app.services.docx_template_service import DocxRenderPlan, DocxTemplateService, ImageInsertion
+
+        sig_jpg = (
+            Path(__file__).resolve().parents[1]
+            / "docs" / "private" / "img" / "claireSingleSig.jpg"
+        )
+        if not sig_jpg.exists():
+            self.skipTest("Signature image not present")
+
+        with tempfile.TemporaryDirectory(prefix="sb_img_test_") as tmp:
+            tmp_path = Path(tmp)
+            template = self._make_docx_with_sincerely(tmp_path)
+            output = tmp_path / "rendered.docx"
+
+            plan = DocxRenderPlan(
+                placeholder_map={},
+                image_insertions=(
+                    ImageInsertion(
+                        after_text="Sincerely,",
+                        image_path=sig_jpg,
+                        width_cm=5.0,
+                        height_cm=0.87,
+                    ),
+                ),
+            )
+            DocxTemplateService().render_docx(
+                template_path=template, output_path=output, plan=plan
+            )
+
+            with ZipFile(output, "r") as z:
+                doc_xml = z.read("word/document.xml").decode("utf-8")
+                media_files = [n for n in z.namelist() if "media" in n]
+                rels_xml = z.read("word/_rels/document.xml.rels").decode("utf-8")
+
+        # Signature image file embedded in media
+        self.assertTrue(
+            any("claireSingleSig" in m for m in media_files),
+            f"Signature not found in media: {media_files}",
+        )
+        # Relationship entry added
+        self.assertIn("claireSingleSig", rels_xml)
+        # Drawing element present in document XML
+        self.assertIn("w:drawing", doc_xml)
+        # Image appears after Sincerely
+        sincerely_pos = doc_xml.find("Sincerely,")
+        drawing_pos = doc_xml.find("w:drawing")
+        self.assertGreater(drawing_pos, sincerely_pos)
+
+    def test_no_image_insertion_when_path_is_none(self):
+        """Render plan with no signature path produces no image_insertions."""
+        context = {
+            "letter_date": "June 2026", "salutation": "Ms.", "contact_first_name": "Jane",
+            "contact_last_name": "Smith", "recipient_line": "Ms. Jane Smith",
+            "contact_display_name": "Jane Smith", "company": "Acme Co",
+            "address_1": "100 Main St", "address_2": "", "city": "Baltimore",
+            "state": "MD", "zip_code": "21201", "city_state_zip": "Baltimore, MD 21201",
+            "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
+            "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
+            "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
+            "mr_contact_phone": "410-555-1214", "dear_line": "Ms. Smith",
+            "cc_line": "cc: Morgan Reed",
+        }
+        plan = build_solicitation_render_plan(context, signature_image_path=None)
+        self.assertEqual(len(plan.image_insertions), 0)
+
+    def test_image_insertion_present_when_path_provided(self):
+        """Render plan includes one ImageInsertion when a valid path is given."""
+        from app.services.docx_template_service import ImageInsertion
+        context = {
+            "letter_date": "June 2026", "salutation": "Ms.", "contact_first_name": "Jane",
+            "contact_last_name": "Smith", "recipient_line": "Ms. Jane Smith",
+            "contact_display_name": "Jane Smith", "company": "Acme Co",
+            "address_1": "100 Main St", "address_2": "", "city": "Baltimore",
+            "state": "MD", "zip_code": "21201", "city_state_zip": "Baltimore, MD 21201",
+            "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
+            "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
+            "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
+            "mr_contact_phone": "410-555-1214", "dear_line": "Ms. Smith",
+            "cc_line": "cc: Morgan Reed",
+        }
+        fake_path = Path("/tmp/claireSingleSig.jpg")
+        plan = build_solicitation_render_plan(context, signature_image_path=fake_path)
+        self.assertEqual(len(plan.image_insertions), 1)
+        insertion = plan.image_insertions[0]
+        self.assertIsInstance(insertion, ImageInsertion)
+        self.assertEqual(insertion.after_text, "Sincerely,")
+        self.assertEqual(insertion.image_path, fake_path)
+
+
 if __name__ == "__main__":
     unittest.main()
