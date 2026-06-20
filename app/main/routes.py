@@ -33,6 +33,7 @@ from app.main.letter_storage import (
 )
 from app.main.status import (
     partner_is_incomplete,
+    partner_readiness_summary,
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
 )
@@ -986,6 +987,7 @@ def _render_partner_detail(
     edit_form_data: dict | None = None,
 ):
     contacts = _load_partner_contacts(partner.id)
+    readiness = partner_readiness_summary(partner)
     return render_template(
         "partners/detail.html",
         page_title=partner.partner_name,
@@ -994,6 +996,7 @@ def _render_partner_detail(
         contact_form_data=contact_form_data,
         editing_contact=editing_contact,
         edit_form_data=edit_form_data or {},
+        readiness=readiness,
     )
 
 

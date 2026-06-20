@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 from app.main.status import (
     partner_is_incomplete,
+    partner_readiness_summary,
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
 )
@@ -115,6 +116,54 @@ class StatusHelperTests(unittest.TestCase):
 
     def test_solicitation_with_all_required_fields_is_letter_ready(self):
         self.assertTrue(solicitation_is_letter_ready(_solicitation()))
+
+
+class PartnerReadinessSummaryTests(unittest.TestCase):
+    def test_none_partner_is_not_complete(self):
+        result = partner_readiness_summary(None)
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(len(result["missing"]) > 0)
+
+    def test_complete_partner_no_contacts(self):
+        result = partner_readiness_summary(_partner(partner_type="Insurance", contacts=[]))
+        self.assertTrue(result["is_complete"])
+        self.assertEqual(result["missing"], [])
+
+    def test_missing_category_is_incomplete(self):
+        result = partner_readiness_summary(_partner(partner_type=None))
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(any("Category" in m for m in result["missing"]))
+
+    def test_needs_review_category_is_incomplete(self):
+        result = partner_readiness_summary(_partner(partner_type="Needs Review"))
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(any("Needs Review" in m for m in result["missing"]))
+
+    def test_contact_missing_first_name_is_incomplete(self):
+        result = partner_readiness_summary(_partner(contacts=[_contact(first_name=None)]))
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(any("first name" in m for m in result["missing"]))
+
+    def test_contact_missing_last_name_is_incomplete(self):
+        result = partner_readiness_summary(_partner(contacts=[_contact(last_name="")]))
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(any("last name" in m for m in result["missing"]))
+
+    def test_contact_missing_title_is_incomplete(self):
+        result = partner_readiness_summary(_partner(contacts=[_contact(title=None)]))
+        self.assertFalse(result["is_complete"])
+        self.assertTrue(any("title" in m for m in result["missing"]))
+
+    def test_complete_partner_with_full_contact(self):
+        result = partner_readiness_summary(_partner(contacts=[_contact()]))
+        self.assertTrue(result["is_complete"])
+        self.assertEqual(result["missing"], [])
+
+    def test_primary_contact_preferred_over_first(self):
+        non_primary = _contact(first_name=None, is_primary=False)
+        primary = _contact(first_name="Alice", is_primary=True)
+        result = partner_readiness_summary(_partner(contacts=[non_primary, primary]))
+        self.assertTrue(result["is_complete"])
 
 
 if __name__ == "__main__":

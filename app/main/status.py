@@ -107,3 +107,28 @@ def solicitation_is_letter_ready(solicitation: Any) -> bool:
         return False
 
     return not _is_missing(getattr(solicitation, "amount_requested", None))
+
+
+def partner_readiness_summary(partner: Any) -> dict:
+    """Return a dict with 'is_complete' (bool) and 'missing' (list of str)."""
+    if partner is None:
+        return {"is_complete": False, "missing": ["Partner record not found."]}
+
+    missing = []
+
+    partner_type = getattr(partner, "partner_type", None)
+    if _is_missing(partner_type):
+        missing.append("Category is not set.")
+    elif isinstance(partner_type, str) and partner_type.strip() == PARTNER_TYPE_NEEDS_REVIEW:
+        missing.append("Category is still marked as 'Needs Review'.")
+
+    contact = _partner_contact_for_completeness(partner)
+    if contact is not None:
+        if _is_missing(getattr(contact, "first_name", None)):
+            missing.append("Primary contact is missing a first name.")
+        if _is_missing(getattr(contact, "last_name", None)):
+            missing.append("Primary contact is missing a last name.")
+        if _is_missing(getattr(contact, "title", None)):
+            missing.append("Primary contact is missing a title.")
+
+    return {"is_complete": len(missing) == 0, "missing": missing}

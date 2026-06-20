@@ -76,6 +76,227 @@
     </div>
 </div>
 
+{# ── Partner Profile Summary ─────────────────────────────────────────── #}
+<div class="row g-3 mt-1" id="partner-profile">
+
+    {# Partner Information + Primary Contact #}
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Partner Information</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">{{ partner.partner_name }}</dd>
+
+                    <dt class="col-sm-4">Category</dt>
+                    <dd class="col-sm-8">{{ partner.partner_type or "—" }}</dd>
+
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if partner.is_active %}
+                            <span class="badge text-bg-success">Active</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Primary Contact</div>
+            <div class="card-body">
+                {% set primary_contact = contacts | selectattr("is_primary") | first | default(contacts | first | default(none)) %}
+                {% if primary_contact %}
+                    {% set formal_name_parts = [
+                        primary_contact.title or "",
+                        primary_contact.first_name or "",
+                        (primary_contact.middle_initial ~ ".") if primary_contact.middle_initial else "",
+                        primary_contact.last_name or ""
+                    ] | select | list %}
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Name</dt>
+                        <dd class="col-sm-8">{{ formal_name_parts | join(" ") or "—" }}</dd>
+
+                        <dt class="col-sm-4">Email</dt>
+                        <dd class="col-sm-8">{{ primary_contact.email or "—" }}</dd>
+
+                        <dt class="col-sm-4">Phone</dt>
+                        <dd class="col-sm-8">{{ primary_contact.phone or "—" }}</dd>
+                    </dl>
+                {% else %}
+                    <p class="text-muted mb-0">No contacts on record.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Contact Summary #}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Contact Summary</div>
+            <div class="card-body">
+                {% if contacts %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Title</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for c in contacts %}
+                                    {% set cname = ((c.first_name or "") ~ ((" " ~ c.middle_initial) if c.middle_initial else "") ~ " " ~ (c.last_name or "")).strip() %}
+                                    <tr>
+                                        <td>
+                                            {{ cname or "No name provided" }}
+                                            {% if c.is_primary %}
+                                                <span class="badge text-bg-secondary ms-1">Primary</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ c.title or "—" }}</td>
+                                        <td>{{ c.email or "—" }}</td>
+                                        <td>{{ c.phone or "—" }}</td>
+                                        <td>
+                                            {% if c.is_active %}
+                                                <span class="badge text-bg-success">Active</span>
+                                            {% else %}
+                                                <span class="badge text-bg-secondary">Inactive</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No contacts on record.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Campaign Participation #}
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Campaign Participation</div>
+            <div class="card-body">
+                {% if partner.solicitations %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Tranche</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sol in partner.solicitations %}
+                                    <tr>
+                                        <td>{{ sol.campaign.campaign_name if sol.campaign else "—" }}</td>
+                                        <td>{{ sol.tranche }}</td>
+                                        <td>{{ sol.status | replace("_", " ") | title }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No campaign participation on record.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Solicitation History #}
+    <div class="col-12 col-lg-6">
+        <div class="card h-100">
+            <div class="card-header">Solicitation History</div>
+            <div class="card-body">
+                {% if partner.solicitations %}
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Campaign</th>
+                                    <th>Solicitor</th>
+                                    <th>Requested</th>
+                                    <th>Received</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sol in partner.solicitations %}
+                                    {% if sol.solicitor %}
+                                        {% set sol_name = ((sol.solicitor.first_name or "") ~ " " ~ (sol.solicitor.last_name or "")).strip() %}
+                                    {% else %}
+                                        {% set sol_name = "—" %}
+                                    {% endif %}
+                                    <tr>
+                                        <td>{{ sol.campaign.campaign_name if sol.campaign else "—" }}</td>
+                                        <td>{{ sol_name }}</td>
+                                        <td>
+                                            {% if sol.amount_requested is not none %}
+                                                ${{ "%.2f"|format(sol.amount_requested | float) }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if sol.amount_received is not none %}
+                                                ${{ "%.2f"|format(sol.amount_received | float) }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ sol.status | replace("_", " ") | title }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <p class="text-muted mb-0">No solicitation history on record.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# Partner Readiness #}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Partner Readiness</div>
+            <div class="card-body">
+                {% if readiness.is_complete %}
+                    <p class="mb-0 text-success">
+                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                        This partner profile is complete and ready for solicitation.
+                    </p>
+                {% else %}
+                    <p class="mb-1 text-warning fw-semibold">
+                        <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                        This partner profile is incomplete. The following information is missing:
+                    </p>
+                    <ul class="mb-0">
+                        {% for item in readiness.missing %}
+                            <li>{{ item }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</div>
+{# ── End Partner Profile Summary ──────────────────────────────────────── #}
+
 <div class="row g-3 mt-1" id="contacts">
     <div class="col-12">
         <div class="card">
