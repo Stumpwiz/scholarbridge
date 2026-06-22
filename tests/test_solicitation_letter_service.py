@@ -147,25 +147,29 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             project_root = Path(temp_dir)
             (project_root / "app").mkdir()
             (project_root / "docs" / "private").mkdir(parents=True)
-            legacy = project_root / "docs" / "private" / "solicitationOld.docx"
+            legacy = project_root / "docs" / "private" / "solicitation.docx"
             legacy.write_bytes(b"legacy-template")
 
             template = LetterTemplate(
                 key="solicitation",
-                template_filename="solicitationOld.docx",
+                template_filename="solicitation.docx",
                 build_render_plan=lambda _: DocxRenderPlan(placeholder_map={}),
             )
 
             resolved = template.resolve_template_path(app_root_path=str(project_root / "app"))
-            expected = project_root / "docs" / "private" / "letter_templates" / "solicitationOld.docx"
+            expected = project_root / "docs" / "private" / "letter_templates" / "solicitation.docx"
 
             self.assertEqual(expected, resolved)
             self.assertNotEqual(legacy, resolved)
 
     def test_generate_solicitation_pdf_bytes_uses_canonical_template_path(self):
+        import tempfile as _tempfile
+        _tmp_dir = Path(_tempfile.mkdtemp(prefix="sb_letter_test_"))
+
         class TestConfig(Config):
             TESTING = True
             SECRET_KEY = "test-secret"
+            DATABASE_URL = f"sqlite:///{_tmp_dir / 'test.db'}"
 
         context = {
             "letter_date": "June 2026",
@@ -199,7 +203,7 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             / "docs"
             / "private"
             / "letter_templates"
-            / "solicitationOld.docx"
+            / "solicitation.docx"
         )
 
         with app.app_context():
