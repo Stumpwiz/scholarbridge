@@ -10,6 +10,7 @@ from flask import (
     render_template,
     request,
     send_file,
+    session,
     url_for,
 )
 from flask_login import current_user
@@ -111,8 +112,15 @@ def letter_list():
     selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
     solicitor_filter_people = _assigned_solicitor_filter_options()
     solicitor_filter_ids = {person.id for person in solicitor_filter_people}
-    if selected_solicitor_id not in solicitor_filter_ids:
-        selected_solicitor_id = None
+    if selected_solicitor_id is not None:
+        if selected_solicitor_id not in solicitor_filter_ids:
+            selected_solicitor_id = None
+        else:
+            session["active_solicitor_id"] = selected_solicitor_id
+    else:
+        session_solicitor_id = _safe_int(session.get("active_solicitor_id"))
+        if session_solicitor_id in solicitor_filter_ids:
+            selected_solicitor_id = session_solicitor_id
 
     solicitations = _letter_solicitation_options(selected_solicitor_id=selected_solicitor_id)
     incomplete_solicitation_ids = {
@@ -172,7 +180,10 @@ def letter_solicitation_pdf():
 
     if not solicitation_is_letter_ready(solicitation):
         flash("Solicitation is incomplete. Update solicitation details before generating a letter.", "warning")
-        return redirect(url_for("main.solicitation_edit", solicitation_id=solicitation.id))
+        edit_kwargs = {"solicitation_id": solicitation.id}
+        if selected_solicitor_id is not None:
+            edit_kwargs["solicitor_id"] = selected_solicitor_id
+        return redirect(url_for("main.solicitation_edit", **edit_kwargs))
 
     try:
         context = build_solicitation_letter_context_for_solicitation(solicitation_id)
@@ -631,13 +642,32 @@ def person_edit(person_id: int):
     )
 
 
+@bp.get("/solicitations/clear-filter")
+def solicitation_clear_filter():
+    session.pop("active_solicitor_id", None)
+    return redirect(url_for("main.solicitation_list"))
+
+
+@bp.get("/letters/clear-filter")
+def letter_clear_filter():
+    session.pop("active_solicitor_id", None)
+    return redirect(url_for("main.letter_list"))
+
+
 @bp.get("/solicitations")
 def solicitation_list():
     selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
     solicitor_filter_people = _assigned_solicitor_filter_options()
     solicitor_filter_ids = {person.id for person in solicitor_filter_people}
-    if selected_solicitor_id not in solicitor_filter_ids:
-        selected_solicitor_id = None
+    if selected_solicitor_id is not None:
+        if selected_solicitor_id not in solicitor_filter_ids:
+            selected_solicitor_id = None
+        else:
+            session["active_solicitor_id"] = selected_solicitor_id
+    else:
+        session_solicitor_id = _safe_int(session.get("active_solicitor_id"))
+        if session_solicitor_id in solicitor_filter_ids:
+            selected_solicitor_id = session_solicitor_id
 
     partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
     query = (
@@ -754,11 +784,13 @@ def solicitation_create():
 def solicitation_detail(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
     return_to = _solicitation_return_to_value()
+    solicitor_id = _solicitation_filter_solicitor_id()
     return render_template(
         "solicitations/detail.html",
         page_title=f"Solicitation #{solicitation.id}",
         solicitation=solicitation,
         return_to=return_to,
+        solicitor_id=solicitor_id,
     )
 
 
@@ -770,6 +802,7 @@ def solicitation_edit(solicitation_id: int):
     campaigns, partners = _solicitation_form_options()
     solicitors = _person_options()
     return_to = _solicitation_return_to_value()
+    solicitor_id = _solicitation_filter_solicitor_id()
 
     if request.method == "POST":
         form_data = _solicitation_form_data(request.form)
@@ -786,6 +819,8 @@ def solicitation_edit(solicitation_id: int):
             redirect_kwargs = {"solicitation_id": solicitation.id}
             if return_to == "campaign":
                 redirect_kwargs["return_to"] = "campaign"
+            if solicitor_id is not None:
+                redirect_kwargs["solicitor_id"] = solicitor_id
             return redirect(url_for("main.solicitation_detail", **redirect_kwargs))
 
     return render_template(
@@ -798,6 +833,7 @@ def solicitation_edit(solicitation_id: int):
         partners=partners,
         solicitors=solicitors,
         return_to=return_to,
+        solicitor_id=solicitor_id,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
     )
@@ -1644,6 +1680,13 @@ def _solicitation_return_to_value() -> str | None:
     if value == "campaign":
         return "campaign"
     return None
+
+
+def _solicitation_filter_solicitor_id() -> int | None:
+    value = _safe_int(request.args.get("solicitor_id"))
+    if value is None:
+        value = _safe_int(request.form.get("solicitor_id"))
+    return value
 
 
 def _available_partner_ids_for_campaign(campaign_id: int) -> list[int]:

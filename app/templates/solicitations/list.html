@@ -94,7 +94,7 @@
         <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
     </div>
     <div class="col-12 col-md-auto">
-        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.solicitation_list') }}">Clear Filter</a>
+        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.solicitation_clear_filter') }}">Clear Filter</a>
     </div>
 </form>
 
@@ -126,7 +126,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
+                        <a href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
                             {% if solicitation.partner %}
                                 {{ solicitation.partner.partner_name }}
                             {% else %}
@@ -162,11 +162,11 @@
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
                     <td class="text-end text-nowrap">
-                        <a class="btn btn-outline-primary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}" title="Open solicitation" aria-label="Open solicitation">
+                        <a class="btn btn-outline-primary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}" title="Open solicitation" aria-label="Open solicitation">
                             <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
                         </a>
                         {% if can_edit %}
-                            <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
+                            <a class="btn btn-outline-secondary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}" title="Edit solicitation" aria-label="Edit solicitation">
                                 <i class="bi bi-pencil" aria-hidden="true"></i>
                             </a>
                         {% else %}

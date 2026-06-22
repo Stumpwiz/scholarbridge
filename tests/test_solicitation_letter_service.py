@@ -77,6 +77,7 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             "solicitor_email": "alex@example.com",
             "mr_contact": "Morgan Reed",
             "mr_contact_phone": "410-555-1214",
+            "mr_contact_email": "morgan@example.com",
             "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
@@ -122,6 +123,7 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             "solicitor_email": "alex@example.com",
             "mr_contact": "Morgan Reed",
             "mr_contact_phone": "410-555-1214",
+            "mr_contact_email": "morgan@example.com",
             "dear_line": "Mr. Jones",
             "cc_line": "cc: Morgan Reed",
         }
@@ -145,17 +147,17 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             project_root = Path(temp_dir)
             (project_root / "app").mkdir()
             (project_root / "docs" / "private").mkdir(parents=True)
-            legacy = project_root / "docs" / "private" / "solicitation.docx"
+            legacy = project_root / "docs" / "private" / "solicitationOld.docx"
             legacy.write_bytes(b"legacy-template")
 
             template = LetterTemplate(
                 key="solicitation",
-                template_filename="solicitation.docx",
+                template_filename="solicitationOld.docx",
                 build_render_plan=lambda _: DocxRenderPlan(placeholder_map={}),
             )
 
             resolved = template.resolve_template_path(app_root_path=str(project_root / "app"))
-            expected = project_root / "docs" / "private" / "letter_templates" / "solicitation.docx"
+            expected = project_root / "docs" / "private" / "letter_templates" / "solicitationOld.docx"
 
             self.assertEqual(expected, resolved)
             self.assertNotEqual(legacy, resolved)
@@ -186,6 +188,7 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             "solicitor_email": "alex@example.com",
             "mr_contact": "Morgan Reed",
             "mr_contact_phone": "410-555-1214",
+            "mr_contact_email": "morgan@example.com",
             "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
@@ -196,7 +199,7 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             / "docs"
             / "private"
             / "letter_templates"
-            / "solicitation.docx"
+            / "solicitationOld.docx"
         )
 
         with app.app_context():
@@ -301,7 +304,7 @@ class ImageInsertionTests(unittest.TestCase):
             "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
             "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
             "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
-            "mr_contact_phone": "410-555-1214", "dear_line": "Ms. Smith",
+            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com", "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
         plan = build_solicitation_render_plan(context, signature_image_path=None)
@@ -319,7 +322,7 @@ class ImageInsertionTests(unittest.TestCase):
             "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
             "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
             "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
-            "mr_contact_phone": "410-555-1214", "dear_line": "Ms. Smith",
+            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com", "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
         fake_path = Path("/tmp/claireSingleSig.jpg")

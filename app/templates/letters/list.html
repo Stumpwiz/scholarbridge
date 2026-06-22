@@ -24,7 +24,7 @@
         <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
     </div>
     <div class="col-12 col-md-auto">
-        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.letter_list') }}">Clear Filter</a>
+        <a class="btn btn-link btn-sm px-0" href="{{ url_for('main.letter_clear_filter') }}">Clear Filter</a>
     </div>
 </form>
 
@@ -87,11 +87,11 @@
                                 Generate Letter
                             </a>
                         {% elif can_edit %}
-                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
+                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
                                 View/Edit Solicitation
                             </a>
                         {% else %}
-                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
+                            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">
                                 View/Edit Solicitation
                             </a>
                         {% endif %}

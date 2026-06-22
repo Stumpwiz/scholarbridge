@@ -94,6 +94,7 @@ def _build_solicitation_letter_context(
         "solicitor_email": clean(getattr(solicitor, "email", None)),
         "mr_contact": _person_name(mrpoc),
         "mr_contact_phone": normalize_phone(mrpoc_phone),
+        "mr_contact_email": clean(getattr(mrpoc, "email", None)),
         "dear_line": dear_line or "Sir or Madam",
         "cc_line": f"cc: {_person_name(mrpoc)}".strip(),
     }
