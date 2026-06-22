@@ -18,6 +18,13 @@ from app.services.letters.solicitation import build_solicitation_render_plan
 
 
 class SolicitationLetterServiceTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp_dir = Path(tempfile.mkdtemp(prefix="sb_letter_service_"))
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self._tmp_dir, ignore_errors=True)
+
     @classmethod
     def setUpClass(cls):
         cls.template_path = (
@@ -163,13 +170,10 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             self.assertNotEqual(legacy, resolved)
 
     def test_generate_solicitation_pdf_bytes_uses_canonical_template_path(self):
-        import tempfile as _tempfile
-        _tmp_dir = Path(_tempfile.mkdtemp(prefix="sb_letter_test_"))
-
         class TestConfig(Config):
             TESTING = True
             SECRET_KEY = "test-secret"
-            DATABASE_URL = f"sqlite:///{_tmp_dir / 'test.db'}"
+            DATABASE_URL = f"sqlite:///{self._tmp_dir / 'test.db'}"
 
         context = {
             "letter_date": "June 2026",
