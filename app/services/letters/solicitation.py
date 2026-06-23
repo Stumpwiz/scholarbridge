@@ -21,13 +21,15 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
             "«Zip»": context["zip_code"],
             "«Contact_Last_Name»": context["contact_last_name"],
             "«Salutation»": "",
-            "«MR_Contact»": context["mr_contact"],
-            "«MR_Contact_Phone_»": context["mr_contact_phone"],
-            "«MR_Contact_Email»": context["mr_contact_email"],
+            "«MR_Contact»": context["solicitor_name"],
+            "«MR_Contact_Phone_»": context["solicitor_number"],
+            "«MR_Contact_Email»": context["solicitor_email"],
             "$(amount)": context["amount_requested_no_symbol"],
             "(solicitor name)": context["solicitor_name"],
             "solicitor name": context["solicitor_name"],
             "(solicitor phone #)": context["solicitor_number"],
+            "(solicitor email)": context["solicitor_email"],
+            "solicitor email": context["solicitor_email"],
         },
         remove_paragraph_if_empty={
             "«Address_2_»": context["address_2"],
@@ -65,7 +67,7 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
                     "Program in this important and worthwhile initiative. "
                     "In the interim if you would have any questions prior to my reaching you, "
                     f"please do feel free to contact {context['solicitor_name']} at "
-                    f"{context['solicitor_number']}."
+                    f"{context['solicitor_number']}, {context['solicitor_email']}."
                 ),
                 starts_with="In a few days",
             ),
