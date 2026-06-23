@@ -1502,6 +1502,7 @@ def _solicitation_form_data(form=None) -> dict:
             "tranche": 1,
             "business_volume": "",
             "amount_requested": "",
+            "amount_pledged": "0.00",
             "amount_received": "",
             "status": "not_contacted",
             "notes": "",
@@ -1515,6 +1516,7 @@ def _solicitation_form_data(form=None) -> dict:
         "tranche": _safe_int(form.get("tranche")),
         "business_volume": (form.get("business_volume") or "").strip(),
         "amount_requested": (form.get("amount_requested") or "").strip(),
+        "amount_pledged": (form.get("amount_pledged") or "").strip(),
         "amount_received": (form.get("amount_received") or "").strip(),
         "status": (form.get("status") or "not_contacted").strip(),
         "notes": _empty_to_none(form.get("notes")),
@@ -1530,6 +1532,7 @@ def _solicitation_to_form_data(solicitation: Solicitation) -> dict:
         "tranche": solicitation.tranche,
         "business_volume": _money_for_form(solicitation.business_volume),
         "amount_requested": _money_for_form(solicitation.amount_requested),
+        "amount_pledged": _money_for_form(solicitation.amount_pledged),
         "amount_received": _money_for_form(solicitation.amount_received),
         "status": canonical_solicitation_status(solicitation.status),
         "notes": solicitation.notes or "",
@@ -1580,6 +1583,10 @@ def _validate_solicitation_form(
     if error:
         return f"Amount requested {error}", {}
 
+    amount_pledged, error = _parse_money(form_data["amount_pledged"])
+    if error:
+        return f"Amount pledged {error}", {}
+
     amount_received, error = _parse_money(form_data["amount_received"])
     if error:
         return f"Amount received {error}", {}
@@ -1603,6 +1610,7 @@ def _validate_solicitation_form(
             "tranche": tranche,
             "business_volume": business_volume,
             "amount_requested": amount_requested,
+            "amount_pledged": amount_pledged if amount_pledged is not None else Decimal("0"),
             "amount_received": amount_received,
             "status": solicitation_status_for_storage(status),
             "notes": form_data["notes"],

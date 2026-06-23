@@ -111,6 +111,7 @@
                 <th>Status</th>
                 <th>Business Volume</th>
                 <th>Requested</th>
+                <th>Pledged</th>
                 <th>Received</th>
                 <th>Open</th>
             </tr>
@@ -160,6 +161,7 @@
                     </td>
                     <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
+                    <td>${{ "%.2f"|format(solicitation.amount_pledged or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>
                     <td class="text-end text-nowrap">
                         <a class="btn btn-outline-primary btn-sm sb-icon-btn" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}" title="Open solicitation" aria-label="Open solicitation">

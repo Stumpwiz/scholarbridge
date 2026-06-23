@@ -26,6 +26,7 @@ class Solicitation(db.Model):
     tranche = db.Column(db.Integer, nullable=False, default=1, server_default="1")
     business_volume = db.Column(db.Numeric(12, 2), nullable=True)
     amount_requested = db.Column(db.Numeric(12, 2), nullable=True)
+    amount_pledged = db.Column(db.Numeric(12, 2), nullable=False, default=0, server_default="0")
     amount_received = db.Column(db.Numeric(12, 2), nullable=True)
     status = db.Column(
         db.String(20), nullable=False, default="not_contacted", server_default="not_contacted"

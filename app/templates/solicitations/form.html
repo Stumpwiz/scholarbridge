@@ -92,15 +92,19 @@
                 <div class="card-header">Financial Planning</div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-12 col-md-4 mb-3">
+                        <div class="col-12 col-md-3 mb-3">
                             <label for="business_volume" class="form-label">Business Volume ($)</label>
                             <input type="text" class="form-control" id="business_volume" name="business_volume" value="{{ form_data.business_volume or '' }}">
                         </div>
-                        <div class="col-12 col-md-4 mb-3">
+                        <div class="col-12 col-md-3 mb-3">
                             <label for="amount_requested" class="form-label">Requested Amount ($)</label>
                             <input type="text" class="form-control" id="amount_requested" name="amount_requested" value="{{ form_data.amount_requested or '' }}">
                         </div>
-                        <div class="col-12 col-md-4 mb-3">
+                        <div class="col-12 col-md-3 mb-3">
+                            <label for="amount_pledged" class="form-label">Pledged Amount ($)</label>
+                            <input type="text" class="form-control" id="amount_pledged" name="amount_pledged" value="{{ form_data.amount_pledged or '0.00' }}">
+                        </div>
+                        <div class="col-12 col-md-3 mb-3">
                             <label for="amount_received" class="form-label">Received Amount ($)</label>
                             <input type="text" class="form-control" id="amount_received" name="amount_received" value="{{ form_data.amount_received or '' }}">
                         </div>

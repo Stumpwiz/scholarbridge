@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from decimal import Decimal
 from pathlib import Path
 
 from app import create_app
@@ -71,12 +72,14 @@ class SolicitationListUiTests(unittest.TestCase):
             beta_incomplete_partner = Partner(partner_name="Beta Incomplete", partner_type=None)
             delta_incomplete_partner = Partner(partner_name="Delta Incomplete", partner_type="IT")
             gamma_ready_partner = Partner(partner_name="Gamma Ready", partner_type="Insurance")
+            epsilon_new_partner = Partner(partner_name="Epsilon New", partner_type="Accounting")
             db.session.add_all(
                 [
                     alpha_ready_partner,
                     beta_incomplete_partner,
                     delta_incomplete_partner,
                     gamma_ready_partner,
+                    epsilon_new_partner,
                 ]
             )
             db.session.flush()
@@ -89,6 +92,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 tranche=1,
                 business_volume=5000,
                 amount_requested=1000,
+                amount_pledged=750,
             )
             beta_incomplete = Solicitation(
                 partner_id=beta_incomplete_partner.id,
@@ -98,6 +102,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 tranche=1,
                 business_volume=1500,
                 amount_requested=300,
+                amount_pledged=150,
             )
             delta_incomplete = Solicitation(
                 partner_id=delta_incomplete_partner.id,
@@ -107,6 +112,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 tranche=1,
                 business_volume=None,
                 amount_requested=400,
+                amount_pledged=0,
             )
             gamma_ready = Solicitation(
                 partner_id=gamma_ready_partner.id,
@@ -116,18 +122,25 @@ class SolicitationListUiTests(unittest.TestCase):
                 tranche=1,
                 business_volume=2500,
                 amount_requested=None,
+                amount_pledged=250,
             )
             db.session.add_all([alpha_ready, beta_incomplete, delta_incomplete, gamma_ready])
             db.session.commit()
 
             self.user_id = str(user.id)
+            self.campaign_id = campaign.id
+            self.solicitor_a_id = solicitor_a.id
             self.solicitor_b_id = solicitor_b.id
+            self.mrpoc_a_id = mrpoc_a.id
             self.ids_by_partner = {
                 "Alpha Ready": alpha_ready.id,
                 "Beta Incomplete": beta_incomplete.id,
                 "Delta Incomplete": delta_incomplete.id,
                 "Gamma Ready": gamma_ready.id,
             }
+            self.alpha_ready_id = alpha_ready.id
+            self.alpha_ready_partner_id = alpha_ready_partner.id
+            self.epsilon_new_partner_id = epsilon_new_partner.id
 
         with self.client.session_transaction() as session:
             session["_user_id"] = self.user_id
@@ -181,6 +194,8 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertIn("text-bg-warning", gamma_row)
 
         self.assertNotIn("Not Contacted", html)
+        self.assertIn("Pledged", html)
+        self.assertIn("$750.00", alpha_row)
 
     def test_solicitations_rows_keep_view_and_edit_links(self):
         response = self.client.get("/solicitations")
@@ -203,6 +218,64 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotIn("Beta Incomplete", html)
 
         self.assertTrue(html.find("Delta Incomplete") < html.find("Gamma Ready"))
+
+    def test_solicitation_create_records_pledged_amount(self):
+        response = self.client.post(
+            "/solicitations/new",
+            data={
+                "campaign_id": str(self.campaign_id),
+                "partner_id": str(self.epsilon_new_partner_id),
+                "solicitor_person_id": str(self.solicitor_a_id),
+                "mrpoc_person_id": str(self.mrpoc_a_id),
+                "tranche": "2",
+                "business_volume": "1800",
+                "amount_requested": "500",
+                "amount_pledged": "325.50",
+                "amount_received": "0",
+                "status": "contacted",
+                "notes": "Pledge captured",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        with self.app.app_context():
+            created = db.session.query(Solicitation).filter_by(partner_id=self.epsilon_new_partner_id).one()
+            self.assertEqual(created.amount_pledged, Decimal("325.50"))
+
+    def test_solicitation_edit_updates_pledged_amount(self):
+        response = self.client.post(
+            f"/solicitations/{self.alpha_ready_id}/edit",
+            data={
+                "campaign_id": str(self.campaign_id),
+                "partner_id": str(self.alpha_ready_partner_id),
+                "solicitor_person_id": str(self.solicitor_a_id),
+                "mrpoc_person_id": str(self.mrpoc_a_id),
+                "tranche": "1",
+                "business_volume": "5100",
+                "amount_requested": "1100",
+                "amount_pledged": "825.00",
+                "amount_received": "125.00",
+                "status": "pledged",
+                "notes": "Updated pledge",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        with self.app.app_context():
+            updated = db.session.get(Solicitation, self.alpha_ready_id)
+            self.assertEqual(updated.amount_pledged, Decimal("825.00"))
+
+    def test_solicitation_detail_displays_requested_pledged_received(self):
+        response = self.client.get(f"/solicitations/{self.alpha_ready_id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Requested Amount", html)
+        self.assertIn("Pledged Amount", html)
+        self.assertIn("Received Amount", html)
+        self.assertTrue(html.find("Requested Amount") < html.find("Pledged Amount") < html.find("Received Amount"))
+        self.assertIn("$750.00", html)
 
 
 if __name__ == "__main__":
