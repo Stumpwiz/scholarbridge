@@ -24,21 +24,34 @@ from app.models.user import User
 # Partner statistics
 # ---------------------------------------------------------------------------
 
-def partner_stats() -> dict:
+def partner_stats(active_only: bool = False) -> dict:
     """Return summary counts for the Partners page."""
-    total = db.session.scalar(select(func.count()).select_from(Partner)) or 0
-    active = db.session.scalar(
-        select(func.count()).select_from(Partner).where(Partner.is_active.is_(True))
-    ) or 0
+    partner_count_query = select(func.count()).select_from(Partner)
+    if active_only:
+        partner_count_query = partner_count_query.where(Partner.is_active.is_(True))
+    total = db.session.scalar(partner_count_query) or 0
+
+    if active_only:
+        active = total
+        inactive = 0
+    else:
+        active = db.session.scalar(
+            select(func.count()).select_from(Partner).where(Partner.is_active.is_(True))
+        ) or 0
+        inactive = total - active
 
     # Status counts derived from solicitations (most-recent status per partner)
     # We count distinct partners that have *any* solicitation in each status.
     def _partners_with_status(status: str) -> int:
-        return db.session.scalar(
-            select(func.count(Solicitation.partner_id.distinct())).where(
-                Solicitation.status.in_(solicitation_status_query_values(status))
-            )
-        ) or 0
+        query = (
+            select(func.count(Solicitation.partner_id.distinct()))
+            .select_from(Solicitation)
+            .join(Partner, Partner.id == Solicitation.partner_id)
+            .where(Solicitation.status.in_(solicitation_status_query_values(status)))
+        )
+        if active_only:
+            query = query.where(Partner.is_active.is_(True))
+        return db.session.scalar(query) or 0
 
     contacted = _partners_with_status("contacted")
     pledged = _partners_with_status("pledged")
@@ -47,17 +60,21 @@ def partner_stats() -> dict:
 
     # Partners missing a primary contact (no contact row with is_primary=True)
     from app.models.contact import Contact
-    partners_with_primary = db.session.scalar(
-        select(func.count(Contact.partner_id.distinct())).where(
-            Contact.is_primary.is_(True)
-        )
-    ) or 0
-    missing_primary_contact = total - partners_with_primary
+    primary_query = (
+        select(func.count(Contact.partner_id.distinct()))
+        .select_from(Contact)
+        .join(Partner, Partner.id == Contact.partner_id)
+        .where(Contact.is_primary.is_(True))
+    )
+    if active_only:
+        primary_query = primary_query.where(Partner.is_active.is_(True))
+    partners_with_primary = db.session.scalar(primary_query) or 0
+    missing_primary_contact = max(total - partners_with_primary, 0)
 
     return {
         "total": total,
         "active": active,
-        "inactive": total - active,
+        "inactive": inactive,
         "contacted": contacted,
         "pledged": pledged,
         "gift_received": gift_received,

@@ -18,6 +18,26 @@
     {% endif %}
 </div>
 
+<form method="get" action="{{ url_for('main.partner_list') }}" class="row g-2 align-items-center mb-3">
+    <input type="hidden" name="active_only_applied" value="1">
+    <div class="col-auto">
+        <div class="form-check">
+            <input
+                class="form-check-input"
+                type="checkbox"
+                value="1"
+                id="active_only"
+                name="active_only"
+                {% if active_only %}checked{% endif %}
+            >
+            <label class="form-check-label" for="active_only">Active Partners Only</label>
+        </div>
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
+    </div>
+</form>
+
 <div class="row g-2 mb-4">
     <div class="col-6 col-md-3">
         <div class="card text-center h-100">

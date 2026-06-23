@@ -161,6 +161,40 @@ class DashboardStatsTestCase(unittest.TestCase):
         stats = partner_stats()
         self.assertEqual(stats["missing_primary_contact"], 1)
 
+    def test_partner_stats_active_only_filter(self):
+        active_partner = self._partner("A", is_active=True)
+        inactive_partner = self._partner("B", is_active=False)
+        campaign = self._campaign()
+        self._solicitation(active_partner, campaign, status="responded")
+        self._solicitation(inactive_partner, campaign, status="donated")
+
+        db.session.add_all(
+            [
+                Contact(
+                    partner_id=active_partner.id,
+                    first_name="A",
+                    last_name="One",
+                    title="Dir",
+                    is_primary=True,
+                ),
+                Contact(
+                    partner_id=inactive_partner.id,
+                    first_name="B",
+                    last_name="One",
+                    title="Mgr",
+                    is_primary=True,
+                ),
+            ]
+        )
+        db.session.commit()
+
+        stats = partner_stats(active_only=True)
+        self.assertEqual(stats["total"], 1)
+        self.assertEqual(stats["active"], 1)
+        self.assertEqual(stats["inactive"], 0)
+        self.assertEqual(stats["pledged"], 1)
+        self.assertEqual(stats["gift_received"], 0)
+
     # ------------------------------------------------------------------
     # people_stats
     # ------------------------------------------------------------------

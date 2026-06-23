@@ -85,6 +85,7 @@ PARTNER_TYPE_OPTIONS = (PARTNER_TYPE_NEEDS_REVIEW, *CANONICAL_PARTNER_TYPE_OPTIO
 
 CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
 SOLICITATION_TRANCHE_OPTIONS = (1, 2, 3)
+PARTNER_ACTIVE_ONLY_SESSION_KEY = "active_partners_only"
 
 
 @bp.before_request
@@ -541,7 +542,12 @@ def campaign_edit(campaign_id: int):
 
 @bp.get("/partners")
 def partner_list():
-    partners = db.session.scalars(select(Partner)).all()
+    active_only = _partner_active_only_selection()
+    query = select(Partner)
+    if active_only:
+        query = query.where(Partner.is_active.is_(True))
+
+    partners = db.session.scalars(query).all()
     partners = sorted(
         partners,
         key=lambda partner: (
@@ -556,7 +562,7 @@ def partner_list():
         for partner in partners
         if partner_is_incomplete(partner)
     }
-    stats = partner_stats()
+    stats = partner_stats(active_only=active_only)
     return render_template(
         "partners/list.html",
         page_title="Partners",
@@ -564,6 +570,7 @@ def partner_list():
         incomplete_partner_count=incomplete_partner_count,
         incomplete_partner_ids=incomplete_partner_ids,
         stats=stats,
+        active_only=active_only,
     )
 
 
@@ -1685,6 +1692,25 @@ def _solicitation_return_to_value() -> str | None:
     if value == "campaign":
         return "campaign"
     return None
+
+
+def _partner_active_only_selection() -> bool:
+    if "active_only_applied" in request.args:
+        active_only = (request.args.get("active_only") or "").strip().lower() in {
+            "1",
+            "true",
+            "on",
+            "yes",
+        }
+        session[PARTNER_ACTIVE_ONLY_SESSION_KEY] = active_only
+        return active_only
+
+    session_value = session.get(PARTNER_ACTIVE_ONLY_SESSION_KEY)
+    if isinstance(session_value, bool):
+        return session_value
+
+    session[PARTNER_ACTIVE_ONLY_SESSION_KEY] = True
+    return True
 
 
 def _solicitation_filter_solicitor_id() -> int | None:
