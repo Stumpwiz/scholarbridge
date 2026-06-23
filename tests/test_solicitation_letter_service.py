@@ -312,7 +312,8 @@ class ImageInsertionTests(unittest.TestCase):
             "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
             "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
             "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
-            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com", "dear_line": "Ms. Smith",
+            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com",
+            "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
         plan = build_solicitation_render_plan(context, signature_image_path=None)
@@ -330,7 +331,8 @@ class ImageInsertionTests(unittest.TestCase):
             "amount_requested": "$500.00", "amount_requested_no_symbol": "500.00",
             "solicitor_name": "Alex Adams", "solicitor_number": "410-555-1212",
             "solicitor_email": "alex@example.com", "mr_contact": "Morgan Reed",
-            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com", "dear_line": "Ms. Smith",
+            "mr_contact_phone": "410-555-1214", "mr_contact_email": "morgan@example.com",
+            "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
         fake_path = Path("/tmp/claireSingleSig.jpg")
