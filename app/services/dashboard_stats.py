@@ -138,6 +138,10 @@ def campaign_stats() -> dict:
         select(func.coalesce(func.sum(Solicitation.amount_requested), 0))
     ) or Decimal("0")
 
+    total_pledged = db.session.scalar(
+        select(func.coalesce(func.sum(Solicitation.amount_pledged), 0))
+    ) or Decimal("0")
+
     total_received = db.session.scalar(
         select(func.coalesce(func.sum(Solicitation.amount_received), 0))
     ) or Decimal("0")
@@ -149,6 +153,7 @@ def campaign_stats() -> dict:
         "not_ready_solicitations": incomplete,
         "total_business_volume": total_business_volume,
         "total_requested": total_requested,
+        "total_pledged": total_pledged,
         "total_received": total_received,
     }
 
@@ -250,6 +255,10 @@ def solicitation_stats() -> dict:
         select(func.coalesce(func.sum(Solicitation.amount_requested), 0))
     ) or Decimal("0")
 
+    total_pledged = db.session.scalar(
+        select(func.coalesce(func.sum(Solicitation.amount_pledged), 0))
+    ) or Decimal("0")
+
     total_received = db.session.scalar(
         select(func.coalesce(func.sum(Solicitation.amount_received), 0))
     ) or Decimal("0")
@@ -261,6 +270,7 @@ def solicitation_stats() -> dict:
         "by_status": by_status,
         "by_tranche": by_tranche,
         "total_requested": total_requested,
+        "total_pledged": total_pledged,
         "total_received": total_received,
     }
 

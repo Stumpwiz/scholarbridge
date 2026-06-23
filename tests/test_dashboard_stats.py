@@ -94,6 +94,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         tranche=1,
         business_volume=None,
         amount_requested=None,
+        amount_pledged=Decimal("0"),
         amount_received=None,
         mrpoc=None,
     ):
@@ -104,6 +105,7 @@ class DashboardStatsTestCase(unittest.TestCase):
             tranche=tranche,
             business_volume=business_volume,
             amount_requested=amount_requested,
+            amount_pledged=amount_pledged,
             amount_received=amount_received,
             mrpoc_person_id=mrpoc.id if mrpoc else None,
         )
@@ -211,7 +213,14 @@ class DashboardStatsTestCase(unittest.TestCase):
         c1 = self._campaign(2024, "active")
         c2 = self._campaign(2023, "closed")
         p = self._partner()
-        self._solicitation(p, c1, business_volume=Decimal("1000"), amount_requested=Decimal("500"), amount_received=Decimal("300"))
+        self._solicitation(
+            p,
+            c1,
+            business_volume=Decimal("1000"),
+            amount_requested=Decimal("500"),
+            amount_pledged=Decimal("450"),
+            amount_received=Decimal("300"),
+        )
         self._solicitation(p, c2, business_volume=None)
         db.session.commit()
 
@@ -222,6 +231,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         self.assertEqual(stats["not_ready_solicitations"], 1)
         self.assertEqual(stats["total_business_volume"], Decimal("1000"))
         self.assertEqual(stats["total_requested"], Decimal("500"))
+        self.assertEqual(stats["total_pledged"], Decimal("450"))
         self.assertEqual(stats["total_received"], Decimal("300"))
 
     # ------------------------------------------------------------------
@@ -256,6 +266,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         self.assertEqual(stats["total"], 0)
         self.assertEqual(stats["ready"], 0)
         self.assertEqual(stats["not_ready"], 0)
+        self.assertEqual(stats["total_pledged"], Decimal("0"))
 
     def test_solicitation_stats_by_status_and_tranche(self):
         c = self._campaign()
@@ -263,10 +274,35 @@ class DashboardStatsTestCase(unittest.TestCase):
         p2 = self._partner("B")
         p3 = self._partner("C")
         p4 = self._partner("D")
-        self._solicitation(p1, c, status="donated", tranche=1, business_volume=Decimal("1000"), amount_requested=Decimal("400"), amount_received=Decimal("200"))
+        self._solicitation(
+            p1,
+            c,
+            status="donated",
+            tranche=1,
+            business_volume=Decimal("1000"),
+            amount_requested=Decimal("400"),
+            amount_pledged=Decimal("350"),
+            amount_received=Decimal("200"),
+        )
         self._solicitation(p2, c, status="not_contacted", tranche=2, business_volume=None)
-        self._solicitation(p3, c, status="responded", tranche=3, business_volume=Decimal("700"), amount_requested=Decimal("350"))
-        self._solicitation(p4, c, status="closed", tranche=1, business_volume=Decimal("500"), amount_requested=Decimal("0"))
+        self._solicitation(
+            p3,
+            c,
+            status="responded",
+            tranche=3,
+            business_volume=Decimal("700"),
+            amount_requested=Decimal("350"),
+            amount_pledged=Decimal("250"),
+        )
+        self._solicitation(
+            p4,
+            c,
+            status="closed",
+            tranche=1,
+            business_volume=Decimal("500"),
+            amount_requested=Decimal("0"),
+            amount_pledged=Decimal("0"),
+        )
         db.session.commit()
 
         stats = solicitation_stats()
@@ -280,6 +316,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         self.assertEqual(stats["by_tranche"][2], 1)
         self.assertEqual(stats["by_tranche"][3], 1)
         self.assertEqual(stats["total_requested"], Decimal("750"))
+        self.assertEqual(stats["total_pledged"], Decimal("600"))
         self.assertEqual(stats["total_received"], Decimal("200"))
 
     # ------------------------------------------------------------------

@@ -30,10 +30,10 @@
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-success">
+        <div class="card text-center h-100 border-warning">
             <div class="card-body py-2">
-                <div class="fs-3 fw-bold text-success">${{ "{:,.0f}".format(stats.total_received) }}</div>
-                <div class="small text-muted">Total Received</div>
+                <div class="fs-3 fw-bold text-warning">{{ stats.not_ready_solicitations }}</div>
+                <div class="small text-muted">Not Ready Solicitations</div>
             </div>
         </div>
     </div>
@@ -54,10 +54,18 @@
         </div>
     </div>
     <div class="col-6 col-md-3">
-        <div class="card text-center h-100 border-warning">
+        <div class="card text-center h-100 border-primary">
             <div class="card-body py-2">
-                <div class="fs-5 fw-semibold text-warning">{{ stats.not_ready_solicitations }}</div>
-                <div class="small text-muted">Not Ready Solicitations</div>
+                <div class="fs-5 fw-semibold text-primary">${{ "{:,.0f}".format(stats.total_pledged) }}</div>
+                <div class="small text-muted">Amount Pledged</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-success">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-success">${{ "{:,.0f}".format(stats.total_received) }}</div>
+                <div class="small text-muted">Amount Received</div>
             </div>
         </div>
     </div>

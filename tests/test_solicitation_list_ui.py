@@ -196,6 +196,14 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotIn("Not Contacted", html)
         self.assertIn("Pledged", html)
         self.assertIn("$750.00", alpha_row)
+        self.assertIn("Amount Requested", html)
+        self.assertIn("Amount Pledged", html)
+        self.assertIn("Amount Received", html)
+        self.assertTrue(
+            html.find("Amount Requested")
+            < html.find("Amount Pledged")
+            < html.find("Amount Received")
+        )
 
     def test_solicitations_rows_keep_view_and_edit_links(self):
         response = self.client.get("/solicitations")

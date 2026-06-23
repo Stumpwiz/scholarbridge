@@ -57,6 +57,14 @@
         </div>
     </div>
     <div class="col-6 col-md-3">
+        <div class="card text-center h-100 border-primary">
+            <div class="card-body py-2">
+                <div class="fs-5 fw-semibold text-primary">${{ "{:,.0f}".format(stats.total_pledged) }}</div>
+                <div class="small text-muted">Amount Pledged</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
         <div class="card text-center h-100 border-success">
             <div class="card-body py-2">
                 <div class="fs-5 fw-semibold text-success">${{ "{:,.0f}".format(stats.total_received) }}</div>
