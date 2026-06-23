@@ -74,13 +74,13 @@
         </div>
         {% endif %}
     {% endfor %}
-    {% set donated = detail_stats.status_counts.get('donated', 0) %}
-    {% if donated %}
+    {% set gift_received = detail_stats.status_counts.get('gift_received', 0) %}
+    {% if gift_received %}
     <div class="col-4 col-md-2">
         <div class="card text-center h-100 border-primary">
             <div class="card-body py-2">
-                <div class="fs-5 fw-semibold text-primary">{{ donated }}</div>
-                <div class="small text-muted">Donated</div>
+                <div class="fs-5 fw-semibold text-primary">{{ gift_received }}</div>
+                <div class="small text-muted">Gift Received</div>
             </div>
         </div>
     </div>
@@ -276,7 +276,7 @@
                                                 —
                                             {% endif %}
                                         </td>
-                                        <td>{{ solicitation.status.replace("_", " ").title() }}</td>
+                                        <td>{{ solicitation_status_label(solicitation.status) }}</td>
                                         <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>
                                         <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                                         <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>

@@ -38,6 +38,11 @@ from app.main.status import (
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
 )
+from app.main.solicitation_status import (
+    SOLICITATION_STATUS_OPTIONS,
+    canonical_solicitation_status,
+    solicitation_status_for_storage,
+)
 from app.main import bp
 from app.extensions import db
 from app.services.dashboard_stats import (
@@ -80,14 +85,6 @@ PARTNER_TYPE_OPTIONS = (PARTNER_TYPE_NEEDS_REVIEW, *CANONICAL_PARTNER_TYPE_OPTIO
 
 CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
 SOLICITATION_TRANCHE_OPTIONS = (1, 2, 3)
-SOLICITATION_STATUS_OPTIONS = (
-    "not_contacted",
-    "contacted",
-    "responded",
-    "donated",
-    "declined",
-    "closed",
-)
 
 
 @bp.before_request
@@ -1534,7 +1531,7 @@ def _solicitation_to_form_data(solicitation: Solicitation) -> dict:
         "business_volume": _money_for_form(solicitation.business_volume),
         "amount_requested": _money_for_form(solicitation.amount_requested),
         "amount_received": _money_for_form(solicitation.amount_received),
-        "status": solicitation.status,
+        "status": canonical_solicitation_status(solicitation.status),
         "notes": solicitation.notes or "",
     }
 
@@ -1571,7 +1568,7 @@ def _validate_solicitation_form(
     if tranche not in SOLICITATION_TRANCHE_OPTIONS:
         return "Please select a valid tranche.", {}
 
-    status = form_data["status"]
+    status = canonical_solicitation_status(form_data["status"])
     if status not in SOLICITATION_STATUS_OPTIONS:
         return "Please select a valid solicitation status.", {}
 
@@ -1607,7 +1604,7 @@ def _validate_solicitation_form(
             "business_volume": business_volume,
             "amount_requested": amount_requested,
             "amount_received": amount_received,
-            "status": status,
+            "status": solicitation_status_for_storage(status),
             "notes": form_data["notes"],
         },
     )

@@ -120,21 +120,27 @@ class DashboardStatsTestCase(unittest.TestCase):
         stats = partner_stats()
         self.assertEqual(stats["total"], 0)
         self.assertEqual(stats["active"], 0)
-        self.assertEqual(stats["donated"], 0)
+        self.assertEqual(stats["gift_received"], 0)
         self.assertEqual(stats["missing_primary_contact"], 0)
 
     def test_partner_stats_counts(self):
         p1 = self._partner("A", is_active=True)
         p2 = self._partner("B", is_active=False)
+        p3 = self._partner("C", is_active=True)
+        p4 = self._partner("D", is_active=True)
         campaign = self._campaign()
         self._solicitation(p1, campaign, status="donated")
+        self._solicitation(p3, campaign, status="responded")
+        self._solicitation(p4, campaign, status="closed")
         db.session.commit()
 
         stats = partner_stats()
-        self.assertEqual(stats["total"], 2)
-        self.assertEqual(stats["active"], 1)
+        self.assertEqual(stats["total"], 4)
+        self.assertEqual(stats["active"], 3)
         self.assertEqual(stats["inactive"], 1)
-        self.assertEqual(stats["donated"], 1)
+        self.assertEqual(stats["pledged"], 1)
+        self.assertEqual(stats["gift_received"], 1)
+        self.assertEqual(stats["declined"], 1)
 
     def test_partner_stats_missing_primary_contact(self):
         p1 = self._partner("A")
@@ -238,7 +244,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         self.assertEqual(stats["total_rec"], Decimal("100"))
         self.assertEqual(stats["tranche_counts"][1], 1)
         self.assertEqual(stats["tranche_counts"][2], 1)
-        self.assertEqual(stats["status_counts"]["donated"], 1)
+        self.assertEqual(stats["status_counts"]["gift_received"], 1)
 
     # ------------------------------------------------------------------
     # solicitation_stats
@@ -255,18 +261,25 @@ class DashboardStatsTestCase(unittest.TestCase):
         c = self._campaign()
         p1 = self._partner("A")
         p2 = self._partner("B")
+        p3 = self._partner("C")
+        p4 = self._partner("D")
         self._solicitation(p1, c, status="donated", tranche=1, business_volume=Decimal("1000"), amount_requested=Decimal("400"), amount_received=Decimal("200"))
         self._solicitation(p2, c, status="not_contacted", tranche=2, business_volume=None)
+        self._solicitation(p3, c, status="responded", tranche=3, business_volume=Decimal("700"), amount_requested=Decimal("350"))
+        self._solicitation(p4, c, status="closed", tranche=1, business_volume=Decimal("500"), amount_requested=Decimal("0"))
         db.session.commit()
 
         stats = solicitation_stats()
-        self.assertEqual(stats["total"], 2)
-        self.assertEqual(stats["ready"], 1)
+        self.assertEqual(stats["total"], 4)
+        self.assertEqual(stats["ready"], 3)
         self.assertEqual(stats["not_ready"], 1)
-        self.assertEqual(stats["by_status"]["donated"], 1)
-        self.assertEqual(stats["by_tranche"][1], 1)
+        self.assertEqual(stats["by_status"]["pledged"], 1)
+        self.assertEqual(stats["by_status"]["gift_received"], 1)
+        self.assertEqual(stats["by_status"]["declined"], 1)
+        self.assertEqual(stats["by_tranche"][1], 2)
         self.assertEqual(stats["by_tranche"][2], 1)
-        self.assertEqual(stats["total_requested"], Decimal("400"))
+        self.assertEqual(stats["by_tranche"][3], 1)
+        self.assertEqual(stats["total_requested"], Decimal("750"))
         self.assertEqual(stats["total_received"], Decimal("200"))
 
     # ------------------------------------------------------------------
@@ -291,7 +304,7 @@ class DashboardStatsTestCase(unittest.TestCase):
         self.assertEqual(h["active_partners"], 1)
         self.assertEqual(h["total_solicitations"], 1)
         self.assertEqual(h["completion_pct"], 0)
-        self.assertEqual(h["donated_count"], 1)
+        self.assertEqual(h["gift_received_count"], 1)
         self.assertEqual(h["total_received"], Decimal("500"))
         self.assertIsNotNone(h["active_campaign_name"])
 

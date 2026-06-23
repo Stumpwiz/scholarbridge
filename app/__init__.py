@@ -7,6 +7,7 @@ from flask_login import current_user
 from app.config import Config
 from app.db_safety import assert_testing_uses_isolated_database
 from app.extensions import db, login_manager, migrate
+from app.main.solicitation_status import solicitation_status_label
 from app.models import User
 
 
@@ -54,6 +55,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
         return {
             "user_can_edit": user_can_edit,
             "user_is_admin": user_is_admin,
+            "solicitation_status_label": solicitation_status_label,
         }
 
     from app.auth import bp as auth_bp

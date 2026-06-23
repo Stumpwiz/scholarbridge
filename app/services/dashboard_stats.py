@@ -12,6 +12,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
+from app.main.solicitation_status import (
+    canonicalize_status_counts,
+    solicitation_status_query_values,
+)
 from app.models import Campaign, Partner, Person, Solicitation
 from app.models.user import User
 
@@ -32,15 +36,14 @@ def partner_stats() -> dict:
     def _partners_with_status(status: str) -> int:
         return db.session.scalar(
             select(func.count(Solicitation.partner_id.distinct())).where(
-                Solicitation.status == status
+                Solicitation.status.in_(solicitation_status_query_values(status))
             )
         ) or 0
 
     contacted = _partners_with_status("contacted")
-    responded = _partners_with_status("responded")
-    donated = _partners_with_status("donated")
+    pledged = _partners_with_status("pledged")
+    gift_received = _partners_with_status("gift_received")
     declined = _partners_with_status("declined")
-    closed = _partners_with_status("closed")
 
     # Partners missing a primary contact (no contact row with is_primary=True)
     from app.models.contact import Contact
@@ -56,10 +59,9 @@ def partner_stats() -> dict:
         "active": active,
         "inactive": total - active,
         "contacted": contacted,
-        "responded": responded,
-        "donated": donated,
+        "pledged": pledged,
+        "gift_received": gift_received,
         "declined": declined,
-        "closed": closed,
         "missing_primary_contact": missing_primary_contact,
     }
 
@@ -200,7 +202,7 @@ def campaign_detail_stats(campaign_id: int) -> dict:
         .where(Solicitation.campaign_id == campaign_id)
         .group_by(Solicitation.status)
     ).all()
-    status_counts = {row.status: row.cnt for row in status_rows}
+    status_counts = canonicalize_status_counts({row.status: row.cnt for row in status_rows})
 
     return {
         "sol_count": sol_count,
@@ -234,7 +236,7 @@ def solicitation_stats() -> dict:
         select(Solicitation.status, func.count().label("cnt"))
         .group_by(Solicitation.status)
     ).all()
-    by_status = {row.status: row.cnt for row in status_rows}
+    by_status = canonicalize_status_counts({row.status: row.cnt for row in status_rows})
 
     # By tranche
     tranche_rows = db.session.execute(
@@ -292,9 +294,9 @@ def dashboard_highlights() -> dict:
     complete_sol = sum(1 for s in all_solicitations if solicitation_is_ready(s))
     completion_pct = round(complete_sol * 100 / total_sol) if total_sol else None
 
-    donated_count = db.session.scalar(
+    gift_received_count = db.session.scalar(
         select(func.count()).select_from(Solicitation).where(
-            Solicitation.status == "donated"
+            Solicitation.status.in_(solicitation_status_query_values("gift_received"))
         )
     ) or 0
 
@@ -314,7 +316,7 @@ def dashboard_highlights() -> dict:
         "active_partners": active_partners,
         "total_solicitations": total_sol,
         "completion_pct": completion_pct,
-        "donated_count": donated_count,
+        "gift_received_count": gift_received_count,
         "total_requested": total_requested,
         "active_campaign_name": active_campaign_name,
     }

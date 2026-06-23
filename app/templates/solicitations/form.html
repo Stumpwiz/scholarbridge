@@ -114,7 +114,7 @@
                 <select class="form-select" id="status" name="status" required>
                     {% for status in status_options %}
                         <option value="{{ status }}" {% if form_data.status == status %}selected{% endif %}>
-                            {{ status.replace('_', ' ').title() }}
+                            {{ solicitation_status_label(status) }}
                         </option>
                     {% endfor %}
                 </select>

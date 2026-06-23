@@ -202,7 +202,7 @@
                                     <tr>
                                         <td>{{ sol.campaign.campaign_name if sol.campaign else "—" }}</td>
                                         <td>{{ sol.tranche }}</td>
-                                        <td>{{ sol.status | replace("_", " ") | title }}</td>
+                                        <td>{{ solicitation_status_label(sol.status) }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
@@ -256,7 +256,7 @@
                                                 —
                                             {% endif %}
                                         </td>
-                                        <td>{{ sol.status | replace("_", " ") | title }}</td>
+                                        <td>{{ solicitation_status_label(sol.status) }}</td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
