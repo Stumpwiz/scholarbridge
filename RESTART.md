@@ -4,6 +4,62 @@ This file provides resume context for future assistants and maintainers.
 
 Current stage: **Phase 2D.1 (Partner category realignment), deployed and operational on AWS pilot as of 2026-06-12**.
 
+## Schema Changes and Production Migrations
+
+### Operational Rule
+
+For schema-changing releases, deployment is incomplete until production Alembic migration has been applied.
+
+### Deployment Sequence (Schema Changes)
+
+1. commit  
+2. push  
+3. CI/CD deploy  
+4. production `flask db upgrade`  
+5. service restart  
+6. health check  
+7. application verification
+
+### Environment Distinction to Preserve
+
+- Runtime service DB settings come from `/etc/scholarbridge/scholarbridge.env`.
+- Local shell/app defaults may come from `/opt/scholarbridge/.env`.
+
+During migration troubleshooting, always source `/etc/scholarbridge/scholarbridge.env` before running Alembic commands so migration targets the same DB as the running service.
+
+### Migration Verification Commands
+
+```bash
+cd /opt/scholarbridge
+set -a
+source /etc/scholarbridge/scholarbridge.env
+set +a
+
+uv run flask --app run.py db current
+uv run flask --app run.py db heads
+uv run flask --app run.py db upgrade
+sudo systemctl restart scholarbridge.service
+curl -i http://127.0.0.1:8000/health
+```
+
+### Troubleshooting Signals
+
+If a deployment passes CI but production fails with:
+
+- `sqlalchemy.exc.ProgrammingError`
+- `psycopg.errors.UndefinedColumn`
+- missing-column errors on routes that load new fields
+
+first check for schema/code mismatch and env-file mismatch, then apply production migration and restart.
+
+### Reusable Case Pattern (amount_pledged Lesson)
+
+- code deployed successfully
+- production schema migration not yet applied
+- runtime missing-column failure occurred
+- migration applied against production DB
+- service restored after restart and verification
+
 ## Milestone Log
 
 ### 2026-06-12: AWS Pilot Deployment Go-Live

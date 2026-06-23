@@ -373,6 +373,44 @@ sudo -u scholarbridge /opt/scholarbridge/scripts/restore_postgres.sh /var/backup
 4. Confirm Partner detail and contact section load.
 5. Confirm solicitation letter generation succeeds (PDF created and viewable).
 
+## 13.4 Schema Changes and Production Migrations
+
+### Scope
+
+Use this section for any release that changes DB schema (new columns, altered constraints, new Alembic revision).
+
+### Why This Step Is Separate
+
+CI/CD validates migrations in CI databases only. It does **not** migrate the production database automatically.
+
+### Production Migration and Verification Sequence
+
+**Execution Context: EC2 INSTANCE (SSH SESSION)**
+
+```bash
+cd /opt/scholarbridge
+set -a
+source /etc/scholarbridge/scholarbridge.env
+set +a
+
+uv run flask --app run.py db current
+uv run flask --app run.py db heads
+uv run flask --app run.py db upgrade
+
+sudo systemctl restart scholarbridge.service
+sudo systemctl status scholarbridge.service --no-pager
+curl -i http://127.0.0.1:8000/health
+```
+
+Then verify in browser that the feature using the new schema loads and saves successfully.
+
+### Environment File Notes
+
+- `scholarbridge.service` uses `/etc/scholarbridge/scholarbridge.env` via `EnvironmentFile`.
+- `/opt/scholarbridge/.env` may be loaded by shell tooling, but does not define what the running service uses.
+
+If you source the wrong env file, migration commands can target a different database than production runtime.
+
 ### 13.3 Backup Validation
 
 **Execution Context: EC2 INSTANCE (SSH SESSION)**
@@ -395,6 +433,21 @@ If deployment fails:
    - `sudo systemctl restart nginx`
 5. If database state is bad, restore the most recent `.sql.gz` backup with `scripts/restore_postgres.sh`.
 6. Re-run smoke tests before reopening pilot access.
+
+### 14.1 Missing-Column Incident Pattern
+
+Common post-deploy error signatures:
+
+- `sqlalchemy.exc.ProgrammingError`
+- `psycopg.errors.UndefinedColumn`
+
+When observed after deployment:
+
+1. assume potential schema/code mismatch first
+2. confirm Alembic current/head revisions
+3. apply `flask db upgrade` against production DB
+4. restart service
+5. re-run health + feature checks
 
 ## 15. Pilot Operations Notes
 

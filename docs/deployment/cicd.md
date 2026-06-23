@@ -12,6 +12,113 @@ This project uses GitHub Actions to run tests on every push/PR, then deploy to p
 - Health check: `http://127.0.0.1:8000/health`
 - Database migrations: manual only (not executed by deploy workflow)
 
+## Schema Changes and Production Migrations
+
+### How to Recognize a Schema-Changing Deployment
+
+Treat a deployment as schema-changing when a commit includes any of the following:
+
+- new or updated files under `migrations/versions/`
+- model changes that add/remove/rename columns or constraints
+- code paths that reference newly added ORM attributes/columns
+
+If any of these are present, the deployment is not complete until production migration is applied.
+
+### Why GitHub Actions Migrations Do Not Update Production
+
+GitHub Actions runs tests and migrations against CI job databases only.  
+Those migrations do **not** touch:
+
+- local development database
+- staging database (if separate)
+- production database
+
+CI success means application and migration code are valid in CI, not that production schema is current.
+
+### CI vs Development vs Production Databases
+
+- **CI database**: ephemeral database created inside the GitHub Actions job.
+- **Development database**: your local machine DB used by `uv run ...` commands locally.
+- **Production database**: the persistent DB used by `scholarbridge.service` on EC2.
+
+Each environment must be migrated independently.
+
+### Required Deployment Sequence for Schema Changes
+
+Use this sequence for every schema-changing release:
+
+1. commit
+2. push
+3. CI/CD deploy
+4. production `flask db upgrade`
+5. service restart
+6. health check
+7. application verification
+
+### Production Migration Procedure
+
+**Execution Context: EC2 INSTANCE (SSH SESSION)**
+
+```bash
+cd /opt/scholarbridge
+set -a
+source /etc/scholarbridge/scholarbridge.env
+set +a
+
+uv run flask --app run.py db current
+uv run flask --app run.py db heads
+uv run flask --app run.py db upgrade
+
+sudo systemctl restart scholarbridge.service
+sudo systemctl status scholarbridge.service --no-pager
+curl -i http://127.0.0.1:8000/health
+```
+
+### Environment File Distinction (Critical)
+
+- `/etc/scholarbridge/scholarbridge.env`:
+  - runtime environment used by the running `systemd` service (`EnvironmentFile=...`)
+  - must be sourced for production migration commands to target the same DB as the service
+- `/opt/scholarbridge/.env`:
+  - local/app-shell convenience file
+  - may point to a different database than the running service
+
+Troubleshooting lesson: when migration commands and service process use different env files, you can migrate the wrong database and still get missing-column failures in production.
+
+### Troubleshooting: Missing-Column Failures After Deploy
+
+Symptoms often include:
+
+- `sqlalchemy.exc.ProgrammingError`
+- `psycopg.errors.UndefinedColumn`
+- immediate failures on routes that read/write new fields
+
+Checklist:
+
+1. Confirm active revision in production:
+   - `uv run flask --app run.py db current`
+2. Confirm expected head revision:
+   - `uv run flask --app run.py db heads`
+3. If current != head, run:
+   - `uv run flask --app run.py db upgrade`
+4. Restart service and re-check health:
+   - `sudo systemctl restart scholarbridge.service`
+   - `curl -i http://127.0.0.1:8000/health`
+5. If DB authentication errors occur, verify env source:
+   - ensure `/etc/scholarbridge/scholarbridge.env` is loaded before migration commands
+
+### Reusable Case Study: Schema and Code Drift
+
+Operational pattern to remember:
+
+1. code deployment succeeds
+2. production schema migration is missing
+3. application raises missing-column errors
+4. migration is applied on production DB
+5. service is restarted and restored
+
+Use this pattern as a standard incident-response path for future schema releases.
+
 ## Why This Approach
 
 `/opt/scholarbridge` is currently a non-Git runtime directory. SSH + `rsync` is the safest incremental deployment model because it:
@@ -68,6 +175,7 @@ Adjust excludes if your generated artifacts are stored elsewhere.
    - `systemctl status scholarbridge.service`
    - `journalctl -u scholarbridge.service -n 100 --no-pager`
    - `curl http://127.0.0.1:8000/health`
+6. If deployment includes schema changes, run production migration procedure above before functional verification.
 
 ## Rollback
 
