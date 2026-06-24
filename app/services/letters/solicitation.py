@@ -70,13 +70,25 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
                     "Program in this important and worthwhile initiative. "
                     "In the interim if you would have any questions prior to my reaching you, "
                     f"please do feel free to contact {context['solicitor_name']} at "
-                    f"{context['solicitor_number']}, {context['solicitor_email']}."
+                    f"{context['solicitor_number']} or {context['solicitor_email']}."
                 ),
                 starts_with="In a few days",
             ),
             ParagraphTextRule(
+                replacement_text=context["solicitor_name"],
+                text_equals="«Solicitor_Name»",
+            ),
+            ParagraphTextRule(
+                replacement_text=context["solicitor_number"],
+                text_equals="«Solicitor_Phone»",
+            ),
+            ParagraphTextRule(
+                replacement_text=context["solicitor_email"],
+                text_equals="«Solicitor_Email»",
+            ),
+            ParagraphTextRule(
                 replacement_text=context["cc_line"],
-                required_tokens=("«MR_Contact»",),
+                required_tokens=("MR_Contact",),
                 starts_with="cc:",
             ),
         ),

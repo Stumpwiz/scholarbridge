@@ -107,6 +107,10 @@ class SolicitationLetterServiceTests(unittest.TestCase):
         self.assertIn("Acme Co", rendered)
         self.assertIn("$1,250.00", rendered)
         self.assertNotIn("w:highlight", rendered)
+        self.assertNotIn("«Solicitor_Name»", rendered)
+        self.assertNotIn("«Solicitor_Phone»", rendered)
+        self.assertNotIn("«Solicitor_Email»", rendered)
+        self.assertNotIn("«MR_Contact»", rendered)
 
     def test_solicitation_render_docx_updates_footer_color(self):
         context = {
