@@ -10,13 +10,22 @@
 
 <form method="get" action="{{ url_for('main.letter_list') }}" class="row g-2 align-items-end mb-3">
     <div class="col-12 col-md-5 col-lg-4">
-        <label for="solicitor_id" class="form-label mb-1">Filter by Solicitor</label>
+        <label for="solicitor_id" class="form-label mb-1">Solicitor</label>
         <select class="form-select form-select-sm" id="solicitor_id" name="solicitor_id">
-            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>Clear Filter</option>
+            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>All Solicitors</option>
             {% for person in solicitor_filter_people %}
                 <option value="{{ person.id }}" {% if selected_solicitor_id == person.id %}selected{% endif %}>
                     {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
                 </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-2">
+        <label for="tranche" class="form-label mb-1">Tranche</label>
+        <select class="form-select form-select-sm" id="tranche" name="tranche">
+            <option value="" {% if selected_tranche is none %}selected{% endif %}>All Tranches</option>
+            {% for t in tranche_filter_options %}
+                <option value="{{ t }}" {% if selected_tranche == t %}selected{% endif %}>{{ t }}</option>
             {% endfor %}
         </select>
     </div>
@@ -30,6 +39,7 @@
 
 <form method="post" action="{{ url_for('main.letter_generate_mailing_list') }}" class="mb-3">
     <input type="hidden" name="solicitor_id" value="{{ selected_solicitor_id or '' }}">
+    <input type="hidden" name="tranche" value="{{ selected_tranche or '' }}">
     <button type="submit" class="btn btn-outline-secondary btn-sm">Generate Mailing List</button>
 </form>
 

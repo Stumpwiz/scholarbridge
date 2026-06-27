@@ -147,6 +147,22 @@
             </div>
         </form>
 
+        {% if mode == "edit" and solicitation %}
+            <hr class="mt-4">
+            <div class="mt-3">
+                <h2 class="h6 text-danger mb-2">Danger Zone</h2>
+                {% if solicitation.can_delete %}
+                    <a
+                        class="btn btn-danger btn-sm"
+                        href="{{ url_for('main.solicitation_delete_confirm', solicitation_id=solicitation.id) }}"
+                    >Delete Solicitation</a>
+                {% else %}
+                    <button type="button" class="btn btn-danger btn-sm" disabled>Delete Solicitation</button>
+                    <p class="text-muted small mt-2 mb-0">This solicitation has become part of the committee's historical record and cannot be deleted.</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
         {% if solicitation and solicitation.campaign %}
             <div class="d-flex gap-3 align-items-center mt-3">
                 <a

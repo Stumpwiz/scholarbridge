@@ -56,6 +56,10 @@ class Solicitation(db.Model):
         foreign_keys=[mrpoc_person_id],
     )
 
+    @property
+    def can_delete(self) -> bool:
+        return self.status == "not_contacted"
+
     def __repr__(self) -> str:
         return (
             f"<Solicitation id={self.id} partner_id={self.partner_id} "

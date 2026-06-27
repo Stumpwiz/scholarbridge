@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Delete Solicitation - {{ config.APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12 col-lg-6">
+        <h1 class="h4 mb-3">Delete Solicitation</h1>
+
+        <div class="alert alert-danger">
+            <strong>Warning</strong>
+            <p class="mb-1 mt-1">Deleting a solicitation permanently removes it from ScholarBridge and cannot be undone.</p>
+            <p class="mb-1">This action is intended only for solicitations that were created in error or are no longer needed before any contact with the partner has begun (for example, when a partner has been deactivated).</p>
+            <p class="mb-0">Once a solicitation progresses beyond the <strong>Not Contacted</strong> status, it becomes part of the committee's historical record and cannot be deleted.</p>
+        </div>
+
+        <dl class="row mb-4">
+            <dt class="col-sm-4">Partner</dt>
+            <dd class="col-sm-8">{{ solicitation.partner.display_name or solicitation.partner.partner_name if solicitation.partner else "—" }}</dd>
+
+            <dt class="col-sm-4">Solicitor</dt>
+            <dd class="col-sm-8">
+                {% if solicitation.solicitor %}
+                    {{ solicitation.solicitor.preferred_name or solicitation.solicitor.first_name }} {{ solicitation.solicitor.last_name }}
+                {% else %}
+                    —
+                {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">{{ solicitation_status_label(solicitation.status) }}</dd>
+        </dl>
+
+        <form method="post" action="{{ url_for('main.solicitation_delete', solicitation_id=solicitation.id) }}">
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-danger">Delete Solicitation</button>
+                <a class="btn btn-outline-secondary" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

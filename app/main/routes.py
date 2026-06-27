@@ -120,7 +120,22 @@ def letter_list():
         if session_solicitor_id in solicitor_filter_ids:
             selected_solicitor_id = session_solicitor_id
 
-    solicitations = _letter_solicitation_options(selected_solicitor_id=selected_solicitor_id)
+    tranche_filter_options = _tranche_filter_options()
+    selected_tranche = _safe_int(request.args.get("tranche"))
+    if selected_tranche is not None:
+        if selected_tranche not in tranche_filter_options:
+            selected_tranche = None
+        else:
+            session["active_tranche"] = selected_tranche
+    else:
+        session_tranche = _safe_int(session.get("active_tranche"))
+        if session_tranche in tranche_filter_options:
+            selected_tranche = session_tranche
+
+    solicitations = _letter_solicitation_options(
+        selected_solicitor_id=selected_solicitor_id,
+        selected_tranche=selected_tranche,
+    )
     incomplete_solicitation_ids = {
         solicitation.id
         for solicitation in solicitations
@@ -151,6 +166,8 @@ def letter_list():
         generated_mailing_lists=generated_mailing_lists,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
+        tranche_filter_options=tranche_filter_options,
+        selected_tranche=selected_tranche,
     )
 
 
@@ -219,7 +236,11 @@ def letter_generated_solicitation_pdf(solicitation_id: int):
 @bp.post("/letters/mailing-list")
 def letter_generate_mailing_list():
     selected_solicitor_id = _safe_int(request.form.get("solicitor_id"))
-    visible_solicitations = _letter_solicitation_options(selected_solicitor_id=selected_solicitor_id)
+    selected_tranche = _safe_int(request.form.get("tranche"))
+    visible_solicitations = _letter_solicitation_options(
+        selected_solicitor_id=selected_solicitor_id,
+        selected_tranche=selected_tranche,
+    )
     incomplete_solicitation_ids = {
         solicitation.id
         for solicitation in visible_solicitations
@@ -236,7 +257,7 @@ def letter_generate_mailing_list():
     ]
     if not ready_solicitation_ids:
         flash("No ready solicitations are available for mailing-list generation.", "warning")
-        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id, tranche=selected_tranche))
 
     ready_solicitations = db.session.scalars(
         select(Solicitation)
@@ -251,12 +272,12 @@ def letter_generate_mailing_list():
     ]
     if not ready_solicitations:
         flash("No ready solicitations are available for mailing-list generation.", "warning")
-        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id, tranche=selected_tranche))
 
     mailing_list_text = build_solicitation_mailing_list_text(ready_solicitations)
     output_path = save_generated_mailing_list(mailing_list_text)
     flash(f"Generated mailing list {output_path.name}.", "success")
-    return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+    return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id, tranche=selected_tranche))
 
 
 @bp.get("/letters/generated/mailing-lists/<path:filename>")
@@ -655,6 +676,7 @@ def solicitation_clear_filter():
 @bp.get("/letters/clear-filter")
 def letter_clear_filter():
     session.pop("active_solicitor_id", None)
+    session.pop("active_tranche", None)
     return redirect(url_for("main.letter_list"))
 
 
@@ -841,6 +863,33 @@ def solicitation_edit(solicitation_id: int):
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
     )
+
+
+@bp.get("/solicitations/<int:solicitation_id>/delete")
+@editor_required
+def solicitation_delete_confirm(solicitation_id: int):
+    solicitation = db.get_or_404(Solicitation, solicitation_id)
+    if not solicitation.can_delete:
+        flash("This solicitation cannot be deleted.", "warning")
+        return redirect(url_for("main.solicitation_edit", solicitation_id=solicitation_id))
+    return render_template(
+        "solicitations/confirm_delete.html",
+        page_title=f"Delete Solicitation #{solicitation.id}",
+        solicitation=solicitation,
+    )
+
+
+@bp.post("/solicitations/<int:solicitation_id>/delete")
+@editor_required
+def solicitation_delete(solicitation_id: int):
+    solicitation = db.get_or_404(Solicitation, solicitation_id)
+    if not solicitation.can_delete:
+        flash("This solicitation cannot be deleted.", "warning")
+        return redirect(url_for("main.solicitation_edit", solicitation_id=solicitation_id))
+    db.session.delete(solicitation)
+    db.session.commit()
+    flash("Solicitation deleted.", "success")
+    return redirect(url_for("main.solicitation_list"))
 
 
 @bp.route("/partners/new", methods=["GET", "POST"])
@@ -1293,7 +1342,10 @@ def _partner_type_choices() -> list[str]:
     return list(PARTNER_TYPE_OPTIONS)
 
 
-def _letter_solicitation_options(selected_solicitor_id: int | None = None) -> list[Solicitation]:
+def _letter_solicitation_options(
+    selected_solicitor_id: int | None = None,
+    selected_tranche: int | None = None,
+) -> list[Solicitation]:
     partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
     query = (
         select(Solicitation)
@@ -1306,10 +1358,19 @@ def _letter_solicitation_options(selected_solicitor_id: int | None = None) -> li
     )
     if selected_solicitor_id is not None:
         query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
+    if selected_tranche is not None:
+        query = query.where(Solicitation.tranche == selected_tranche)
 
     return db.session.scalars(
         query.order_by(partner_sort_name.asc(), Solicitation.id.asc())
     ).all()
+
+
+def _tranche_filter_options() -> list[int]:
+    rows = db.session.scalars(
+        select(Solicitation.tranche).distinct().order_by(Solicitation.tranche.asc())
+    ).all()
+    return [t for t in rows if t is not None]
 
 
 def _generated_solicitation_letter_rows(selected_solicitor_id: int | None = None) -> list[dict]:
