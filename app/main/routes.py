@@ -811,12 +811,14 @@ def solicitation_detail(solicitation_id: int):
     solicitation = db.get_or_404(Solicitation, solicitation_id)
     return_to = _solicitation_return_to_value()
     solicitor_id = _solicitation_filter_solicitor_id()
+    primary_contact = _primary_contact_for_solicitation(solicitation)
     return render_template(
         "solicitations/detail.html",
         page_title=f"Solicitation #{solicitation.id}",
         solicitation=solicitation,
         return_to=return_to,
         solicitor_id=solicitor_id,
+        primary_contact=primary_contact,
     )
 
 
@@ -829,6 +831,8 @@ def solicitation_edit(solicitation_id: int):
     solicitors = _person_options()
     return_to = _solicitation_return_to_value()
     solicitor_id = _solicitation_filter_solicitor_id()
+    primary_contact = _primary_contact_for_solicitation(solicitation)
+    contact_form_data = _contact_to_form_data(primary_contact) if primary_contact else _contact_form_data()
 
     if request.method == "POST":
         form_data = _solicitation_form_data(request.form)
@@ -840,6 +844,12 @@ def solicitation_edit(solicitation_id: int):
         else:
             for key, value in clean_data.items():
                 setattr(solicitation, key, value)
+            if primary_contact is not None:
+                raw_contact = _contact_form_data(request.form)
+                _contact_err, normalized_contact = _validate_contact_form(raw_contact)
+                if not _contact_err:
+                    for key in ("first_name", "middle_initial", "last_name", "title", "email", "phone"):
+                        setattr(primary_contact, key, normalized_contact[key])
             db.session.commit()
             flash("Solicitation updated.", "success")
             redirect_kwargs = {"solicitation_id": solicitation.id}
@@ -848,6 +858,8 @@ def solicitation_edit(solicitation_id: int):
             if solicitor_id is not None:
                 redirect_kwargs["solicitor_id"] = solicitor_id
             return redirect(url_for("main.solicitation_detail", **redirect_kwargs))
+        primary_contact = _primary_contact_for_solicitation(solicitation)
+        contact_form_data = _contact_form_data(request.form)
 
     return render_template(
         "solicitations/form.html",
@@ -862,6 +874,8 @@ def solicitation_edit(solicitation_id: int):
         solicitor_id=solicitor_id,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
+        primary_contact=primary_contact,
+        contact_form_data=contact_form_data,
     )
 
 
@@ -959,15 +973,38 @@ def partner_edit(partner_id: int):
     )
 
 
-@bp.post("/partners/<int:partner_id>/contacts/new")
+@bp.route("/partners/<int:partner_id>/contacts/new", methods=["GET", "POST"])
 @editor_required
 def partner_contact_create(partner_id: int):
     partner = db.get_or_404(Partner, partner_id)
+    return_to_solicitation = _safe_int(
+        request.args.get("return_to_solicitation") or request.form.get("return_to_solicitation")
+    )
+
+    if request.method == "GET":
+        form_data = _contact_form_data()
+        form_data["is_primary"] = True
+        return render_template(
+            "partners/contact_form.html",
+            page_title=f"Add Contact — {partner.partner_name}",
+            partner=partner,
+            form_data=form_data,
+            return_to_solicitation=return_to_solicitation,
+        )
+
     contact_form_data = _contact_form_data(request.form)
     validation_error, normalized_contact_data = _validate_contact_form(contact_form_data)
 
     if validation_error:
         flash(validation_error, "danger")
+        if return_to_solicitation is not None:
+            return render_template(
+                "partners/contact_form.html",
+                page_title=f"Add Contact — {partner.partner_name}",
+                partner=partner,
+                form_data=contact_form_data,
+                return_to_solicitation=return_to_solicitation,
+            )
         return _render_partner_detail(
             partner=partner,
             contact_form_data=contact_form_data,
@@ -993,6 +1030,10 @@ def partner_contact_create(partner_id: int):
 
     db.session.commit()
     flash("Contact added.", "success")
+    if return_to_solicitation is not None:
+        return redirect(
+            url_for("main.solicitation_edit", solicitation_id=return_to_solicitation)
+        )
     return redirect(
         url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts")
     )
@@ -1743,6 +1784,15 @@ def _assigned_solicitor_filter_options() -> list[Person]:
             Person.id.asc(),
         )
     ).all()
+
+
+def _primary_contact_for_solicitation(solicitation: Solicitation) -> "Contact | None":
+    if solicitation.partner is None:
+        return None
+    return db.session.scalar(
+        select(Contact)
+        .where(Contact.partner_id == solicitation.partner_id, Contact.is_primary == True)  # noqa: E712
+    )
 
 
 def _solicitation_return_to_value() -> str | None:

@@ -129,6 +129,54 @@
                 <textarea class="form-control" id="notes" name="notes" rows="4">{{ form_data.notes or '' }}</textarea>
             </div>
 
+            {% if mode == "edit" %}
+            <hr class="my-4">
+            <h2 class="h5 mb-3">Primary Partner Contact</h2>
+            {% if primary_contact %}
+                <div class="row">
+                    <div class="col-12 col-md-4 mb-3">
+                        <label for="contact_title" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="contact_title" name="title" value="{{ contact_form_data.title or '' }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 col-md-5 mb-3">
+                        <label for="contact_first_name" class="form-label">First Name</label>
+                        <input type="text" class="form-control" id="contact_first_name" name="first_name" value="{{ contact_form_data.first_name or '' }}">
+                    </div>
+                    <div class="col-12 col-md-2 mb-3">
+                        <label for="contact_middle_initial" class="form-label">Middle Initial</label>
+                        <input type="text" class="form-control" id="contact_middle_initial" name="middle_initial" maxlength="1" value="{{ contact_form_data.middle_initial or '' }}">
+                    </div>
+                    <div class="col-12 col-md-5 mb-3">
+                        <label for="contact_last_name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control" id="contact_last_name" name="last_name" value="{{ contact_form_data.last_name or '' }}">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="contact_phone" class="form-label">Phone</label>
+                        <input type="text" class="form-control" id="contact_phone" name="phone" value="{{ contact_form_data.phone or '' }}">
+                    </div>
+                    <div class="col-12 col-md-6 mb-3">
+                        <label for="contact_email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="contact_email" name="email" value="{{ contact_form_data.email or '' }}">
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <p class="mb-2"><strong>No primary contact has been designated for this partner.</strong></p>
+                    <p class="mb-2">A primary contact should be created before a solicitation letter is generated.</p>
+                    {% if solicitation and solicitation.partner %}
+                        <a class="btn btn-warning btn-sm"
+                           href="{{ url_for('main.partner_contact_create', partner_id=solicitation.partner.id, return_to_solicitation=solicitation.id) }}">
+                            Add Primary Contact
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+            {% endif %}
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Save</button>
                 {% if solicitation %}
