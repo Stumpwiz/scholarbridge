@@ -88,7 +88,7 @@ def _build_solicitation_letter_context(
         "zip_code": zip_code,
         "city_state_zip": city_state_zip,
         "amount_requested": _format_currency(amount_requested),
-        "amount_requested_no_symbol": _format_currency(amount_requested),
+        "amount_requested_no_symbol": _format_currency(amount_requested).lstrip("$"),
         "solicitor_name": _person_name(solicitor),
         "solicitor_number": normalize_phone(solicitor_phone),
         "solicitor_email": clean(getattr(solicitor, "email", None)),
