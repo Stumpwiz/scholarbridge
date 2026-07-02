@@ -27,7 +27,7 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
             "«MR_Contact»": context["mr_contact"],
             "«MR_Contact_Phone»": context["mr_contact_phone"],
             "«MR_Contact_Email»": context["mr_contact_email"],
-            "\xa0$(amount)": "$" + context["amount_requested_no_symbol"],
+            "$(amount)": "$" + context["amount_requested_no_symbol"],
             "(solicitor name)": context["solicitor_name"],
             "solicitor name": context["solicitor_name"],
             "(solicitor phone #)": context["solicitor_number"],
@@ -62,6 +62,14 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
                     f"${context['amount_requested_no_symbol']}."
                 ),
                 starts_with="We would ask that you please consider a donation of",
+            ),
+            ParagraphTextRule(
+                replacement_text=(
+                    "Your favorable consideration of a sponsorship level of "
+                    f"${context['amount_requested_no_symbol']} would enable us to begin "
+                    "planning out next year\u2019s scholarship award amounts."
+                ),
+                starts_with="Your favorable consideration of a sponsorship level of",
             ),
             ParagraphTextRule(
                 replacement_text=(
