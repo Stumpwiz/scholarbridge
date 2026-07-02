@@ -27,7 +27,7 @@ def build_solicitation_render_plan(context: dict, *, signature_image_path: Path 
             "«MR_Contact»": context["mr_contact"],
             "«MR_Contact_Phone»": context["mr_contact_phone"],
             "«MR_Contact_Email»": context["mr_contact_email"],
-            "$(amount)": "$" + context["amount_requested_no_symbol"],
+            "\xa0$(amount)": "$" + context["amount_requested_no_symbol"],
             "(solicitor name)": context["solicitor_name"],
             "solicitor name": context["solicitor_name"],
             "(solicitor phone #)": context["solicitor_number"],
