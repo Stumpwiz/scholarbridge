@@ -98,7 +98,16 @@
                         </div>
                         <div class="col-12 col-md-3 mb-3">
                             <label for="amount_requested" class="form-label">Requested Amount ($)</label>
-                            <input type="text" class="form-control" id="amount_requested" name="amount_requested" value="{{ form_data.amount_requested or '' }}">
+                            <select class="form-select" id="amount_requested" name="amount_requested">
+                                <option value="" {% if not form_data.amount_requested %}selected{% endif %}>
+                                    Select amount
+                                </option>
+                                {% for value, label in requested_amount_options %}
+                                    <option value="{{ value }}" {% if form_data.amount_requested == value %}selected{% endif %}>
+                                        {{ label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
                         </div>
                         <div class="col-12 col-md-3 mb-3">
                             <label for="amount_pledged" class="form-label">Pledged Amount ($)</label>

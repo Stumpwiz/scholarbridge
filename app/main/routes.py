@@ -85,6 +85,17 @@ PARTNER_TYPE_OPTIONS = (PARTNER_TYPE_NEEDS_REVIEW, *CANONICAL_PARTNER_TYPE_OPTIO
 
 CAMPAIGN_STATUS_OPTIONS = ("planned", "active", "closed", "archived")
 SOLICITATION_TRANCHE_OPTIONS = (1, 2, 3)
+SOLICITATION_REQUESTED_AMOUNT_VALUES = (
+    Decimal("500"),
+    Decimal("1000"),
+    Decimal("2500"),
+    Decimal("5000"),
+    Decimal("10000"),
+)
+SOLICITATION_REQUESTED_AMOUNT_OPTIONS = tuple(
+    (f"{amount:.2f}", f"${amount:,.0f}")
+    for amount in SOLICITATION_REQUESTED_AMOUNT_VALUES
+)
 PARTNER_ACTIVE_ONLY_SESSION_KEY = "active_partners_only"
 
 
@@ -802,6 +813,7 @@ def solicitation_create():
         partners=partners,
         solicitors=solicitors,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+        requested_amount_options=SOLICITATION_REQUESTED_AMOUNT_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
     )
 
@@ -873,6 +885,7 @@ def solicitation_edit(solicitation_id: int):
         return_to=return_to,
         solicitor_id=solicitor_id,
         tranche_options=SOLICITATION_TRANCHE_OPTIONS,
+        requested_amount_options=SOLICITATION_REQUESTED_AMOUNT_OPTIONS,
         status_options=SOLICITATION_STATUS_OPTIONS,
         primary_contact=primary_contact,
         contact_form_data=contact_form_data,
@@ -1691,6 +1704,11 @@ def _validate_solicitation_form(
     amount_requested, error = _parse_money(form_data["amount_requested"])
     if error:
         return f"Amount requested {error}", {}
+    if (
+        amount_requested is not None
+        and amount_requested not in SOLICITATION_REQUESTED_AMOUNT_VALUES
+    ):
+        return "Please select a permitted requested amount.", {}
 
     amount_pledged, error = _parse_money(form_data["amount_pledged"])
     if error:

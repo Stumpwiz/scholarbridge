@@ -155,6 +155,15 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotEqual(row_end, -1, msg=f"Missing row end for partner: {partner_name}")
         return html[row_start : row_end + len("</tr>")]
 
+    def _requested_amount_select(self, html: str) -> str:
+        marker = html.find('id="amount_requested"')
+        self.assertNotEqual(marker, -1, msg="Missing requested amount field")
+        select_start = html.rfind("<select", 0, marker)
+        self.assertNotEqual(select_start, -1, msg="Requested amount field is not a select")
+        select_end = html.find("</select>", marker)
+        self.assertNotEqual(select_end, -1, msg="Missing requested amount select close")
+        return html[select_start : select_end + len("</select>")]
+
     def test_solicitations_group_incomplete_first_and_show_new_status_labels(self):
         response = self.client.get("/solicitations")
         self.assertEqual(response.status_code, 200)
@@ -249,6 +258,7 @@ class SolicitationListUiTests(unittest.TestCase):
 
         with self.app.app_context():
             created = db.session.query(Solicitation).filter_by(partner_id=self.epsilon_new_partner_id).one()
+            self.assertEqual(created.amount_requested, Decimal("500.00"))
             self.assertEqual(created.amount_pledged, Decimal("325.50"))
 
     def test_solicitation_edit_updates_pledged_amount(self):
@@ -261,7 +271,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 "mrpoc_person_id": str(self.mrpoc_a_id),
                 "tranche": "1",
                 "business_volume": "5100",
-                "amount_requested": "1100",
+                "amount_requested": "2500.00",
                 "amount_pledged": "825.00",
                 "amount_received": "125.00",
                 "status": "pledged",
@@ -273,7 +283,61 @@ class SolicitationListUiTests(unittest.TestCase):
 
         with self.app.app_context():
             updated = db.session.get(Solicitation, self.alpha_ready_id)
+            self.assertEqual(updated.amount_requested, Decimal("2500.00"))
             self.assertEqual(updated.amount_pledged, Decimal("825.00"))
+
+    def test_solicitation_create_renders_requested_amount_dropdown(self):
+        response = self.client.get("/solicitations/new")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        select_html = self._requested_amount_select(html)
+
+        self.assertNotIn('type="text" class="form-control" id="amount_requested"', html)
+        self.assertIn('name="amount_requested"', select_html)
+        self.assertIn('value="" selected', select_html)
+        for value, label in (
+            ("500.00", "$500"),
+            ("1000.00", "$1,000"),
+            ("2500.00", "$2,500"),
+            ("5000.00", "$5,000"),
+            ("10000.00", "$10,000"),
+        ):
+            self.assertIn(f'value="{value}"', select_html)
+            self.assertIn(label, select_html)
+
+    def test_solicitation_edit_preserves_selected_requested_amount(self):
+        response = self.client.get(f"/solicitations/{self.alpha_ready_id}/edit")
+        self.assertEqual(response.status_code, 200)
+        select_html = self._requested_amount_select(response.get_data(as_text=True))
+
+        self.assertIn('value="1000.00" selected', select_html)
+        self.assertIn("$1,000", select_html)
+
+    def test_solicitation_create_rejects_invalid_requested_amount(self):
+        response = self.client.post(
+            "/solicitations/new",
+            data={
+                "campaign_id": str(self.campaign_id),
+                "partner_id": str(self.epsilon_new_partner_id),
+                "solicitor_person_id": str(self.solicitor_a_id),
+                "mrpoc_person_id": str(self.mrpoc_a_id),
+                "tranche": "2",
+                "business_volume": "1800",
+                "amount_requested": "750",
+                "amount_pledged": "325.50",
+                "amount_received": "0",
+                "status": "contacted",
+                "notes": "Invalid request",
+            },
+            follow_redirects=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Please select a permitted requested amount.", html)
+
+        with self.app.app_context():
+            created = db.session.query(Solicitation).filter_by(partner_id=self.epsilon_new_partner_id).one_or_none()
+            self.assertIsNone(created)
 
     def test_solicitation_detail_displays_requested_pledged_received(self):
         response = self.client.get(f"/solicitations/{self.alpha_ready_id}")
