@@ -8,6 +8,7 @@ DEPLOY_PATH=${DEPLOY_PATH:-/opt/scholarbridge}
 DEPLOY_STAGING_PATH=${DEPLOY_STAGING_PATH:-/tmp/scholarbridge-release}
 DEPLOY_APP_USER=${DEPLOY_APP_USER:-scholarbridge}
 DEPLOY_SERVICE=${DEPLOY_SERVICE:-scholarbridge.service}
+DEPLOY_ENV_FILE=${DEPLOY_ENV_FILE:-/etc/scholarbridge/scholarbridge.env}
 DEPLOY_HEALTHCHECK_URL=${DEPLOY_HEALTHCHECK_URL:-http://127.0.0.1:8000/health}
 
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
@@ -29,6 +30,7 @@ ssh "${SSH_OPTS[@]}" "${REMOTE}" \
   DEPLOY_STAGING_PATH="${DEPLOY_STAGING_PATH}" \
   DEPLOY_APP_USER="${DEPLOY_APP_USER}" \
   DEPLOY_SERVICE="${DEPLOY_SERVICE}" \
+  DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE}" \
   DEPLOY_HEALTHCHECK_URL="${DEPLOY_HEALTHCHECK_URL}" \
   'bash -se' <<'REMOTE_SCRIPT'
 set -euo pipefail
@@ -37,6 +39,7 @@ DEPLOY_PATH=${DEPLOY_PATH:?}
 DEPLOY_STAGING_PATH=${DEPLOY_STAGING_PATH:?}
 DEPLOY_APP_USER=${DEPLOY_APP_USER:?}
 DEPLOY_SERVICE=${DEPLOY_SERVICE:?}
+DEPLOY_ENV_FILE=${DEPLOY_ENV_FILE:?}
 DEPLOY_HEALTHCHECK_URL=${DEPLOY_HEALTHCHECK_URL:?}
 EXCLUDE_FILE="${DEPLOY_STAGING_PATH}/deploy/rsync-exclude.txt"
 
@@ -57,6 +60,18 @@ sudo -u "${DEPLOY_APP_USER}" /bin/bash -lc '
   export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
   cd "'"${DEPLOY_PATH}"'"
   uv sync --frozen
+'
+
+sudo -u "${DEPLOY_APP_USER}" /bin/bash -lc '
+  set -euo pipefail
+  export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
+  cd "'"${DEPLOY_PATH}"'"
+  set -a
+  source "'"${DEPLOY_ENV_FILE}"'"
+  set +a
+  uv run flask --app run.py db current
+  uv run flask --app run.py db heads
+  uv run flask --app run.py db upgrade
 '
 
 sudo systemctl restart "${DEPLOY_SERVICE}"

@@ -96,6 +96,6 @@ Do not deploy until all of the following are true:
 - `git diff --check` passes.
 - The local server starts through `scripts/start_local_dev.sh` or `scripts/dev_cycle.sh`.
 - The changed routes or workflows have been manually exercised in the browser.
-- Any schema-changing deployment has a planned production migration step.
+- Any schema-changing deployment has been checked for Alembic migration coverage.
 
-Production migration details are documented in `docs/deployment/cicd.md`.
+Production deployments automatically run pending Alembic migrations before restarting the service. Details are documented in `docs/deployment/cicd.md`.

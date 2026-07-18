@@ -86,5 +86,6 @@ jobs:
           DEPLOY_STAGING_PATH: /tmp/scholarbridge-release
           DEPLOY_APP_USER: scholarbridge
           DEPLOY_SERVICE: scholarbridge.service
+          DEPLOY_ENV_FILE: /etc/scholarbridge/scholarbridge.env
           DEPLOY_HEALTHCHECK_URL: http://127.0.0.1:8000/health
         run: bash scripts/deploy_via_ssh.sh

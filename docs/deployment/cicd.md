@@ -10,7 +10,7 @@ This project uses GitHub Actions to run tests on every push/PR, then deploy to p
 - Transport: SSH + `rsync` to a staging directory, then server-side `rsync` into `/opt/scholarbridge`
 - Service management: `systemd` (`scholarbridge.service`)
 - Health check: `http://127.0.0.1:8000/health`
-- Database migrations: manual only (not executed by deploy workflow)
+- Database migrations: automatic during production deploy, before service restart
 
 ## Schema Changes and Production Migrations
 
@@ -22,18 +22,18 @@ Treat a deployment as schema-changing when a commit includes any of the followin
 - model changes that add/remove/rename columns or constraints
 - code paths that reference newly added ORM attributes/columns
 
-If any of these are present, the deployment is not complete until production migration is applied.
+If any of these are present, confirm the deployment applied the production migration successfully before functional verification.
 
 ### Why GitHub Actions Migrations Do Not Update Production
 
-GitHub Actions runs tests and migrations against CI job databases only.  
-Those migrations do **not** touch:
+GitHub Actions runs tests and migrations against CI job databases during the `test` job.
+Those test-job migrations do **not** touch:
 
 - local development database
 - staging database (if separate)
 - production database
 
-CI success means application and migration code are valid in CI, not that production schema is current.
+CI success means application and migration code are valid in CI. Production migrations are applied later by the production `deploy` job after files are synced and before `scholarbridge.service` is restarted.
 
 ### CI vs Development vs Production Databases
 
@@ -50,14 +50,14 @@ Use this sequence for every schema-changing release:
 1. commit
 2. push
 3. CI/CD deploy
-4. production `flask db upgrade`
-5. service restart
-6. health check
+4. automatic production `flask db upgrade`
+5. automatic service restart
+6. automatic health check
 7. application verification
 
 ### Production Migration Procedure
 
-**Execution Context: EC2 INSTANCE (SSH SESSION)**
+The deployment workflow runs this procedure automatically on every production deployment after `uv sync --frozen` and before restarting Gunicorn:
 
 ```bash
 cd /opt/scholarbridge
@@ -73,6 +73,10 @@ sudo systemctl restart scholarbridge.service
 sudo systemctl status scholarbridge.service --no-pager
 curl -i http://127.0.0.1:8000/health
 ```
+
+`flask db upgrade` is idempotent. If the production database is already at Alembic HEAD, it exits successfully without changing the schema.
+
+Use the same commands manually only for troubleshooting or one-off recovery.
 
 ### Environment File Distinction (Critical)
 
@@ -99,7 +103,7 @@ Checklist:
    - `uv run flask --app run.py db current`
 2. Confirm expected head revision:
    - `uv run flask --app run.py db heads`
-3. If current != head, run:
+3. If current != head, inspect the failed deployment log, then run if needed:
    - `uv run flask --app run.py db upgrade`
 4. Restart service and re-check health:
    - `sudo systemctl restart scholarbridge.service`
@@ -112,10 +116,9 @@ Checklist:
 Operational pattern to remember:
 
 1. code deployment succeeds
-2. production schema migration is missing
-3. application raises missing-column errors
-4. migration is applied on production DB
-5. service is restarted and restored
+2. production migration runs automatically before restart
+3. service restarts only after migration succeeds
+4. health check verifies the restarted service
 
 Use this pattern as a standard incident-response path for future schema releases.
 
@@ -170,12 +173,12 @@ Adjust excludes if your generated artifacts are stored elsewhere.
 3. Merge this CI/CD change to `main`.
 4. Push a trivial commit to `main` and watch Actions:
    - `test` must pass
-   - `deploy` must pass
+   - `deploy` must pass, including the production migration step
 5. Validate on server:
    - `systemctl status scholarbridge.service`
    - `journalctl -u scholarbridge.service -n 100 --no-pager`
    - `curl http://127.0.0.1:8000/health`
-6. If deployment includes schema changes, run production migration procedure above before functional verification.
+6. If deployment includes schema changes, confirm production is at Alembic HEAD before functional verification.
 
 ## Rollback
 
