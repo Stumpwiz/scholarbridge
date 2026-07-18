@@ -76,3 +76,10 @@ build/
 
 # JetBrains Junie agent memory/state
 .junie/
+
+# ScholarBridge report proof artifacts
+*_proof.aux
+*_proof.log
+*_proof.out
+*_proof.tex
+*_proof.pdf

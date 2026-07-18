@@ -1,0 +1,69 @@
+\documentclass[12pt,twoside]{article}
+\usepackage[english]{babel}
+\usepackage[top=0.60in, bottom=0.75in, left=0.75in, right=0.75in]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{longtable}
+\usepackage{sectsty}
+\usepackage{titlesec}
+
+\titleformat{\section}{\normalfont\Large\bfseries}{}{0pt}{}
+\allsectionsfont{\centering}
+
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[LE,RO]{\thepage\ of \pageref{LastPage}}
+\fancyfoot[LO,RE]{\small Generated {{ generated_date|latex }}}
+\fancyfoot[CO,CE]{}
+\renewcommand{\headrulewidth}{0.0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.4em}
+\renewcommand{\arraystretch}{1.12}
+\raggedbottom
+
+\begin{document}
+
+\begin{center}
+    \includegraphics[height=0.65in]{app/static/img/branding/scholarBridgeLogo.png}\\
+    \vspace{0.35em}
+    {\Large \textbf{ScholarBridge}}\\
+    \vspace{0.35em}
+    {\LARGE \textbf{Campaign by Partner}}\\
+    \vspace{0.75em}
+    Campaign: {{ campaign.campaign_year|latex }}\\
+    Generated: {{ generated_date|latex }}
+\end{center}
+
+\vspace{1.0em}
+
+{\small
+\setlength{\tabcolsep}{3pt}
+\begin{longtable}{>{\raggedright\arraybackslash}p{2.15in} l c r r r}
+\toprule
+\textbf{Partner} & \textbf{Status} & \textbf{Status Date} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
+\midrule
+\endfirsthead
+\toprule
+\textbf{Partner} & \textbf{Status} & \textbf{Status Date} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
+{% for row in rows|sort(attribute="partner_display_name") %}
+{{ row.partner_display_name|latex }} &
+{{ row.status|latex }} &
+{% if row.status_date %}{{ row.status_date|latex }}{% else %}--{% endif %} &
+{{ row.amount_requested|money }} &
+{{ row.amount_pledged|money }} &
+{{ row.amount_received|money }} \\
+{% endfor %}
+\end{longtable}
+}
+
+\end{document}
