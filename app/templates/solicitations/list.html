@@ -98,6 +98,15 @@
             {% endfor %}
         </select>
     </div>
+    <div class="col-12 col-md-3 col-lg-2">
+        <label for="tranche" class="form-label mb-1">Filter by Tranche</label>
+        <select class="form-select form-select-sm" id="tranche" name="tranche">
+            <option value="" {% if selected_tranche is none %}selected{% endif %}>All Tranches</option>
+            {% for t in tranche_filter_options %}
+                <option value="{{ t }}" {% if selected_tranche == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+        </select>
+    </div>
     <div class="col-12 col-md-auto">
         <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
     </div>

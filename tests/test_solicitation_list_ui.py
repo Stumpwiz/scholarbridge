@@ -99,7 +99,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_a.id,
                 mrpoc_person_id=mrpoc_a.id,
-                tranche=1,
+                tranche=2,
                 business_volume=1500,
                 amount_requested=300,
                 amount_pledged=150,
@@ -109,7 +109,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
                 mrpoc_person_id=mrpoc_b.id,
-                tranche=1,
+                tranche=2,
                 business_volume=None,
                 amount_requested=400,
                 amount_pledged=0,
@@ -119,7 +119,7 @@ class SolicitationListUiTests(unittest.TestCase):
                 campaign_id=campaign.id,
                 solicitor_person_id=solicitor_b.id,
                 mrpoc_person_id=mrpoc_b.id,
-                tranche=1,
+                tranche=3,
                 business_volume=2500,
                 amount_requested=None,
                 amount_pledged=250,
@@ -162,6 +162,15 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotEqual(select_start, -1, msg="Requested amount field is not a select")
         select_end = html.find("</select>", marker)
         self.assertNotEqual(select_end, -1, msg="Missing requested amount select close")
+        return html[select_start : select_end + len("</select>")]
+
+    def _select_for(self, html: str, field_id: str) -> str:
+        marker = html.find(f'id="{field_id}"')
+        self.assertNotEqual(marker, -1, msg=f"Missing select field: {field_id}")
+        select_start = html.rfind("<select", 0, marker)
+        self.assertNotEqual(select_start, -1, msg=f"{field_id} field is not a select")
+        select_end = html.find("</select>", marker)
+        self.assertNotEqual(select_end, -1, msg=f"Missing {field_id} select close")
         return html[select_start : select_end + len("</select>")]
 
     def test_solicitations_group_incomplete_first_and_show_new_status_labels(self):
@@ -235,6 +244,103 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotIn("Beta Incomplete", html)
 
         self.assertTrue(html.find("Delta Incomplete") < html.find("Gamma Ready"))
+
+    def test_solicitation_filters_show_all_without_filters(self):
+        response = self.client.get("/solicitations")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        for partner_name in ("Alpha Ready", "Beta Incomplete", "Delta Incomplete", "Gamma Ready"):
+            self.assertIn(partner_name, html)
+
+        solicitor_select = self._select_for(html, "solicitor_id")
+        tranche_select = self._select_for(html, "tranche")
+        self.assertIn('value="" selected', solicitor_select)
+        self.assertIn('value="" selected', tranche_select)
+        for tranche in ("1", "2", "3"):
+            self.assertIn(f'value="{tranche}"', tranche_select)
+
+    def test_solicitation_filter_by_solicitor_only(self):
+        response = self.client.get(f"/solicitations?solicitor_id={self.solicitor_a_id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Alpha Ready", html)
+        self.assertIn("Beta Incomplete", html)
+        self.assertNotIn("Delta Incomplete", html)
+        self.assertNotIn("Gamma Ready", html)
+        self.assertIn(f'value="{self.solicitor_a_id}" selected', self._select_for(html, "solicitor_id"))
+
+    def test_solicitation_filter_by_tranche_only(self):
+        response = self.client.get("/solicitations?tranche=2")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Beta Incomplete", html)
+        self.assertIn("Delta Incomplete", html)
+        self.assertNotIn("Alpha Ready", html)
+        self.assertNotIn("Gamma Ready", html)
+        self.assertIn('value="2" selected', self._select_for(html, "tranche"))
+
+    def test_solicitation_filter_by_solicitor_and_tranche(self):
+        response = self.client.get(f"/solicitations?solicitor_id={self.solicitor_b_id}&tranche=2")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Delta Incomplete", html)
+        self.assertNotIn("Alpha Ready", html)
+        self.assertNotIn("Beta Incomplete", html)
+        self.assertNotIn("Gamma Ready", html)
+        self.assertIn(f'value="{self.solicitor_b_id}" selected', self._select_for(html, "solicitor_id"))
+        self.assertIn('value="2" selected', self._select_for(html, "tranche"))
+
+    def test_solicitation_apply_filter_uses_selected_values(self):
+        response = self.client.get(f"/solicitations?solicitor_id={self.solicitor_b_id}&tranche=3")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Gamma Ready", html)
+        self.assertNotIn("Alpha Ready", html)
+        self.assertNotIn("Beta Incomplete", html)
+        self.assertNotIn("Delta Incomplete", html)
+
+    def test_solicitation_clear_filter_clears_persisted_values(self):
+        self.client.get(f"/solicitations?solicitor_id={self.solicitor_b_id}&tranche=2")
+
+        response = self.client.get("/solicitations/clear-filter", follow_redirects=True)
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        for partner_name in ("Alpha Ready", "Beta Incomplete", "Delta Incomplete", "Gamma Ready"):
+            self.assertIn(partner_name, html)
+        self.assertIn('value="" selected', self._select_for(html, "solicitor_id"))
+        self.assertIn('value="" selected', self._select_for(html, "tranche"))
+
+    def test_solicitation_filters_persist_selected_values(self):
+        first_response = self.client.get(f"/solicitations?solicitor_id={self.solicitor_b_id}&tranche=2")
+        self.assertEqual(first_response.status_code, 200)
+
+        response = self.client.get("/solicitations")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Delta Incomplete", html)
+        self.assertNotIn("Alpha Ready", html)
+        self.assertNotIn("Beta Incomplete", html)
+        self.assertNotIn("Gamma Ready", html)
+        self.assertIn(f'value="{self.solicitor_b_id}" selected', self._select_for(html, "solicitor_id"))
+        self.assertIn('value="2" selected', self._select_for(html, "tranche"))
+
+    def test_invalid_solicitation_tranche_filter_is_ignored_for_current_request(self):
+        self.client.get("/solicitations?tranche=2")
+
+        response = self.client.get("/solicitations?tranche=999")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        for partner_name in ("Alpha Ready", "Beta Incomplete", "Delta Incomplete", "Gamma Ready"):
+            self.assertIn(partner_name, html)
+        self.assertIn('value="" selected', self._select_for(html, "tranche"))
 
     def test_solicitation_create_records_pledged_amount(self):
         response = self.client.post(

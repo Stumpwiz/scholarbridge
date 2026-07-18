@@ -118,30 +118,8 @@ def index():
 
 @bp.get("/letters")
 def letter_list():
-    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
-    solicitor_filter_people = _assigned_solicitor_filter_options()
-    solicitor_filter_ids = {person.id for person in solicitor_filter_people}
-    if selected_solicitor_id is not None:
-        if selected_solicitor_id not in solicitor_filter_ids:
-            selected_solicitor_id = None
-        else:
-            session["active_solicitor_id"] = selected_solicitor_id
-    else:
-        session_solicitor_id = _safe_int(session.get("active_solicitor_id"))
-        if session_solicitor_id in solicitor_filter_ids:
-            selected_solicitor_id = session_solicitor_id
-
-    tranche_filter_options = _tranche_filter_options()
-    selected_tranche = _safe_int(request.args.get("tranche"))
-    if selected_tranche is not None:
-        if selected_tranche not in tranche_filter_options:
-            selected_tranche = None
-        else:
-            session["active_tranche"] = selected_tranche
-    else:
-        session_tranche = _safe_int(session.get("active_tranche"))
-        if session_tranche in tranche_filter_options:
-            selected_tranche = session_tranche
+    solicitor_filter_people, selected_solicitor_id = _selected_solicitor_filter()
+    tranche_filter_options, selected_tranche = _selected_tranche_filter()
 
     solicitations = _letter_solicitation_options(
         selected_solicitor_id=selected_solicitor_id,
@@ -681,6 +659,7 @@ def person_edit(person_id: int):
 @bp.get("/solicitations/clear-filter")
 def solicitation_clear_filter():
     session.pop("active_solicitor_id", None)
+    session.pop("active_tranche", None)
     return redirect(url_for("main.solicitation_list"))
 
 
@@ -693,18 +672,8 @@ def letter_clear_filter():
 
 @bp.get("/solicitations")
 def solicitation_list():
-    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
-    solicitor_filter_people = _assigned_solicitor_filter_options()
-    solicitor_filter_ids = {person.id for person in solicitor_filter_people}
-    if selected_solicitor_id is not None:
-        if selected_solicitor_id not in solicitor_filter_ids:
-            selected_solicitor_id = None
-        else:
-            session["active_solicitor_id"] = selected_solicitor_id
-    else:
-        session_solicitor_id = _safe_int(session.get("active_solicitor_id"))
-        if session_solicitor_id in solicitor_filter_ids:
-            selected_solicitor_id = session_solicitor_id
+    solicitor_filter_people, selected_solicitor_id = _selected_solicitor_filter()
+    tranche_filter_options, selected_tranche = _selected_tranche_filter()
 
     partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
     query = (
@@ -720,6 +689,8 @@ def solicitation_list():
     )
     if selected_solicitor_id is not None:
         query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
+    if selected_tranche is not None:
+        query = query.where(Solicitation.tranche == selected_tranche)
 
     solicitations = db.session.scalars(
         query.order_by(
@@ -760,6 +731,8 @@ def solicitation_list():
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
+        tranche_filter_options=tranche_filter_options,
+        selected_tranche=selected_tranche,
         stats=stats,
     )
 
@@ -1802,6 +1775,39 @@ def _assigned_solicitor_filter_options() -> list[Person]:
             Person.id.asc(),
         )
     ).all()
+
+
+def _selected_solicitor_filter() -> tuple[list[Person], int | None]:
+    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
+    solicitor_filter_people = _assigned_solicitor_filter_options()
+    solicitor_filter_ids = {person.id for person in solicitor_filter_people}
+    if selected_solicitor_id is not None:
+        if selected_solicitor_id not in solicitor_filter_ids:
+            selected_solicitor_id = None
+        else:
+            session["active_solicitor_id"] = selected_solicitor_id
+    else:
+        session_solicitor_id = _safe_int(session.get("active_solicitor_id"))
+        if session_solicitor_id in solicitor_filter_ids:
+            selected_solicitor_id = session_solicitor_id
+
+    return solicitor_filter_people, selected_solicitor_id
+
+
+def _selected_tranche_filter() -> tuple[list[int], int | None]:
+    tranche_filter_options = _tranche_filter_options()
+    selected_tranche = _safe_int(request.args.get("tranche"))
+    if selected_tranche is not None:
+        if selected_tranche not in tranche_filter_options:
+            selected_tranche = None
+        else:
+            session["active_tranche"] = selected_tranche
+    else:
+        session_tranche = _safe_int(session.get("active_tranche"))
+        if session_tranche in tranche_filter_options:
+            selected_tranche = session_tranche
+
+    return tranche_filter_options, selected_tranche
 
 
 def _primary_contact_for_solicitation(solicitation: Solicitation) -> "Contact | None":
