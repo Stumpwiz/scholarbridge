@@ -89,13 +89,15 @@
                         {% endif %}
                     </td>
                     <td class="text-nowrap">
-                        {% if solicitation.id in letter_ready_solicitation_ids %}
+                        {% if solicitation.id in letter_ready_solicitation_ids and solicitation.id in letter_editable_solicitation_ids %}
                             <a
                                 class="btn btn-primary btn-sm"
                                 href="{{ url_for('main.letter_solicitation_pdf', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) }}"
                             >
                                 Generate Letter
                             </a>
+                        {% elif solicitation.id not in letter_editable_solicitation_ids %}
+                            <span class="badge text-bg-secondary">Letter Archived</span>
                         {% elif can_edit %}
                             <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id, solicitor_id=selected_solicitor_id) if selected_solicitor_id else url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">
                                 View/Edit Solicitation

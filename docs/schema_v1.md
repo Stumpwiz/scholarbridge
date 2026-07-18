@@ -227,6 +227,7 @@ Tentative fields:
 - assigned_person_id (required)
 - primary_contact_id (optional)
 - solicitation_status (required)
+- status_date (optional): calendar date when the solicitation most recently entered its current status
 - amount_requested (optional)
 - amount_received (optional)
 - amount_received_date (optional)

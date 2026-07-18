@@ -100,6 +100,7 @@ Rationale: committee operations need clear timestamp visibility for outbound com
 ### Workflow
 
 - `status` (required): operational state indicator.
+- `status_date` (optional): calendar date when the solicitation most recently entered its current status.
 - `notes` (optional): free-form context, exceptions, and handoff details.
 
 Rationale: supports day-to-day coordination without rigid process automation.

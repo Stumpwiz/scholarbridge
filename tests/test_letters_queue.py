@@ -189,6 +189,15 @@ class LettersQueueTests(unittest.TestCase):
             session["_user_id"] = self.user_id
             session["_fresh"] = True
 
+    def _row_for_partner(self, html: str, partner_name: str) -> str:
+        marker = html.find(partner_name)
+        self.assertNotEqual(marker, -1, msg=f"Missing row for partner: {partner_name}")
+        row_start = html.rfind("<tr", 0, marker)
+        self.assertNotEqual(row_start, -1, msg=f"Missing row start for partner: {partner_name}")
+        row_end = html.find("</tr>", marker)
+        self.assertNotEqual(row_end, -1, msg=f"Missing row end for partner: {partner_name}")
+        return html[row_start : row_end + len("</tr>")]
+
     def test_letters_queue_orders_incomplete_before_ready_and_preserves_alpha_within_groups(self):
         response = self.client.get("/letters")
         self.assertEqual(response.status_code, 200)
@@ -267,6 +276,90 @@ class LettersQueueTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"/letters?solicitor_id={self.solicitor_a_id}", response.headers["Location"])
+        response.close()
+
+    def test_contacted_solicitation_shows_archived_letter_action(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        self.assertEqual(response.status_code, 200)
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+
+        self.assertIn("Letter Archived", row)
+        self.assertNotIn(
+            f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
+            row,
+        )
+
+    def test_contacted_solicitation_cannot_regenerate_letter(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-archived")
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            db.session.commit()
+
+        with patch("app.main.routes.generate_solicitation_pdf_bytes", return_value=b"%PDF-new") as generate_pdf:
+            response = self.client.get(
+                f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
+                follow_redirects=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Solicitation letter is archived and cannot be regenerated.",
+            response.get_data(as_text=True),
+        )
+        generate_pdf.assert_not_called()
+        self.assertEqual(output_path.read_bytes(), b"%PDF-archived")
+        response.close()
+
+    def test_generated_pdf_remains_accessible_after_contacted(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-archived-view")
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            db.session.commit()
+
+        response = self.client.get(
+            f"/letters/generated/solicitation/{self.ready_id}.pdf"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/pdf")
+        self.assertEqual(response.data, b"%PDF-archived-view")
+        response.close()
+
+    def test_partner_and_contact_edits_do_not_change_archived_letter(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-original-archived")
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            solicitation.partner.display_name = "Updated Display"
+            primary_contact = db.session.query(Contact).filter_by(
+                partner_id=solicitation.partner_id,
+                is_primary=True,
+            ).one()
+            primary_contact.last_name = "Updated"
+            db.session.commit()
+
+        with patch("app.main.routes.generate_solicitation_pdf_bytes", return_value=b"%PDF-rebuilt") as generate_pdf:
+            response = self.client.get(
+                f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
+                follow_redirects=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        generate_pdf.assert_not_called()
+        self.assertEqual(output_path.read_bytes(), b"%PDF-original-archived")
         response.close()
 
     def test_letter_generation_saves_pdf_to_filesystem(self):

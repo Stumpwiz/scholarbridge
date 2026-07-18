@@ -43,6 +43,7 @@ from app.main.solicitation_status import (
     canonical_solicitation_status,
     solicitation_status_for_storage,
 )
+from app.main.solicitation_workflow import SolicitationWorkflowService
 from app.main import bp
 from app.extensions import db
 from app.services.dashboard_stats import (
@@ -135,6 +136,11 @@ def letter_list():
         for solicitation in solicitations
         if solicitation_is_letter_ready(solicitation)
     }
+    letter_editable_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if SolicitationWorkflowService.can_edit_solicitation_letter(solicitation)
+    }
     solicitations = sorted(
         solicitations,
         key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
@@ -151,6 +157,7 @@ def letter_list():
         solicitations=solicitations,
         incomplete_solicitation_ids=incomplete_solicitation_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
+        letter_editable_solicitation_ids=letter_editable_solicitation_ids,
         generated_solicitation_letters=generated_solicitation_letters,
         generated_mailing_lists=generated_mailing_lists,
         solicitor_filter_people=solicitor_filter_people,
@@ -188,6 +195,17 @@ def letter_solicitation_pdf():
         if selected_solicitor_id is not None:
             edit_kwargs["solicitor_id"] = selected_solicitor_id
         return redirect(url_for("main.solicitation_edit", **edit_kwargs))
+
+    if not SolicitationWorkflowService.can_edit_solicitation_letter(solicitation):
+        flash("Solicitation letter is archived and cannot be regenerated.", "warning")
+        return redirect(
+            url_for(
+                "main.letter_list",
+                solicitor_id=selected_solicitor_id
+                if selected_solicitor_id is not None
+                else solicitation.solicitor_person_id,
+            )
+        )
 
     try:
         context = build_solicitation_letter_context_for_solicitation(solicitation_id)
@@ -828,7 +846,10 @@ def solicitation_edit(solicitation_id: int):
             flash(validation_error, "danger")
         else:
             for key, value in clean_data.items():
+                if key == "status":
+                    continue
                 setattr(solicitation, key, value)
+            SolicitationWorkflowService.update_status(solicitation, clean_data["status"])
             if primary_contact is not None:
                 raw_contact = _contact_form_data(request.form)
                 _contact_err, normalized_contact = _validate_contact_form(raw_contact)

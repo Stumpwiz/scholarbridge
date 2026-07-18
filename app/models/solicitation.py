@@ -31,6 +31,7 @@ class Solicitation(db.Model):
     status = db.Column(
         db.String(20), nullable=False, default="not_contacted", server_default="not_contacted"
     )
+    status_date = db.Column(db.Date, nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(
         db.DateTime, nullable=False, default=datetime.utcnow, server_default=func.now()
