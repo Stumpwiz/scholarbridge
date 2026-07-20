@@ -46,6 +46,14 @@ from app.main.solicitation_status import (
 from app.main.solicitation_workflow import SolicitationWorkflowService
 from app.main import bp
 from app.extensions import db
+from app.reports.registry import get_report, list_reports
+from app.reports.report_service import (
+    ReportGenerationError,
+    generate_report_pdf,
+    report_pdf_exists,
+    report_pdf_filename,
+    report_pdf_path,
+)
 from app.services.dashboard_stats import (
     campaign_detail_stats,
     campaign_stats,
@@ -98,6 +106,7 @@ SOLICITATION_REQUESTED_AMOUNT_OPTIONS = tuple(
     for amount in SOLICITATION_REQUESTED_AMOUNT_VALUES
 )
 PARTNER_ACTIVE_ONLY_SESSION_KEY = "active_partners_only"
+REPORT_CAMPAIGN_SESSION_KEY = "active_report_campaign_id"
 
 
 @bp.before_request
@@ -686,6 +695,78 @@ def letter_clear_filter():
     session.pop("active_solicitor_id", None)
     session.pop("active_tranche", None)
     return redirect(url_for("main.letter_list"))
+
+
+@bp.get("/reports")
+def report_list():
+    campaigns = _report_campaign_options()
+    selected_campaign = _selected_report_campaign(campaigns)
+    reports = list_reports()
+    report_rows = []
+
+    if selected_campaign is not None:
+        report_rows = [
+            {
+                "definition": report,
+                "filename": report_pdf_filename(report, selected_campaign),
+                "is_available": report_pdf_exists(report, selected_campaign),
+            }
+            for report in reports
+        ]
+
+    return render_template(
+        "reports/list.html",
+        page_title="Reports",
+        campaigns=campaigns,
+        selected_campaign=selected_campaign,
+        report_rows=report_rows,
+    )
+
+
+@bp.post("/reports/<report_id>/generate")
+def report_generate(report_id: str):
+    report = get_report(report_id)
+    if report is None:
+        abort(404)
+
+    campaign = _selected_report_campaign(_report_campaign_options())
+    if campaign is None:
+        flash("Please select a campaign before generating a report.", "warning")
+        return redirect(url_for("main.report_list"))
+
+    try:
+        output_path = generate_report_pdf(report, campaign)
+    except ReportGenerationError as exc:
+        current_app.logger.exception("Report generation failed: %s", exc)
+        flash(f"Unable to generate {report.label}. Check report data and try again.", "danger")
+        return redirect(url_for("main.report_list"))
+
+    flash(f"Generated {output_path.name}.", "success")
+    return redirect(url_for("main.report_list"))
+
+
+@bp.get("/reports/<report_id>/pdf")
+def report_pdf(report_id: str):
+    report = get_report(report_id)
+    if report is None:
+        abort(404)
+
+    campaign = _selected_report_campaign(_report_campaign_options(), update_session=False)
+    if campaign is None:
+        flash("Please select a campaign before viewing a report.", "warning")
+        return redirect(url_for("main.report_list"))
+
+    output_path = report_pdf_path(report, campaign)
+    if not output_path.is_file():
+        flash(f"{report.label} has not been generated for the selected campaign.", "warning")
+        return redirect(url_for("main.report_list"))
+
+    return send_file(
+        output_path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=output_path.name,
+    )
 
 
 @bp.get("/solicitations")
@@ -1770,6 +1851,45 @@ def _default_active_campaign_id() -> int | None:
     ).all()
     if len(active_campaigns) == 1:
         return active_campaigns[0]
+    return None
+
+
+def _report_campaign_options() -> list[Campaign]:
+    return db.session.scalars(
+        select(Campaign).order_by(Campaign.campaign_year.desc(), Campaign.id.desc())
+    ).all()
+
+
+def _selected_report_campaign(
+    campaigns: list[Campaign],
+    *,
+    update_session: bool = True,
+) -> Campaign | None:
+    campaign_by_id = {campaign.id: campaign for campaign in campaigns}
+    selected_campaign_id = _safe_int(request.args.get("campaign_id"))
+
+    if selected_campaign_id is not None and selected_campaign_id in campaign_by_id:
+        if update_session:
+            session[REPORT_CAMPAIGN_SESSION_KEY] = selected_campaign_id
+        return campaign_by_id[selected_campaign_id]
+
+    session_campaign_id = _safe_int(session.get(REPORT_CAMPAIGN_SESSION_KEY))
+    if session_campaign_id is not None and session_campaign_id in campaign_by_id:
+        return campaign_by_id[session_campaign_id]
+
+    default_campaign_id = _default_active_campaign_id()
+    if default_campaign_id is not None and default_campaign_id in campaign_by_id:
+        if update_session:
+            session[REPORT_CAMPAIGN_SESSION_KEY] = default_campaign_id
+        return campaign_by_id[default_campaign_id]
+
+    if campaigns:
+        if update_session:
+            session[REPORT_CAMPAIGN_SESSION_KEY] = campaigns[0].id
+        return campaigns[0]
+
+    if update_session:
+        session.pop(REPORT_CAMPAIGN_SESSION_KEY, None)
     return None
 
 

@@ -40,7 +40,7 @@
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.person_') %} active{% endif %}" href="{{ url_for('main.person_list') }}">People</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.campaign_') %} active{% endif %}" href="{{ url_for('main.campaign_list') }}">Campaigns</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.solicitation_') %} active{% endif %}" href="{{ url_for('main.solicitation_list') }}">Solicitations</a></li>
-                <li class="nav-item"><span class="nav-link disabled">Reports</span></li>
+                <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.report_') %} active{% endif %}" href="{{ url_for('main.report_list') }}">Reports</a></li>
                 <li class="nav-item"><a class="nav-link{% if request.endpoint and request.endpoint.startswith('main.letter_') %} active{% endif %}" href="{{ url_for('main.letter_list') }}">Letters</a></li>
             </ul>
             <div class="d-flex pb-2 pb-lg-0">
