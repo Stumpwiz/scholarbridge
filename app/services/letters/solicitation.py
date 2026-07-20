@@ -7,7 +7,7 @@ from app.services.letters.types import LetterTemplate
 
 _SIGNATURE_WIDTH_CM = 2.5
 _SIGNATURE_HEIGHT_CM = 2.5 * (131 / 756)  # preserve aspect ratio: ~0.43 cm
-_SIGNATURE_RELATIVE_PATH = Path("docs") / "private" / "img" / "claireSingleSig.jpg"
+_SIGNATURE_RELATIVE_PATH = Path("docs") / "private" / "img" / "ellenBreshSig.jpg"
 
 
 def build_solicitation_render_plan(context: dict, *, signature_image_path: Path | None = None) -> DocxRenderPlan:

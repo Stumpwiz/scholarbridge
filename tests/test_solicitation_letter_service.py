@@ -14,7 +14,7 @@ from app.services.docx_template_service import (
 )
 from app.services.letters.types import LetterTemplate
 from app.services.formatters import normalize_phone
-from app.services.letters.solicitation import build_solicitation_render_plan
+from app.services.letters.solicitation import _SIGNATURE_RELATIVE_PATH, build_solicitation_render_plan
 
 
 class SolicitationLetterServiceTests(unittest.TestCase):
@@ -228,6 +228,12 @@ class SolicitationLetterServiceTests(unittest.TestCase):
             render_pdf_bytes.call_args.kwargs["template_path"],
         )
 
+    def test_solicitation_signature_path_uses_ellen_bresh_sig(self):
+        self.assertEqual(
+            Path("docs") / "private" / "img" / "ellenBreshSig.jpg",
+            _SIGNATURE_RELATIVE_PATH,
+        )
+
 
 class ImageInsertionTests(unittest.TestCase):
     """Tests for the signature image insertion pipeline."""
@@ -259,11 +265,11 @@ class ImageInsertionTests(unittest.TestCase):
         """Signature image paragraph appears after 'Sincerely,' in rendered DOCX."""
         from app.services.docx_template_service import DocxRenderPlan, DocxTemplateService, ImageInsertion
 
-        sig_jpg = (
+        sig_image = (
             Path(__file__).resolve().parents[1]
-            / "docs" / "private" / "img" / "claireSingleSig.jpg"
+            / "docs" / "private" / "img" / "ellenBreshSig.jpg"
         )
-        if not sig_jpg.exists():
+        if not sig_image.exists():
             self.skipTest("Signature image not present")
 
         with tempfile.TemporaryDirectory(prefix="sb_img_test_") as tmp:
@@ -276,7 +282,7 @@ class ImageInsertionTests(unittest.TestCase):
                 image_insertions=(
                     ImageInsertion(
                         after_text="Sincerely,",
-                        image_path=sig_jpg,
+                        image_path=sig_image,
                         width_cm=5.0,
                         height_cm=0.87,
                     ),
@@ -293,11 +299,11 @@ class ImageInsertionTests(unittest.TestCase):
 
         # Signature image file embedded in media
         self.assertTrue(
-            any("claireSingleSig" in m for m in media_files),
+            any("ellenBreshSig.jpg" in m for m in media_files),
             f"Signature not found in media: {media_files}",
         )
         # Relationship entry added
-        self.assertIn("claireSingleSig", rels_xml)
+        self.assertIn("ellenBreshSig.jpg", rels_xml)
         # Drawing element present in document XML
         self.assertIn("w:drawing", doc_xml)
         # Image appears after Sincerely
@@ -339,7 +345,7 @@ class ImageInsertionTests(unittest.TestCase):
             "dear_line": "Ms. Smith",
             "cc_line": "cc: Morgan Reed",
         }
-        fake_path = Path("/tmp/claireSingleSig.jpg")
+        fake_path = Path("/tmp/ellenBreshSig.jpg")
         plan = build_solicitation_render_plan(context, signature_image_path=fake_path)
         self.assertEqual(len(plan.image_insertions), 1)
         insertion = plan.image_insertions[0]

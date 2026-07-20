@@ -46,11 +46,11 @@
 \setlength{\tabcolsep}{3pt}
 \begin{longtable}{>{\raggedright\arraybackslash}p{2.15in} l c r r r}
 \toprule
-\textbf{Partner} & \textbf{Status} & \textbf{Status Date} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
+\textbf{Partner} & \textbf{Status} & \textbf{As Of} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
 \midrule
 \endfirsthead
 \toprule
-\textbf{Partner} & \textbf{Status} & \textbf{Status Date} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
+\textbf{Partner} & \textbf{Status} & \textbf{As Of} & \textbf{Requested} & \textbf{Pledged} & \textbf{Contributed} \\
 \midrule
 \endhead
 \bottomrule
@@ -58,11 +58,16 @@
 {% for row in rows|sort(attribute="partner_display_name") %}
 {{ row.partner_display_name|latex }} &
 {{ row.status|latex }} &
-{% if row.status_date %}{{ row.status_date|latex }}{% else %}--{% endif %} &
+{% if row.status_date_display %}{{ row.status_date_display|latex }}{% else %}--{% endif %} &
 {{ row.amount_requested|money }} &
 {{ row.amount_pledged|money }} &
 {{ row.amount_received|money }} \\
 {% endfor %}
+\midrule
+\textbf{Totals} & & &
+{{ total_requested|money }} &
+{{ total_pledged|money }} &
+{{ total_contributed|money }} \\
 \end{longtable}
 }
 
