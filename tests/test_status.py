@@ -6,6 +6,7 @@ from app.main.status import (
     partner_readiness_summary,
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
+    solicitation_is_ready,
 )
 
 _MISSING = object()
@@ -106,9 +107,27 @@ class StatusHelperTests(unittest.TestCase):
         )
         self.assertTrue(solicitation_is_incomplete(_solicitation(mrpoc=mrpoc)))
 
-    def test_solicitation_without_business_volume_is_incomplete(self):
-        self.assertTrue(solicitation_is_incomplete(_solicitation(business_volume=None)))
-        self.assertTrue(solicitation_is_incomplete(_solicitation(business_volume="   ")))
+    def test_solicitation_zero_business_volume_is_not_incomplete(self):
+        self.assertFalse(solicitation_is_incomplete(_solicitation(business_volume=0)))
+        self.assertTrue(solicitation_is_letter_ready(_solicitation(business_volume=0)))
+
+    def test_solicitation_missing_business_volume_is_not_incomplete(self):
+        self.assertFalse(solicitation_is_incomplete(_solicitation(business_volume=None)))
+        self.assertFalse(solicitation_is_incomplete(_solicitation(business_volume="   ")))
+        self.assertTrue(solicitation_is_letter_ready(_solicitation(business_volume=None)))
+
+    def test_solicitation_readiness_ignores_business_volume(self):
+        self.assertTrue(solicitation_is_ready(_solicitation(business_volume=0)))
+        self.assertTrue(solicitation_is_ready(_solicitation(business_volume=None)))
+
+    def test_solicitation_readiness_still_requires_partner_and_amount_requested(self):
+        incomplete_partner = _partner(partner_type=None)
+        self.assertFalse(
+            solicitation_is_ready(_solicitation(partner=incomplete_partner, business_volume=0))
+        )
+        self.assertFalse(
+            solicitation_is_ready(_solicitation(amount_requested=None, business_volume=0))
+        )
 
     def test_solicitation_with_missing_amount_requested_is_not_letter_ready(self):
         self.assertFalse(solicitation_is_letter_ready(_solicitation(amount_requested=None)))

@@ -138,7 +138,7 @@ def campaign_stats() -> dict:
         select(func.count()).select_from(Solicitation)
     ) or 0
 
-    # Not-Ready solicitations: partner not ready, or missing business_volume/amount_requested
+    # Not-Ready solicitations: partner not ready, or missing amount_requested
     from app.main.status import solicitation_is_ready  # noqa: PLC0415 (avoid circular import)
     all_solicitations = db.session.scalars(
         select(Solicitation).options(

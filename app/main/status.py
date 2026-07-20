@@ -85,18 +85,15 @@ def solicitation_is_incomplete(solicitation: Any) -> bool:
     if not _person_has_required_letter_fields(getattr(solicitation, "mrpoc", None)):
         return True
 
-    return _is_missing(getattr(solicitation, "business_volume", None))
+    return False
 
 
 def solicitation_is_ready(solicitation: Any) -> bool:
-    """Operational readiness for statistics: partner ready + business_volume + amount_requested."""
+    """Operational readiness for statistics: partner ready + amount_requested."""
     if solicitation is None:
         return False
 
     if partner_is_incomplete(getattr(solicitation, "partner", None)):
-        return False
-
-    if _is_missing(getattr(solicitation, "business_volume", None)):
         return False
 
     return not _is_missing(getattr(solicitation, "amount_requested", None))

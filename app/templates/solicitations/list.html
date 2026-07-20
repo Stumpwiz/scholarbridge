@@ -176,7 +176,7 @@
                             <span class="badge text-bg-success">Ready</span>
                         {% endif %}
                     </td>
-                    <td>${{ "%.2f"|format(solicitation.business_volume or 0) }}</td>
+                    <td>{% if solicitation.business_volume %}${{ "%.2f"|format(solicitation.business_volume) }}{% endif %}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_pledged or 0) }}</td>
                     <td>${{ "%.2f"|format(solicitation.amount_received or 0) }}</td>

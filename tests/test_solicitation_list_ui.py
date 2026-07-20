@@ -110,9 +110,10 @@ class SolicitationListUiTests(unittest.TestCase):
                 solicitor_person_id=solicitor_b.id,
                 mrpoc_person_id=mrpoc_b.id,
                 tranche=2,
-                business_volume=None,
+                business_volume=Decimal("0.00"),
                 amount_requested=400,
-                amount_pledged=0,
+                amount_pledged=125,
+                amount_received=25,
             )
             gamma_ready = Solicitation(
                 partner_id=gamma_ready_partner.id,
@@ -196,12 +197,12 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertIn("Incomplete Partner", beta_row)
         self.assertIn("text-bg-danger", beta_row)
 
-        # Delta: partner is complete (has partner_type), but business_volume is None → Incomplete Solicitation (yellow)
-        self.assertIn("table-warning", delta_row)
-        self.assertIn("Incomplete Solicitation", delta_row)
-        self.assertIn("text-bg-warning", delta_row)
+        # Delta: partner complete + zero business_volume + amount_requested → Ready (green)
+        self.assertNotIn("table-warning", delta_row)
+        self.assertIn("Ready", delta_row)
+        self.assertIn("text-bg-success", delta_row)
 
-        # Alpha: partner complete + business_volume + amount_requested → Ready (green)
+        # Alpha: partner complete + non-zero business_volume + amount_requested → Ready (green)
         self.assertNotIn("table-warning", alpha_row)
         self.assertIn("Ready", alpha_row)
         self.assertIn("text-bg-success", alpha_row)
@@ -214,6 +215,8 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotIn("Not Contacted", html)
         self.assertIn("Pledged", html)
         self.assertIn("$750.00", alpha_row)
+        self.assertIn("$5000.00", alpha_row)
+        self.assertNotIn("$0.00", delta_row)
         self.assertIn("Amount Requested", html)
         self.assertIn("Amount Pledged", html)
         self.assertIn("Amount Received", html)
@@ -243,7 +246,7 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertNotIn("Alpha Ready", html)
         self.assertNotIn("Beta Incomplete", html)
 
-        self.assertTrue(html.find("Delta Incomplete") < html.find("Gamma Ready"))
+        self.assertTrue(html.find("Gamma Ready") < html.find("Delta Incomplete"))
 
     def test_solicitation_filters_show_all_without_filters(self):
         response = self.client.get("/solicitations")
