@@ -90,4 +90,7 @@ jobs:
           DEPLOY_SERVICE: scholarbridge.service
           DEPLOY_ENV_FILE: /etc/scholarbridge/scholarbridge.env
           DEPLOY_HEALTHCHECK_URL: http://127.0.0.1:8000/health
+          # Private runtime assets are not present in a Git checkout. The normal
+          # release sync preserves the copies already installed on the server.
+          DEPLOY_SYNC_RUNTIME_ASSETS: "false"
         run: bash scripts/deploy_via_ssh.sh

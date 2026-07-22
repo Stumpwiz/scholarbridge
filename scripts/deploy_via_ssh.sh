@@ -10,6 +10,15 @@ DEPLOY_APP_USER=${DEPLOY_APP_USER:-scholarbridge}
 DEPLOY_SERVICE=${DEPLOY_SERVICE:-scholarbridge.service}
 DEPLOY_ENV_FILE=${DEPLOY_ENV_FILE:-/etc/scholarbridge/scholarbridge.env}
 DEPLOY_HEALTHCHECK_URL=${DEPLOY_HEALTHCHECK_URL:-http://127.0.0.1:8000/health}
+DEPLOY_SYNC_RUNTIME_ASSETS=${DEPLOY_SYNC_RUNTIME_ASSETS:-true}
+
+case "${DEPLOY_SYNC_RUNTIME_ASSETS}" in
+  true|false) ;;
+  *)
+    echo "DEPLOY_SYNC_RUNTIME_ASSETS must be true or false" >&2
+    exit 1
+    ;;
+esac
 
 REMOTE="${DEPLOY_USER}@${DEPLOY_HOST}"
 SSH_OPTS=(-p "${DEPLOY_SSH_PORT}" -o BatchMode=yes -o StrictHostKeyChecking=yes)
@@ -22,29 +31,31 @@ if [[ ! -f "${EXCLUDE_FILE}" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${RUNTIME_ASSET_FILE}" ]]; then
-  echo "Missing ${RUNTIME_ASSET_FILE}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${RUNTIME_ASSET_LIB}" ]]; then
-  echo "Missing ${RUNTIME_ASSET_LIB}" >&2
-  exit 1
-fi
-
-source "${RUNTIME_ASSET_LIB}"
-NORMALIZED_RUNTIME_ASSET_FILE=$(mktemp)
-trap 'rm -f "${NORMALIZED_RUNTIME_ASSET_FILE}"' EXIT
-normalize_runtime_asset_manifest \
-  "${RUNTIME_ASSET_FILE}" \
-  "${NORMALIZED_RUNTIME_ASSET_FILE}"
-
-while IFS= read -r runtime_asset; do
-  if [[ ! -f "${runtime_asset}" ]]; then
-    echo "Missing required runtime asset: ${runtime_asset}" >&2
+if [[ "${DEPLOY_SYNC_RUNTIME_ASSETS}" == true ]]; then
+  if [[ ! -f "${RUNTIME_ASSET_FILE}" ]]; then
+    echo "Missing ${RUNTIME_ASSET_FILE}" >&2
     exit 1
   fi
-done < "${NORMALIZED_RUNTIME_ASSET_FILE}"
+
+  if [[ ! -f "${RUNTIME_ASSET_LIB}" ]]; then
+    echo "Missing ${RUNTIME_ASSET_LIB}" >&2
+    exit 1
+  fi
+
+  source "${RUNTIME_ASSET_LIB}"
+  NORMALIZED_RUNTIME_ASSET_FILE=$(mktemp)
+  trap 'rm -f "${NORMALIZED_RUNTIME_ASSET_FILE}"' EXIT
+  normalize_runtime_asset_manifest \
+    "${RUNTIME_ASSET_FILE}" \
+    "${NORMALIZED_RUNTIME_ASSET_FILE}"
+
+  while IFS= read -r runtime_asset; do
+    if [[ ! -f "${runtime_asset}" ]]; then
+      echo "Missing required runtime asset: ${runtime_asset}" >&2
+      exit 1
+    fi
+  done < "${NORMALIZED_RUNTIME_ASSET_FILE}"
+fi
 
 rsync -az --delete \
   --exclude-from="${EXCLUDE_FILE}" \
@@ -53,10 +64,12 @@ rsync -az --delete \
 
 # Private runtime assets are ignored by Git and excluded from the release sync.
 # Copy only the explicitly reviewed files, retaining their application paths.
-rsync -az --relative \
-  --files-from="${NORMALIZED_RUNTIME_ASSET_FILE}" \
-  -e "ssh ${SSH_OPTS[*]}" \
-  ./ "${REMOTE}:${DEPLOY_STAGING_PATH}/"
+if [[ "${DEPLOY_SYNC_RUNTIME_ASSETS}" == true ]]; then
+  rsync -az --relative \
+    --files-from="${NORMALIZED_RUNTIME_ASSET_FILE}" \
+    -e "ssh ${SSH_OPTS[*]}" \
+    ./ "${REMOTE}:${DEPLOY_STAGING_PATH}/"
+fi
 
 ssh "${SSH_OPTS[@]}" "${REMOTE}" \
   DEPLOY_PATH="${DEPLOY_PATH}" \
@@ -65,6 +78,7 @@ ssh "${SSH_OPTS[@]}" "${REMOTE}" \
   DEPLOY_SERVICE="${DEPLOY_SERVICE}" \
   DEPLOY_ENV_FILE="${DEPLOY_ENV_FILE}" \
   DEPLOY_HEALTHCHECK_URL="${DEPLOY_HEALTHCHECK_URL}" \
+  DEPLOY_SYNC_RUNTIME_ASSETS="${DEPLOY_SYNC_RUNTIME_ASSETS}" \
   'bash -se' <<'REMOTE_SCRIPT'
 set -euo pipefail
 
@@ -74,6 +88,7 @@ DEPLOY_APP_USER=${DEPLOY_APP_USER:?}
 DEPLOY_SERVICE=${DEPLOY_SERVICE:?}
 DEPLOY_ENV_FILE=${DEPLOY_ENV_FILE:?}
 DEPLOY_HEALTHCHECK_URL=${DEPLOY_HEALTHCHECK_URL:?}
+DEPLOY_SYNC_RUNTIME_ASSETS=${DEPLOY_SYNC_RUNTIME_ASSETS:?}
 EXCLUDE_FILE="${DEPLOY_STAGING_PATH}/deploy/rsync-exclude.txt"
 RUNTIME_ASSET_FILE="${DEPLOY_STAGING_PATH}/deploy/runtime-assets.txt"
 RUNTIME_ASSET_LIB="${DEPLOY_STAGING_PATH}/deploy/runtime-assets-lib.sh"
@@ -83,29 +98,31 @@ if [[ ! -f "${EXCLUDE_FILE}" ]]; then
   exit 1
 fi
 
-if [[ ! -f "${RUNTIME_ASSET_FILE}" ]]; then
-  echo "Missing remote runtime asset manifest: ${RUNTIME_ASSET_FILE}" >&2
-  exit 1
-fi
-
-if [[ ! -f "${RUNTIME_ASSET_LIB}" ]]; then
-  echo "Missing remote runtime asset parser: ${RUNTIME_ASSET_LIB}" >&2
-  exit 1
-fi
-
-source "${RUNTIME_ASSET_LIB}"
-NORMALIZED_RUNTIME_ASSET_FILE=$(mktemp)
-trap 'rm -f "${NORMALIZED_RUNTIME_ASSET_FILE}"' EXIT
-normalize_runtime_asset_manifest \
-  "${RUNTIME_ASSET_FILE}" \
-  "${NORMALIZED_RUNTIME_ASSET_FILE}"
-
-while IFS= read -r runtime_asset; do
-  if [[ ! -f "${DEPLOY_STAGING_PATH}/${runtime_asset}" ]]; then
-    echo "Missing staged runtime asset: ${runtime_asset}" >&2
+if [[ "${DEPLOY_SYNC_RUNTIME_ASSETS}" == true ]]; then
+  if [[ ! -f "${RUNTIME_ASSET_FILE}" ]]; then
+    echo "Missing remote runtime asset manifest: ${RUNTIME_ASSET_FILE}" >&2
     exit 1
   fi
-done < "${NORMALIZED_RUNTIME_ASSET_FILE}"
+
+  if [[ ! -f "${RUNTIME_ASSET_LIB}" ]]; then
+    echo "Missing remote runtime asset parser: ${RUNTIME_ASSET_LIB}" >&2
+    exit 1
+  fi
+
+  source "${RUNTIME_ASSET_LIB}"
+  NORMALIZED_RUNTIME_ASSET_FILE=$(mktemp)
+  trap 'rm -f "${NORMALIZED_RUNTIME_ASSET_FILE}"' EXIT
+  normalize_runtime_asset_manifest \
+    "${RUNTIME_ASSET_FILE}" \
+    "${NORMALIZED_RUNTIME_ASSET_FILE}"
+
+  while IFS= read -r runtime_asset; do
+    if [[ ! -f "${DEPLOY_STAGING_PATH}/${runtime_asset}" ]]; then
+      echo "Missing staged runtime asset: ${runtime_asset}" >&2
+      exit 1
+    fi
+  done < "${NORMALIZED_RUNTIME_ASSET_FILE}"
+fi
 
 sudo mkdir -p "${DEPLOY_PATH}"
 
@@ -114,10 +131,12 @@ sudo rsync -az --delete \
   --exclude-from="${EXCLUDE_FILE}" \
   "${DEPLOY_STAGING_PATH}/" "${DEPLOY_PATH}/"
 
-sudo rsync -az --relative \
-  --chown="${DEPLOY_APP_USER}:www-data" \
-  --files-from="${NORMALIZED_RUNTIME_ASSET_FILE}" \
-  "${DEPLOY_STAGING_PATH}/" "${DEPLOY_PATH}/"
+if [[ "${DEPLOY_SYNC_RUNTIME_ASSETS}" == true ]]; then
+  sudo rsync -az --relative \
+    --chown="${DEPLOY_APP_USER}:www-data" \
+    --files-from="${NORMALIZED_RUNTIME_ASSET_FILE}" \
+    "${DEPLOY_STAGING_PATH}/" "${DEPLOY_PATH}/"
+fi
 
 sudo -u "${DEPLOY_APP_USER}" /bin/bash -lc '
   set -euo pipefail
