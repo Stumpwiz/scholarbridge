@@ -48,7 +48,9 @@ jobs:
         run: uv run flask db upgrade
 
       - name: Run tests
-        run: uv run pytest -q
+        run: |
+          uv run pytest -q
+          bash tests/test_runtime_asset_manifest.sh
 
   deploy:
     name: Deploy To Production
