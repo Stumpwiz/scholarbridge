@@ -1,0 +1,9 @@
+# Runtime assets required by the production application.
+#
+# These files are intentionally excluded from Git.
+# deploy_via_ssh.sh synchronizes only the assets listed here.
+#
+# Add new runtime templates or images to this file
+# whenever the application begins depending on them.
+docs/private/img/ellenBreshSig.jpg
+docs/private/letter_templates/solicitation.docx

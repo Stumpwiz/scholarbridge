@@ -94,11 +94,6 @@ sudo rsync -az --delete \
   --exclude-from="${EXCLUDE_FILE}" \
   "${DEPLOY_STAGING_PATH}/" "${DEPLOY_PATH}/"
 
-sudo rsync -az --relative \
-  --chown="${DEPLOY_APP_USER}:www-data" \
-  --files-from="${RUNTIME_ASSET_FILE}" \
-  "${DEPLOY_STAGING_PATH}/" "${DEPLOY_PATH}/"
-
 sudo -u "${DEPLOY_APP_USER}" /bin/bash -lc '
   set -euo pipefail
   export PATH="$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
