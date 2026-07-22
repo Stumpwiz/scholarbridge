@@ -9,6 +9,7 @@ from app.db_safety import assert_testing_uses_isolated_database
 from app.extensions import db, login_manager, migrate
 from app.main.solicitation_status import solicitation_status_label
 from app.models import User
+from app.services.formatters import eastern_datetime
 
 
 def create_app(config_class: type[Config] = Config) -> Flask:
@@ -36,6 +37,7 @@ def create_app(config_class: type[Config] = Config) -> Flask:
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
     login_manager.login_message_category = "warning"
+    app.add_template_filter(eastern_datetime)
 
     @login_manager.user_loader
     def load_user(user_id: str):

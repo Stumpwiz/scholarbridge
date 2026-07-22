@@ -1,5 +1,7 @@
 import tempfile
 import unittest
+from datetime import UTC, datetime
+from os import utime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -416,6 +418,22 @@ class LettersQueueTests(unittest.TestCase):
             f"/letters/generated/solicitation/{self.ready_id}.pdf",
             html,
         )
+
+    def test_generated_letter_timestamp_is_displayed_in_eastern_time(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-time")
+        generated_at = datetime(2026, 7, 23, 18, 15, tzinfo=UTC)
+        utime(output_path, (generated_at.timestamp(), generated_at.timestamp()))
+
+        response = self.client.get("/letters")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "2026-07-23 02:15:00 PM EDT",
+            response.get_data(as_text=True),
+        )
+        response.close()
 
     def test_generated_letter_view_endpoint_serves_saved_pdf(self):
         output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"

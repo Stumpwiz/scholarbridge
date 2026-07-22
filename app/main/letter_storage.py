@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 
 from flask import current_app
@@ -71,7 +71,7 @@ def list_generated_solicitation_letter_files() -> list[GeneratedSolicitationLett
         if not match:
             continue
         solicitation_id = int(match.group(1))
-        generated_at = datetime.fromtimestamp(path.stat().st_mtime)
+        generated_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
         files.append(
             GeneratedSolicitationLetterFile(
                 solicitation_id=solicitation_id,
@@ -107,7 +107,7 @@ def list_generated_mailing_list_files() -> list[GeneratedMailingListFile]:
             continue
         if not MAILING_LIST_PATTERN.match(path.name):
             continue
-        created_at = datetime.fromtimestamp(path.stat().st_mtime)
+        created_at = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC)
         files.append(
             GeneratedMailingListFile(
                 filename=path.name,

@@ -141,7 +141,7 @@
                 <tr>
                     <td>{{ letter.filename }}</td>
                     <td>{{ letter.partner_name }}</td>
-                    <td>{{ letter.generated_at.strftime("%Y-%m-%d %I:%M:%S %p") }}</td>
+                    <td>{{ letter.generated_at|eastern_datetime }}</td>
                     <td class="text-nowrap">
                         <a
                             class="btn btn-outline-primary btn-sm"
@@ -182,7 +182,7 @@
             {% for mailing_list in generated_mailing_lists %}
                 <tr>
                     <td>{{ mailing_list.filename }}</td>
-                    <td>{{ mailing_list.created_at.strftime("%Y-%m-%d %I:%M:%S %p") }}</td>
+                    <td>{{ mailing_list.created_at|eastern_datetime }}</td>
                     <td class="text-nowrap">
                         <a
                             class="btn btn-outline-primary btn-sm"
