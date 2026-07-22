@@ -13,9 +13,18 @@ from jinja2 import Environment, FileSystemLoader
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = REPO_ROOT / "app" / "reports" / "templates"
-OUTPUT_DIR = REPO_ROOT / "docs" / "report_proofs" / "campaign_by_partner"
-TEMPLATE_NAME = "campaign_by_partner.tex.j2"
-OUTPUT_BASENAME = "campaign_by_partner_proof"
+PROOF_CONFIGS = {
+    "partner": (
+        "campaign_by_partner.tex.j2",
+        REPO_ROOT / "docs" / "report_proofs" / "campaign_by_partner",
+        "campaign_by_partner_proof",
+    ),
+    "participation": (
+        "campaign_by_participation.tex.j2",
+        REPO_ROOT / "docs" / "report_proofs" / "campaign_by_participation",
+        "campaign_by_participation_proof",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -98,14 +107,24 @@ def mock_rows() -> list[ReportRow]:
     ]
 
 
-def render_template() -> Path:
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+def render_template(report_name: str) -> Path:
+    template_name, output_dir, output_basename = PROOF_CONFIGS[report_name]
+    output_dir.mkdir(parents=True, exist_ok=True)
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=False)
     env.filters["latex"] = latex_escape
     env.filters["money"] = money
 
     rows = mock_rows()
-    template = env.get_template(TEMPLATE_NAME)
+    if report_name == "participation":
+        rows.sort(
+            key=lambda row: (
+                -(row.amount_received or Decimal("0")),
+                row.partner_display_name.casefold(),
+            )
+        )
+    else:
+        rows.sort(key=lambda row: row.partner_display_name.casefold())
+    template = env.get_template(template_name)
     rendered = template.render(
         campaign=Campaign(campaign_year=2026),
         generated_date=date(2026, 7, 18).strftime("%B %-d, %Y"),
@@ -115,18 +134,19 @@ def render_template() -> Path:
         total_contributed=total_money(rows, "amount_received"),
     )
 
-    tex_path = OUTPUT_DIR / f"{OUTPUT_BASENAME}.tex"
+    tex_path = output_dir / f"{output_basename}.tex"
     tex_path.write_text(rendered, encoding="utf-8")
     return tex_path
 
 
 def run_xelatex(tex_path: Path, passes: int = 2) -> None:
+    output_dir = tex_path.parent
     command = [
         "xelatex",
         "-interaction=nonstopmode",
         "-halt-on-error",
         "-output-directory",
-        str(OUTPUT_DIR),
+        str(output_dir),
         str(tex_path),
     ]
     for _ in range(passes):
@@ -135,7 +155,13 @@ def run_xelatex(tex_path: Path, passes: int = 2) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Render a developer-only PDF proof for campaign_by_partner.tex.j2."
+        description="Render developer-only PDF proofs for campaign reports."
+    )
+    parser.add_argument(
+        "--report",
+        choices=["partner", "participation", "both"],
+        default="both",
+        help="Select which campaign report proof to render (default: both).",
     )
     parser.add_argument(
         "--no-compile",
@@ -144,12 +170,14 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    tex_path = render_template()
-    if not args.no_compile:
-        run_xelatex(tex_path)
+    report_names = PROOF_CONFIGS if args.report == "both" else (args.report,)
+    for report_name in report_names:
+        tex_path = render_template(report_name)
+        if not args.no_compile:
+            run_xelatex(tex_path)
 
-    print(f"Rendered TeX: {tex_path}")
-    print(f"Proof PDF:    {OUTPUT_DIR / (OUTPUT_BASENAME + '.pdf')}")
+        print(f"Rendered TeX: {tex_path}")
+        print(f"Proof PDF:    {tex_path.with_suffix('.pdf')}")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,12 @@ from app import create_app
 from app.config import Config
 from app.extensions import db
 from app.models import Campaign, Partner, Person, Solicitation, User
-from app.reports.registry import get_report, list_reports
+from app.reports.registry import (
+    build_campaign_by_partner_context,
+    build_campaign_by_participation_context,
+    get_report,
+    list_reports,
+)
 from app.reports.report_service import report_pdf_path
 
 
@@ -91,16 +96,27 @@ class ReportsTests(unittest.TestCase):
         tex_path = Path(command[-1])
         pdf_path = output_dir / tex_path.with_suffix(".pdf").name
         pdf_path.write_bytes(b"%PDF-report")
+        self.rendered_tex = tex_path.read_text(encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
-    def test_report_registry_contains_campaign_by_partner(self):
+    def test_report_registry_contains_both_campaign_reports(self):
         reports = list_reports()
 
-        self.assertEqual([report.id for report in reports], ["campaign-by-partner"])
+        self.assertEqual(
+            [report.id for report in reports],
+            ["campaign-by-participation", "campaign-by-partner"],
+        )
         report = get_report("campaign-by-partner")
         self.assertIsNotNone(report)
         self.assertEqual(report.label, "Campaign by Partner")
         self.assertEqual(report.template_name, "campaign_by_partner.tex.j2")
+        participation_report = get_report("campaign-by-participation")
+        self.assertIsNotNone(participation_report)
+        self.assertEqual(participation_report.label, "Campaign by Participation")
+        self.assertEqual(
+            participation_report.template_name,
+            "campaign_by_participation.tex.j2",
+        )
 
     def test_reports_page_shows_campaign_selector_and_report_cards(self):
         response = self.client.get("/reports")
@@ -111,7 +127,8 @@ class ReportsTests(unittest.TestCase):
         self.assertIn("2026 Scholarship Campaign", html)
         self.assertIn("Generate Reports", html)
         self.assertIn("Available Reports", html)
-        self.assertIn("Campaign by Partner", html)
+        self.assertEqual(html.count("Campaign by Partner"), 2)
+        self.assertEqual(html.count("Campaign by Participation"), 2)
         self.assertIn("Generate", html)
         self.assertIn("View PDF", html)
         self.assertIn("No PDF generated for this campaign yet.", html)
@@ -152,6 +169,71 @@ class ReportsTests(unittest.TestCase):
             campaign = db.session.get(Campaign, self.campaign_2026_id)
             self.assertTrue(report_pdf_path(report, campaign).is_file())
 
+    def test_participation_report_generation_creates_separate_pdf_with_totals(self):
+        with patch(
+            "app.reports.report_service.subprocess.run",
+            side_effect=self._fake_xelatex,
+        ) as run:
+            response = self.client.post(
+                "/reports/campaign-by-participation/generate",
+                follow_redirects=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(run.call_count, 2)
+        html = response.get_data(as_text=True)
+        self.assertIn("Generated campaign_by_participation_2026.pdf.", html)
+        self.assertIn('href="/reports/campaign-by-participation/pdf"', html)
+        self.assertIn(r"\textbf{Totals}", self.rendered_tex)
+        self.assertIn(r"\$1,000", self.rendered_tex)
+        self.assertIn(r"\$750", self.rendered_tex)
+        self.assertIn(r"\$500", self.rendered_tex)
+
+        with self.app.app_context():
+            participation = get_report("campaign-by-participation")
+            partner = get_report("campaign-by-partner")
+            campaign = db.session.get(Campaign, self.campaign_2026_id)
+            participation_path = report_pdf_path(participation, campaign)
+            partner_path = report_pdf_path(partner, campaign)
+            self.assertTrue(participation_path.is_file())
+            self.assertNotEqual(participation_path, partner_path)
+
+    def test_campaign_contexts_share_totals_but_apply_different_ordering(self):
+        with self.app.app_context():
+            campaign = db.session.get(Campaign, self.campaign_2026_id)
+            solicitor = db.session.scalar(db.select(Person))
+            for name, received in (("Zulu Display", "500"), ("Beta Display", "900")):
+                partner = Partner(partner_name=name, display_name=name, partner_type="Other")
+                db.session.add(partner)
+                db.session.flush()
+                db.session.add(
+                    Solicitation(
+                        partner_id=partner.id,
+                        campaign_id=campaign.id,
+                        solicitor_person_id=solicitor.id,
+                        amount_requested=Decimal("100"),
+                        amount_pledged=Decimal("100"),
+                        amount_received=Decimal(received),
+                        status="donated",
+                    )
+                )
+            db.session.commit()
+
+            partner_context = build_campaign_by_partner_context(campaign)
+            participation_context = build_campaign_by_participation_context(campaign)
+
+        self.assertEqual(
+            [row.partner_display_name for row in partner_context["rows"]],
+            ["Alpha Display", "Beta Display", "Zulu Display"],
+        )
+        self.assertEqual(
+            [row.partner_display_name for row in participation_context["rows"]],
+            ["Beta Display", "Alpha Display", "Zulu Display"],
+        )
+        for total_name in ("total_requested", "total_pledged", "total_contributed"):
+            self.assertEqual(partner_context[total_name], participation_context[total_name])
+        self.assertEqual(participation_context["total_contributed"], Decimal("1900"))
+
     def test_report_pdf_route_serves_generated_pdf(self):
         with self.app.app_context():
             report = get_report("campaign-by-partner")
@@ -168,4 +250,3 @@ class ReportsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

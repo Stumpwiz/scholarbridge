@@ -3,14 +3,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
-from typing import Callable, Any
+from typing import Any, Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
 from app.main.solicitation_status import solicitation_status_label
-from app.models import Campaign, Partner, Solicitation
+from app.models import Campaign, Solicitation
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,11 @@ def _campaign_by_partner_filename(campaign: Campaign) -> str:
     return f"campaign_by_partner_{campaign.campaign_year}.pdf"
 
 
-def build_campaign_by_partner_context(campaign: Campaign) -> dict[str, Any]:
+def _campaign_by_participation_filename(campaign: Campaign) -> str:
+    return f"campaign_by_participation_{campaign.campaign_year}.pdf"
+
+
+def _campaign_rows(campaign: Campaign) -> list[CampaignByPartnerRow]:
     solicitations = db.session.scalars(
         select(Solicitation)
         .options(
@@ -56,13 +60,10 @@ def build_campaign_by_partner_context(campaign: Campaign) -> dict[str, Any]:
         )
         .join(Solicitation.partner)
         .where(Solicitation.campaign_id == campaign.id)
-        .order_by(
-            Partner.partner_name.asc(),
-            Solicitation.id.asc(),
-        )
+        .order_by(Solicitation.id.asc())
     ).all()
 
-    rows = [
+    return [
         CampaignByPartnerRow(
             partner_display_name=(
                 solicitation.partner.display_name
@@ -79,6 +80,11 @@ def build_campaign_by_partner_context(campaign: Campaign) -> dict[str, Any]:
         for solicitation in solicitations
     ]
 
+
+def _campaign_context(
+    campaign: Campaign,
+    rows: list[CampaignByPartnerRow],
+) -> dict[str, Any]:
     return {
         "campaign": campaign,
         "rows": rows,
@@ -86,6 +92,25 @@ def build_campaign_by_partner_context(campaign: Campaign) -> dict[str, Any]:
         "total_pledged": _total_money(rows, "amount_pledged"),
         "total_contributed": _total_money(rows, "amount_received"),
     }
+
+
+def build_campaign_by_partner_context(campaign: Campaign) -> dict[str, Any]:
+    rows = sorted(
+        _campaign_rows(campaign),
+        key=lambda row: row.partner_display_name.casefold(),
+    )
+    return _campaign_context(campaign, rows)
+
+
+def build_campaign_by_participation_context(campaign: Campaign) -> dict[str, Any]:
+    rows = sorted(
+        _campaign_rows(campaign),
+        key=lambda row: (
+            -(row.amount_received or Decimal("0")),
+            row.partner_display_name.casefold(),
+        ),
+    )
+    return _campaign_context(campaign, rows)
 
 
 def _total_money(rows: list[CampaignByPartnerRow], field_name: str) -> Decimal:
@@ -105,6 +130,15 @@ REPORT_REGISTRY: dict[str, ReportDefinition] = {
         build_context=build_campaign_by_partner_context,
         build_filename=_campaign_by_partner_filename,
     ),
+    "campaign-by-participation": ReportDefinition(
+        id="campaign-by-participation",
+        label="Campaign by Participation",
+        description="Campaign results ordered by contributions received.",
+        template_name="campaign_by_participation.tex.j2",
+        renderer_type="latex_pdf",
+        build_context=build_campaign_by_participation_context,
+        build_filename=_campaign_by_participation_filename,
+    ),
 }
 
 
@@ -114,4 +148,3 @@ def list_reports() -> list[ReportDefinition]:
 
 def get_report(report_id: str) -> ReportDefinition | None:
     return REPORT_REGISTRY.get(report_id)
-
