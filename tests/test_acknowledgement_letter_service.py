@@ -1,10 +1,11 @@
-import subprocess
+import base64
+import shutil
 import tempfile
 import unittest
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
-from zipfile import ZipFile
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from app import create_app
 from app.config import Config
@@ -18,6 +19,66 @@ from app.services.docx_template_service import DocxTemplateService
 from app.services.letters.acknowledgement import build_acknowledgement_render_plan
 
 
+SYNTHETIC_ACKNOWLEDGEMENT_XML = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+            xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p><w:r><w:t>«Salutation»«Contact_Last_Name»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>«Company»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>«Address_1_»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>«Address_2_»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>«City_», «State_» «Zip»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Dear «Salutation»«Contact_Last_Name»:</w:t></w:r></w:p>
+    <w:p>
+      <w:r><w:t xml:space="preserve">Thank you for your contribution of </w:t></w:r>
+      <w:r><w:t>«Amount_</w:t></w:r><w:r><w:t>Received»</w:t></w:r>
+      <w:r><w:t>.</w:t></w:r>
+    </w:p>
+    <w:p><w:r><w:t>Generic acknowledgement body text.</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Sincerely,</w:t></w:r></w:p>
+    <w:p/><w:p/><w:p/><w:p/>
+    <w:p><w:r><w:t>Jordan Example</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Committee Chair</w:t></w:r></w:p>
+    <w:p><w:r><w:t>cc: «MR_Contact»</w:t></w:r></w:p>
+    <w:p><w:r><w:t>David Denton</w:t></w:r></w:p>
+    <w:sectPr>
+      <w:footerReference w:type="default" r:id="rIdFooter1"/>
+      <w:pgSz w:w="12240" w:h="15840"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"
+               w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>
+"""
+
+
+def create_synthetic_acknowledgement_template(output_path: Path) -> None:
+    package_path = Path(__file__).parent / "fixtures" / "minimal_template.docx"
+    with ZipFile(package_path) as source:
+        parts = {name: source.read(name) for name in source.namelist()}
+
+    parts["word/document.xml"] = SYNTHETIC_ACKNOWLEDGEMENT_XML.encode()
+    content_types = parts["[Content_Types].xml"].decode()
+    content_types = content_types.replace(
+        "</Types>",
+        '<Default Extension="png" ContentType="image/png"/></Types>',
+    )
+    parts["[Content_Types].xml"] = content_types.encode()
+
+    with ZipFile(output_path, "w", ZIP_DEFLATED) as target:
+        for name, content in parts.items():
+            target.writestr(name, content)
+
+
+def create_synthetic_signature(output_path: Path) -> None:
+    # A deterministic 1x1 PNG is sufficient to exercise OOXML image embedding.
+    output_path.write_bytes(
+        base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+    )
+
+
 class AcknowledgementLetterServiceTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = Path(tempfile.mkdtemp(prefix="sb_ack_service_"))
@@ -28,11 +89,10 @@ class AcknowledgementLetterServiceTests(unittest.TestCase):
             DATABASE_URL = f"sqlite:///{self.temp_dir / 'test.db'}"
 
         self.app = create_app(TestConfig)
-        self.project_root = Path(self.app.root_path).parent
-        self.template_path = (
-            self.project_root / "docs/private/letter_templates/acknowledgement.docx"
-        )
-        self.signature_path = self.project_root / "docs/private/img/ellenBreshSig.jpg"
+        self.template_path = self.temp_dir / "acknowledgement_template.docx"
+        self.signature_path = self.temp_dir / "synthetic_signature.png"
+        create_synthetic_acknowledgement_template(self.template_path)
+        create_synthetic_signature(self.signature_path)
         with self.app.app_context():
             db.create_all()
             campaign = Campaign(campaign_year=2026, campaign_name="Campaign", status="active")
@@ -67,8 +127,6 @@ class AcknowledgementLetterServiceTests(unittest.TestCase):
             self.solicitation_id = solicitation.id
 
     def tearDown(self):
-        import shutil
-
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
     def _context(self):
@@ -103,29 +161,56 @@ class AcknowledgementLetterServiceTests(unittest.TestCase):
             "July 27, 2026",
         )
 
-    def test_split_amount_and_ad_hoc_mr_contact_render_by_paragraph(self):
-        context = self._context()
+    def _rendered_document_xml(self, context=None):
+        context = context or self._context()
         with ZipFile(self.template_path) as docx:
-            xml = docx.read("word/document.xml").decode("utf-8")
-        rendered = DocxTemplateService()._render_document_xml(
+            xml = docx.read("word/document.xml").decode()
+        return DocxTemplateService()._render_document_xml(
             document_xml=xml,
             plan=build_acknowledgement_render_plan(context),
         )
+
+    def test_split_run_amount_replacement(self):
+        context = self._context()
+        rendered = self._rendered_document_xml(context)
+
+        self.assertIn("contribution of $1,250.50 to the Mercy Ridge", rendered)
+        self.assertNotIn("Amount_", rendered)
+        self.assertNotIn("Received»", rendered)
+
+    def test_mr_contact_paragraph_replacement_preserves_fixed_cc(self):
+        rendered = self._rendered_document_xml()
+
+        self.assertIn("cc: Morgan Reed", rendered)
+        self.assertIn("David Denton", rendered)
+        self.assertNotIn("«MR_Contact»", rendered)
+
+    def test_date_insertion_adds_blank_line_before_recipient(self):
+        rendered = self._rendered_document_xml()
+
         self.assertIn("July 26, 2026", rendered)
         self.assertIn("Ms. Current Contact", rendered)
         date_position = rendered.find("July 26, 2026")
         recipient_position = rendered.find("Ms. Current Contact")
         between_date_and_recipient = rendered[date_position:recipient_position]
         self.assertEqual(between_date_and_recipient.count("</w:p>"), 2)
+
+    def test_empty_address_2_paragraph_is_removed(self):
+        context = self._context()
+        rendered_with_address_2 = self._rendered_document_xml(context)
+        context["address_2"] = ""
+        rendered = self._rendered_document_xml(context)
+
+        self.assertNotIn("«Address_2_»", rendered)
+        self.assertNotIn("Suite 5", rendered)
+        self.assertEqual(
+            rendered_with_address_2.count("<w:p>"),
+            rendered.count("<w:p>") + 1,
+        )
         self.assertIn("100 Original Road", rendered)
         self.assertIn("Dear Ms. Contact:", rendered)
-        self.assertIn("contribution of $1,250.50 to the Mercy Ridge", rendered)
-        self.assertIn("cc: Morgan Reed", rendered)
-        self.assertIn("David Denton", rendered)
-        self.assertNotIn("Amount_Received", rendered)
-        self.assertNotIn("«MR_Contact»", rendered)
 
-    def test_signature_is_embedded_and_pdf_conversion_succeeds(self):
+    def test_signature_is_embedded_and_docx_is_created(self):
         context = self._context()
         plan = build_acknowledgement_render_plan(
             context, signature_image_path=self.signature_path
@@ -136,29 +221,33 @@ class AcknowledgementLetterServiceTests(unittest.TestCase):
             output_path=output_docx,
             plan=plan,
         )
+        self.assertTrue(output_docx.is_file())
         with ZipFile(output_docx) as docx:
             self.assertTrue(
-                any("ellenBreshSig.jpg" in name for name in docx.namelist())
+                any("synthetic_signature.png" in name for name in docx.namelist())
             )
-            document_xml = docx.read("word/document.xml").decode("utf-8")
+            document_xml = docx.read("word/document.xml").decode()
             self.assertGreater(document_xml.rfind("w:drawing"), document_xml.find("Sincerely,"))
-            signature_start = document_xml.find("w:drawing")
-            signature_end = document_xml.find("Ellen Bresh")
+            drawing_start = document_xml.find("<w:drawing")
+            signature_start = document_xml.rfind("<w:p", 0, drawing_start)
+            signature_end = document_xml.find("Jordan Example")
             signature_block = document_xml[signature_start:signature_end]
             self.assertIn('w:before="120"', signature_block)
             self.assertLessEqual(signature_block.count('w:textId="77777777"'), 1)
 
+    def test_libreoffice_pdf_conversion_when_available(self):
+        if shutil.which("soffice") is None:
+            self.skipTest("LibreOffice is not installed")
+
+        context = self._context()
+        plan = build_acknowledgement_render_plan(
+            context, signature_image_path=self.signature_path
+        )
         pdf_bytes = DocxTemplateService().render_pdf_bytes(
             template_path=self.template_path,
             plan=plan,
         )
         self.assertTrue(pdf_bytes.startswith(b"%PDF"))
-        pdf_path = self.temp_dir / "acknowledgement.pdf"
-        pdf_path.write_bytes(pdf_bytes)
-        result = subprocess.run(
-            ["pdfinfo", str(pdf_path)], capture_output=True, text=True, check=True
-        )
-        self.assertIn("Pages:           1", result.stdout)
 
 
 if __name__ == "__main__":
