@@ -39,8 +39,8 @@ SYNTHETIC_ACKNOWLEDGEMENT_XML = """<?xml version="1.0" encoding="UTF-8" standalo
     <w:p/><w:p/><w:p/><w:p/>
     <w:p><w:r><w:t>Jordan Example</w:t></w:r></w:p>
     <w:p><w:r><w:t>Committee Chair</w:t></w:r></w:p>
-    <w:p><w:r><w:t>cc: «MR_Contact»</w:t></w:r></w:p>
-    <w:p><w:r><w:t>David Denton</w:t></w:r></w:p>
+    <w:p><w:r><w:t xml:space="preserve">cc: </w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>«MR_Contact»</w:t></w:r></w:p>
+    <w:p><w:r><w:tab/><w:t>David Denton</w:t></w:r></w:p>
     <w:sectPr>
       <w:footerReference w:type="default" r:id="rIdFooter1"/>
       <w:pgSz w:w="12240" w:h="15840"/>
@@ -181,7 +181,14 @@ class AcknowledgementLetterServiceTests(unittest.TestCase):
     def test_mr_contact_paragraph_replacement_preserves_fixed_cc(self):
         rendered = self._rendered_document_xml()
 
-        self.assertIn("cc: Morgan Reed", rendered)
+        cc_paragraph = next(
+            paragraph
+            for paragraph in rendered.split("</w:p>")
+            if "cc: " in paragraph
+        )
+        self.assertIn("cc: ", cc_paragraph)
+        self.assertIn("<w:tab/>", cc_paragraph)
+        self.assertLess(cc_paragraph.index("<w:tab/>"), cc_paragraph.index("Morgan Reed"))
         self.assertIn("David Denton", rendered)
         self.assertNotIn("«MR_Contact»", rendered)
 

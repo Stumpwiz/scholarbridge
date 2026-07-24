@@ -31,6 +31,7 @@ def build_acknowledgement_render_plan(
             "«Zip»": context["zip_code"],
             "«Contact_Last_Name»": context["contact_last_name"],
             "«Salutation»": "",
+            "«MR_Contact»": context["mr_contact"],
         },
         remove_paragraph_if_empty={"«Address_2_»": context["address_2"]},
         paragraph_text_rules=(
@@ -54,11 +55,6 @@ def build_acknowledgement_render_plan(
                     "to the Mercy Ridge Scholarship Fund."
                 ),
                 starts_with="Thank you for your contribution of",
-            ),
-            ParagraphTextRule(
-                replacement_text=context["cc_line"],
-                required_tokens=("MR_Contact",),
-                starts_with="cc:",
             ),
         ),
         paragraph_insertions=(
