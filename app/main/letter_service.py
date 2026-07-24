@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from datetime import datetime
 from decimal import Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from flask import current_app
 from sqlalchemy import select
@@ -16,6 +18,18 @@ from app.services.letters import get_letter_template
 
 class SolicitationLetterError(RuntimeError):
     """Raised when solicitation letter generation fails."""
+
+
+class AcknowledgementLetterError(RuntimeError):
+    """Raised when acknowledgement letter generation fails."""
+
+
+EASTERN_TIME = ZoneInfo("America/New_York")
+
+
+def acknowledgement_letter_date(now: datetime | None = None) -> str:
+    current = now.astimezone(EASTERN_TIME) if now is not None else datetime.now(EASTERN_TIME)
+    return f"{current.strftime('%B')} {current.day}, {current.year}"
 
 
 def build_solicitation_letter_context_for_solicitation(solicitation_id: int) -> dict:
@@ -37,6 +51,80 @@ def build_solicitation_letter_context_for_solicitation(solicitation_id: int) -> 
     partner = solicitation.partner
     contact = _pick_contact(partner.contacts)
     return _build_solicitation_letter_context(partner, contact, solicitation)
+
+
+def build_acknowledgement_letter_context_for_solicitation(
+    solicitation_id: int, *, now: datetime | None = None
+) -> dict:
+    solicitation = db.session.scalar(
+        select(Solicitation)
+        .options(
+            selectinload(Solicitation.partner).selectinload(Partner.contacts),
+            selectinload(Solicitation.mrpoc),
+        )
+        .where(Solicitation.id == solicitation_id)
+    )
+    if solicitation is None:
+        raise AcknowledgementLetterError("Solicitation not found.")
+    if solicitation.partner is None:
+        raise AcknowledgementLetterError("Solicitation partner not found.")
+
+    missing = acknowledgement_missing_fields(solicitation)
+    if missing:
+        raise AcknowledgementLetterError(
+            "Missing required acknowledgement data: " + ", ".join(missing) + "."
+        )
+
+    partner = solicitation.partner
+    contact = _pick_contact(partner.contacts)
+    salutation = clean(contact.title)
+    first_name = clean(contact.first_name)
+    last_name = clean(contact.last_name)
+    city = clean(partner.city)
+    state = clean(partner.state)
+    zip_code = clean(partner.postal_code)
+    return {
+        "letter_date": acknowledgement_letter_date(now),
+        "contact_last_name": last_name,
+        "recipient_line": " ".join(
+            part for part in (salutation, first_name, last_name) if part
+        ),
+        "company": clean(partner.partner_name),
+        "address_1": clean(partner.address_1),
+        "address_2": clean(partner.address_2),
+        "city": city,
+        "state": state,
+        "zip_code": zip_code,
+        "city_state_zip": f"{city}, {state} {zip_code}",
+        "dear_line": " ".join(part for part in (salutation, last_name) if part),
+        "amount_received": _format_currency(solicitation.amount_received),
+        "mr_contact": _person_name(solicitation.mrpoc),
+        "cc_line": f"cc: {_person_name(solicitation.mrpoc)}",
+    }
+
+
+def acknowledgement_missing_fields(solicitation: Solicitation) -> list[str]:
+    partner = solicitation.partner
+    if partner is None:
+        return ["partner"]
+    contact = _pick_contact(partner.contacts)
+    required = (
+        ("partner name", partner.partner_name),
+        ("address line 1", partner.address_1),
+        ("city", partner.city),
+        ("state", partner.state),
+        ("postal code", partner.postal_code),
+        ("contact", contact),
+        ("contact title", contact.title if contact else None),
+        ("contact first name", contact.first_name if contact else None),
+        ("contact last name", contact.last_name if contact else None),
+        ("MR contact", solicitation.mrpoc),
+        ("MR contact name", _person_name(solicitation.mrpoc)),
+    )
+    missing = [label for label, value in required if not clean(value)]
+    if solicitation.amount_received is None or solicitation.amount_received <= 0:
+        missing.append("amount received greater than zero")
+    return missing
 
 
 def _build_solicitation_letter_context(
@@ -117,6 +205,28 @@ def generate_solicitation_pdf_bytes(context: dict) -> bytes:
         return renderer.render_pdf_bytes(template_path=template_path, plan=render_plan)
     except DocxTemplateError as exc:
         raise SolicitationLetterError(str(exc)) from exc
+
+
+def generate_acknowledgement_pdf_bytes(context: dict) -> bytes:
+    from app.services.letters.acknowledgement import (
+        _SIGNATURE_RELATIVE_PATH,
+        build_acknowledgement_render_plan,
+    )
+
+    letter_template = get_letter_template("acknowledgement")
+    template_path = letter_template.resolve_template_path(app_root_path=current_app.root_path)
+    signature_path = Path(current_app.root_path).parent / _SIGNATURE_RELATIVE_PATH
+    if not signature_path.exists():
+        raise AcknowledgementLetterError("Acknowledgement signature image not found.")
+    render_plan = build_acknowledgement_render_plan(
+        context, signature_image_path=signature_path
+    )
+    try:
+        return DocxTemplateService().render_pdf_bytes(
+            template_path=template_path, plan=render_plan
+        )
+    except DocxTemplateError as exc:
+        raise AcknowledgementLetterError(str(exc)) from exc
 
 
 def build_solicitation_mailing_list_text(solicitations: list[Solicitation]) -> str:

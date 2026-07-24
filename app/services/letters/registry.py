@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from app.services.letters.acknowledgement import ACKNOWLEDGEMENT_LETTER
 from app.services.letters.solicitation import SOLICITATION_LETTER
 from app.services.letters.types import LetterTemplate
 
 
 LETTER_TYPES: dict[str, LetterTemplate] = {
+    ACKNOWLEDGEMENT_LETTER.key: ACKNOWLEDGEMENT_LETTER,
     SOLICITATION_LETTER.key: SOLICITATION_LETTER,
 }
 

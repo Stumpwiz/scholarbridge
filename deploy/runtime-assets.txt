@@ -6,4 +6,5 @@
 # Add new runtime templates or images to this file
 # whenever the application begins depending on them.
 docs/private/img/ellenBreshSig.jpg
+docs/private/letter_templates/acknowledgement.docx
 docs/private/letter_templates/solicitation.docx

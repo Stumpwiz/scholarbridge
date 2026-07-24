@@ -19,15 +19,22 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.permissions import editor_required
 from app.main.letter_service import (
+    AcknowledgementLetterError,
     SolicitationLetterError,
+    acknowledgement_missing_fields,
+    build_acknowledgement_letter_context_for_solicitation,
     build_solicitation_mailing_list_text,
     build_solicitation_letter_context_for_solicitation,
+    generate_acknowledgement_pdf_bytes,
     generate_solicitation_pdf_bytes,
 )
 from app.main.letter_storage import (
+    acknowledgement_letter_path,
+    list_generated_acknowledgement_letter_files,
     list_generated_mailing_list_files,
     list_generated_solicitation_letter_files,
     mailing_list_path_for_filename,
+    save_acknowledgement_letter_pdf,
     save_generated_mailing_list,
     save_solicitation_letter_pdf,
     solicitation_letter_path,
@@ -150,12 +157,27 @@ def letter_list():
         for solicitation in solicitations
         if SolicitationWorkflowService.can_edit_solicitation_letter(solicitation)
     }
+    acknowledgement_eligible_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if canonical_solicitation_status(solicitation.status) == "gift_received"
+        and not acknowledgement_missing_fields(solicitation)
+    }
+    acknowledgement_missing_by_solicitation_id = {
+        solicitation.id: acknowledgement_missing_fields(solicitation)
+        for solicitation in solicitations
+        if canonical_solicitation_status(solicitation.status) == "gift_received"
+        and acknowledgement_missing_fields(solicitation)
+    }
     solicitations = sorted(
         solicitations,
         key=lambda solicitation: solicitation.id not in incomplete_solicitation_ids,
     )
 
     generated_solicitation_letters = _generated_solicitation_letter_rows(
+        selected_solicitor_id=selected_solicitor_id
+    )
+    generated_acknowledgement_letters = _generated_acknowledgement_letter_rows(
         selected_solicitor_id=selected_solicitor_id
     )
     generated_mailing_lists = _generated_mailing_list_rows()
@@ -167,7 +189,10 @@ def letter_list():
         incomplete_solicitation_ids=incomplete_solicitation_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         letter_editable_solicitation_ids=letter_editable_solicitation_ids,
+        acknowledgement_eligible_solicitation_ids=acknowledgement_eligible_solicitation_ids,
+        acknowledgement_missing_by_solicitation_id=acknowledgement_missing_by_solicitation_id,
         generated_solicitation_letters=generated_solicitation_letters,
+        generated_acknowledgement_letters=generated_acknowledgement_letters,
         generated_mailing_lists=generated_mailing_lists,
         solicitor_filter_people=solicitor_filter_people,
         selected_solicitor_id=selected_solicitor_id,
@@ -241,6 +266,71 @@ def letter_generated_solicitation_pdf(solicitation_id: int):
         flash("Generated solicitation letter not found.", "warning")
         return redirect(url_for("main.letter_list"))
 
+    return send_file(
+        output_path,
+        mimetype="application/pdf",
+        as_attachment=False,
+        download_name=output_path.name,
+    )
+
+
+@bp.get("/letters/acknowledgement.pdf")
+def letter_acknowledgement_pdf():
+    solicitation_id = _safe_int(request.args.get("solicitation_id"))
+    selected_solicitor_id = _safe_int(request.args.get("solicitor_id"))
+    if solicitation_id is None:
+        flash("Please select a solicitation to generate an acknowledgement.", "danger")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    solicitation = db.session.scalar(
+        select(Solicitation)
+        .options(
+            selectinload(Solicitation.partner).selectinload(Partner.contacts),
+            selectinload(Solicitation.mrpoc),
+        )
+        .where(Solicitation.id == solicitation_id)
+    )
+    if solicitation is None:
+        flash("Solicitation not found.", "danger")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+    if canonical_solicitation_status(solicitation.status) != "gift_received":
+        flash("Acknowledgements can be generated only for Gift Received solicitations.", "warning")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    missing = acknowledgement_missing_fields(solicitation)
+    if missing:
+        flash(
+            "Acknowledgement is incomplete. Add: " + ", ".join(missing) + ".",
+            "warning",
+        )
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    try:
+        context = build_acknowledgement_letter_context_for_solicitation(solicitation.id)
+        pdf_bytes = generate_acknowledgement_pdf_bytes(context)
+        output_path = save_acknowledgement_letter_pdf(solicitation.id, pdf_bytes)
+    except AcknowledgementLetterError as exc:
+        current_app.logger.exception("Acknowledgement generation failed: %s", exc)
+        flash("Unable to generate acknowledgement PDF. Check required data and assets.", "danger")
+        return redirect(url_for("main.letter_list", solicitor_id=selected_solicitor_id))
+
+    flash(f"Generated {output_path.name}.", "success")
+    return redirect(
+        url_for(
+            "main.letter_list",
+            solicitor_id=selected_solicitor_id
+            if selected_solicitor_id is not None
+            else solicitation.solicitor_person_id,
+        )
+    )
+
+
+@bp.get("/letters/generated/acknowledgement/<int:solicitation_id>.pdf")
+def letter_generated_acknowledgement_pdf(solicitation_id: int):
+    output_path = acknowledgement_letter_path(solicitation_id)
+    if not output_path.exists():
+        flash("Generated acknowledgement not found.", "warning")
+        return redirect(url_for("main.letter_list"))
     return send_file(
         output_path,
         mimetype="application/pdf",
@@ -1479,8 +1569,9 @@ def _letter_solicitation_options(
     query = (
         select(Solicitation)
         .options(
-            selectinload(Solicitation.partner),
+            selectinload(Solicitation.partner).selectinload(Partner.contacts),
             selectinload(Solicitation.solicitor),
+            selectinload(Solicitation.mrpoc),
             selectinload(Solicitation.campaign),
         )
         .join(Solicitation.partner)
@@ -1540,6 +1631,43 @@ def _generated_solicitation_letter_rows(selected_solicitor_id: int | None = None
             }
         )
 
+    return rows
+
+
+def _generated_acknowledgement_letter_rows(
+    selected_solicitor_id: int | None = None,
+) -> list[dict]:
+    generated_files = list_generated_acknowledgement_letter_files()
+    if not generated_files:
+        return []
+    solicitation_ids = [item.solicitation_id for item in generated_files]
+    query = (
+        select(Solicitation)
+        .options(selectinload(Solicitation.partner))
+        .where(Solicitation.id.in_(solicitation_ids))
+    )
+    if selected_solicitor_id is not None:
+        query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
+    solicitations = db.session.scalars(query).all()
+    solicitation_by_id = {item.id: item for item in solicitations}
+    rows = []
+    for generated_file in generated_files:
+        solicitation = solicitation_by_id.get(generated_file.solicitation_id)
+        if selected_solicitor_id is not None and solicitation is None:
+            continue
+        partner = solicitation.partner if solicitation is not None else None
+        rows.append(
+            {
+                "filename": generated_file.filename,
+                "solicitation_id": generated_file.solicitation_id,
+                "generated_at": generated_file.generated_at,
+                "partner_name": (
+                    (partner.display_name or partner.partner_name)
+                    if partner is not None
+                    else "—"
+                ),
+            }
+        )
     return rows
 
 

@@ -8,11 +8,20 @@ from pathlib import Path
 from flask import current_app
 
 SOLICITATION_LETTER_PATTERN = re.compile(r"^solicitation_(\d+)\.pdf$")
+ACKNOWLEDGEMENT_LETTER_PATTERN = re.compile(r"^acknowledgement_(\d+)\.pdf$")
 MAILING_LIST_PATTERN = re.compile(r"^mailing_list_\d{8}_\d{6}_\d{6}\.txt$")
 
 
 @dataclass(frozen=True)
 class GeneratedSolicitationLetterFile:
+    solicitation_id: int
+    filename: str
+    path: Path
+    generated_at: datetime
+
+
+@dataclass(frozen=True)
+class GeneratedAcknowledgementLetterFile:
     solicitation_id: int
     filename: str
     path: Path
@@ -46,6 +55,16 @@ def generated_mailing_lists_dir() -> Path:
     return directory
 
 
+def generated_acknowledgement_letters_dir() -> Path:
+    configured_path = current_app.config.get("GENERATED_LETTERS_DIR")
+    if configured_path:
+        directory = Path(str(configured_path)) / "acknowledgements"
+    else:
+        directory = Path(current_app.instance_path) / "generated_letters" / "acknowledgements"
+    directory.mkdir(parents=True, exist_ok=True)
+    return directory
+
+
 def solicitation_letter_filename(solicitation_id: int) -> str:
     return f"solicitation_{solicitation_id}.pdf"
 
@@ -56,6 +75,22 @@ def solicitation_letter_path(solicitation_id: int) -> Path:
 
 def save_solicitation_letter_pdf(solicitation_id: int, pdf_bytes: bytes) -> Path:
     output_path = solicitation_letter_path(solicitation_id)
+    output_path.write_bytes(pdf_bytes)
+    return output_path
+
+
+def acknowledgement_letter_filename(solicitation_id: int) -> str:
+    return f"acknowledgement_{solicitation_id}.pdf"
+
+
+def acknowledgement_letter_path(solicitation_id: int) -> Path:
+    return generated_acknowledgement_letters_dir() / acknowledgement_letter_filename(
+        solicitation_id
+    )
+
+
+def save_acknowledgement_letter_pdf(solicitation_id: int, pdf_bytes: bytes) -> Path:
+    output_path = acknowledgement_letter_path(solicitation_id)
     output_path.write_bytes(pdf_bytes)
     return output_path
 
@@ -81,6 +116,25 @@ def list_generated_solicitation_letter_files() -> list[GeneratedSolicitationLett
             )
         )
 
+    return sorted(files, key=lambda item: (item.generated_at, item.filename), reverse=True)
+
+
+def list_generated_acknowledgement_letter_files() -> list[GeneratedAcknowledgementLetterFile]:
+    files: list[GeneratedAcknowledgementLetterFile] = []
+    for path in generated_acknowledgement_letters_dir().glob("acknowledgement_*.pdf"):
+        if not path.is_file():
+            continue
+        match = ACKNOWLEDGEMENT_LETTER_PATTERN.match(path.name)
+        if not match:
+            continue
+        files.append(
+            GeneratedAcknowledgementLetterFile(
+                solicitation_id=int(match.group(1)),
+                filename=path.name,
+                path=path,
+                generated_at=datetime.fromtimestamp(path.stat().st_mtime, tz=UTC),
+            )
+        )
     return sorted(files, key=lambda item: (item.generated_at, item.filename), reverse=True)
 
 

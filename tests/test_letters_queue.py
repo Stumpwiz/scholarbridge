@@ -230,13 +230,21 @@ class LettersQueueTests(unittest.TestCase):
         self.assertIn('<span class="badge text-bg-warning">Incomplete</span>', html)
         self.assertIn('<span class="badge text-bg-success">Ready</span>', html)
 
+    def test_generated_correspondence_empty_states_are_preserved(self):
+        response = self.client.get("/letters")
+        html = response.get_data(as_text=True)
+
+        self.assertIn("No generated acknowledgement letters yet.", html)
+        self.assertIn("No generated solicitation letters yet.", html)
+        response.close()
+
     def test_letters_queue_action_availability_uses_readiness(self):
         response = self.client.get("/letters")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
 
         self.assertIn(f"/letters/solicitation.pdf?solicitation_id={self.ready_id}", html)
-        self.assertIn("Generate Letter", html)
+        self.assertIn("Generate Solicitation", html)
         self.assertIn(f"/solicitations/{self.incomplete_id}/edit", html)
         self.assertIn("View/Edit Solicitation", html)
 
@@ -290,7 +298,7 @@ class LettersQueueTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
 
-        self.assertIn("Letter Archived", row)
+        self.assertIn("Solicitation Archived", row)
         self.assertNotIn(
             f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
             row,
@@ -649,6 +657,108 @@ class LettersQueueTests(unittest.TestCase):
         self.assertEqual(delete_response.status_code, 302)
         self.assertIn("/letters", delete_response.headers.get("Location", ""))
         delete_response.close()
+
+    def test_acknowledgement_action_is_unavailable_before_gift_received(self):
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertNotIn("Generate Acknowledgement", row)
+        self.assertIn("Generate Solicitation", row)
+        response.close()
+
+    def test_donated_alias_enables_acknowledgement_and_archives_solicitation(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "donated"
+            solicitation.amount_received = 750
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertIn("Solicitation Archived", row)
+        self.assertIn("Generate Acknowledgement", row)
+        self.assertNotIn(">Generate Solicitation<", row)
+        response.close()
+
+    def test_missing_or_zero_amount_received_blocks_acknowledgement_cleanly(self):
+        for amount in (None, 0):
+            with self.app.app_context():
+                solicitation = db.session.get(Solicitation, self.ready_id)
+                solicitation.status = "donated"
+                solicitation.amount_received = amount
+                db.session.commit()
+
+            listing = self.client.get("/letters")
+            row = self._row_for_partner(listing.get_data(as_text=True), "Alpha Display")
+            self.assertIn("Acknowledgement Incomplete", row)
+            self.assertNotIn("Generate Acknowledgement", row)
+            listing.close()
+
+            generation = self.client.get(
+                f"/letters/acknowledgement.pdf?solicitation_id={self.ready_id}",
+                follow_redirects=True,
+            )
+            self.assertIn(
+                "amount received greater than zero",
+                generation.get_data(as_text=True),
+            )
+            generation.close()
+
+    def test_acknowledgement_generation_storage_access_and_regeneration(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "donated"
+            solicitation.amount_received = 750
+            db.session.commit()
+
+        url = f"/letters/acknowledgement.pdf?solicitation_id={self.ready_id}"
+        with patch(
+            "app.main.routes.generate_acknowledgement_pdf_bytes",
+            return_value=b"%PDF-ack-v1",
+        ):
+            first = self.client.get(url, follow_redirects=True)
+        self.assertIn(
+            f"Generated acknowledgement_{self.ready_id}.pdf.",
+            first.get_data(as_text=True),
+        )
+        first.close()
+
+        output_path = (
+            self._generated_dir
+            / "acknowledgements"
+            / f"acknowledgement_{self.ready_id}.pdf"
+        )
+        self.assertEqual(output_path.read_bytes(), b"%PDF-ack-v1")
+
+        with patch(
+            "app.main.routes.generate_acknowledgement_pdf_bytes",
+            return_value=b"%PDF-ack-v2",
+        ):
+            second = self.client.get(url)
+        self.assertEqual(second.status_code, 302)
+        second.close()
+        self.assertEqual(output_path.read_bytes(), b"%PDF-ack-v2")
+        self.assertEqual(
+            len(list(output_path.parent.glob("acknowledgement_*.pdf"))), 1
+        )
+
+        listing = self.client.get("/letters")
+        html = listing.get_data(as_text=True)
+        self.assertIn("Generated Acknowledgement Letters", html)
+        self.assertIn(f"acknowledgement_{self.ready_id}.pdf", html)
+        self.assertIn("Acknowledgement", html)
+        self.assertNotIn("Letter Type", html)
+        self.assertIn(
+            f"/letters/generated/acknowledgement/{self.ready_id}.pdf",
+            html,
+        )
+        listing.close()
+
+        served = self.client.get(
+            f"/letters/generated/acknowledgement/{self.ready_id}.pdf"
+        )
+        self.assertEqual(served.status_code, 200)
+        self.assertEqual(served.data, b"%PDF-ack-v2")
+        served.close()
 
 
 if __name__ == "__main__":

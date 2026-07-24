@@ -19,7 +19,7 @@ class DocxTemplateError(RuntimeError):
     """Raised when DOCX template rendering fails."""
 
 
-W_PARAGRAPH_RE = re.compile(r"<w:p\b[^>]*>.*?</w:p>", re.DOTALL)
+W_PARAGRAPH_RE = re.compile(r"<w:p\b(?![^>]*?/>)[^>]*>.*?</w:p>", re.DOTALL)
 W_TEXT_RE = re.compile(r"<w:t(\s[^>]*)?>(.*?)</w:t>", re.DOTALL)
 logger = logging.getLogger(__name__)
 
@@ -40,6 +40,15 @@ class ImageInsertion:
     image_path: Path
     width_cm: float
     height_cm: float
+    space_before_twips: int = 0
+    empty_paragraphs_after_to_remove: int = 0
+
+
+@dataclass(frozen=True)
+class ParagraphInsertion:
+    """Insert a text paragraph before the first paragraph matching `before_text`."""
+    before_text: str
+    text: str
 
 
 @dataclass(frozen=True)
@@ -50,6 +59,7 @@ class DocxRenderPlan:
     part_replacements: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     strip_highlight: bool = False
     image_insertions: tuple[ImageInsertion, ...] = ()
+    paragraph_insertions: tuple[ParagraphInsertion, ...] = ()
 
 
 class DocxTemplateService:
@@ -159,6 +169,9 @@ class DocxTemplateService:
                     xml,
                 )
 
+        for insertion in plan.paragraph_insertions:
+            xml = _insert_paragraph_before(xml, insertion)
+
         for rule in plan.paragraph_text_rules:
             xml = self._replace_paragraph_text_where(
                 xml,
@@ -234,6 +247,27 @@ def _clean(value: str | None) -> str:
     return str(value).strip()
 
 
+def _insert_paragraph_before(xml: str, insertion: ParagraphInsertion) -> str:
+    inserted = False
+
+    def insert(match):
+        nonlocal inserted
+        paragraph_xml = match.group(0)
+        if inserted or paragraph_text(paragraph_xml).strip() != insertion.before_text:
+            return paragraph_xml
+        inserted = True
+        opening_tag = paragraph_xml[: paragraph_xml.find(">") + 1]
+        paragraph_properties = re.search(r"<w:pPr\b[^>]*>.*?</w:pPr>", paragraph_xml, re.DOTALL)
+        properties_xml = paragraph_properties.group(0) if paragraph_properties else ""
+        value = escape(_clean(insertion.text))
+        new_paragraph = (
+            f"{opening_tag}{properties_xml}<w:r><w:t>{value}</w:t></w:r></w:p>"
+        )
+        return new_paragraph + paragraph_xml
+
+    return W_PARAGRAPH_RE.sub(insert, xml)
+
+
 def _allocate_image_rids(
     existing_rels_xml: str, insertions: tuple[ImageInsertion, ...]
 ) -> tuple[int, dict]:
@@ -269,7 +303,7 @@ def _insert_image_after_paragraph(xml: str, insertion: ImageInsertion, rid: str)
         ' xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
         ' xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"'
         ' xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
-        "<w:pPr><w:spacing w:after=\"0\"/></w:pPr>"
+        f'<w:pPr><w:spacing w:before="{insertion.space_before_twips}" w:after="0"/></w:pPr>'
         "<w:r><w:drawing>"
         "<wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\">"
         f"<wp:extent cx=\"{cx}\" cy=\"{cy}\"/>"
@@ -304,11 +338,18 @@ def _insert_image_after_paragraph(xml: str, insertion: ImageInsertion, rid: str)
     )
 
     inserted = False
+    empty_paragraphs_removed = 0
 
     def maybe_insert(match):
-        nonlocal inserted
+        nonlocal inserted, empty_paragraphs_removed
         para_xml = match.group(0)
         if inserted:
+            if (
+                empty_paragraphs_removed < insertion.empty_paragraphs_after_to_remove
+                and not paragraph_text(para_xml).strip()
+            ):
+                empty_paragraphs_removed += 1
+                return ""
             return para_xml
         text = paragraph_text(para_xml).strip()
         if text == insertion.after_text:
@@ -316,4 +357,13 @@ def _insert_image_after_paragraph(xml: str, insertion: ImageInsertion, rid: str)
             return para_xml + drawing_para
         return para_xml
 
-    return W_PARAGRAPH_RE.sub(maybe_insert, xml)
+    rendered = W_PARAGRAPH_RE.sub(maybe_insert, xml)
+    if inserted and empty_paragraphs_removed < insertion.empty_paragraphs_after_to_remove:
+        prefix, separator, suffix = rendered.partition(drawing_para)
+        while empty_paragraphs_removed < insertion.empty_paragraphs_after_to_remove:
+            suffix, removed = re.subn(r"^\s*<w:p\b[^>]*/>", "", suffix, count=1)
+            if not removed:
+                break
+            empty_paragraphs_removed += 1
+        rendered = prefix + separator + suffix
+    return rendered

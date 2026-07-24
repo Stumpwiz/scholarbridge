@@ -27,6 +27,9 @@ printf '%s\n' \
 normalize_runtime_asset_manifest "${source_manifest}" "${normalized_manifest}"
 cmp "${expected_manifest}" "${normalized_manifest}"
 
+grep -Fx 'docs/private/letter_templates/acknowledgement.docx' deploy/runtime-assets.txt
+[[ $(grep -Fxc 'docs/private/img/ellenBreshSig.jpg' deploy/runtime-assets.txt) -eq 1 ]]
+
 # A GitHub Actions-style code-only deployment must not require the ignored
 # manifest or private files to exist in its checkout.
 code_only_checkout="${test_dir}/code-only-checkout"

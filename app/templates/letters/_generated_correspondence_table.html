@@ -1,0 +1,48 @@
+{% macro generated_correspondence_table(title, letters, view_endpoint, empty_message) %}
+<div class="d-flex justify-content-between align-items-center mt-4 mb-3">
+    <h2 class="h5 mb-0">{{ title }}</h2>
+</div>
+
+{% if letters %}
+    <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle">
+            <colgroup>
+                <col style="width: 38%">
+                <col style="width: 32%">
+                <col style="width: 22%">
+                <col style="width: 8%">
+            </colgroup>
+            <thead>
+            <tr>
+                <th>Letter</th>
+                <th>Partner</th>
+                <th class="text-nowrap">Generated Date/Time</th>
+                <th class="text-end">Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for letter in letters %}
+                <tr>
+                    <td>{{ letter.filename }}</td>
+                    <td>{{ letter.partner_name }}</td>
+                    <td class="text-nowrap">{{ letter.generated_at|eastern_datetime }}</td>
+                    <td class="text-end text-nowrap">
+                        <a
+                            class="btn btn-outline-primary btn-sm"
+                            href="{{ url_for(view_endpoint, solicitation_id=letter.solicitation_id) }}"
+                            target="_blank"
+                        >View</a>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body">
+            <p class="mb-0">{{ empty_message }}</p>
+        </div>
+    </div>
+{% endif %}
+{% endmacro %}
