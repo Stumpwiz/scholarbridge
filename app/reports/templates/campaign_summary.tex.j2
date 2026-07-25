@@ -1,0 +1,80 @@
+\documentclass[12pt,twoside]{article}
+\usepackage[english]{babel}
+\usepackage[top=0.60in, bottom=0.75in, left=0.75in, right=0.75in]{geometry}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{lastpage}
+\usepackage{sectsty}
+\usepackage{titlesec}
+
+\titleformat{\section}{\normalfont\large\bfseries}{}{0pt}{}
+\allsectionsfont{\centering}
+\pagestyle{fancy}
+\fancyhead{}
+\fancyfoot{}
+\fancyfoot[LE,RO]{\thepage\ of \pageref{LastPage}}
+\fancyfoot[LO,RE]{\small Generated {{ generated_date|latex }}}
+\fancyfoot[CO,CE]{}
+\renewcommand{\headrulewidth}{0.0pt}
+\renewcommand{\footrulewidth}{0.4pt}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.25em}
+\renewcommand{\arraystretch}{1.18}
+\raggedbottom
+
+\begin{document}
+\begin{center}
+    \includegraphics[height=0.65in]{app/static/img/branding/scholarBridgeLogo.png}\\
+    \vspace{0.25em}
+    {\Large \textbf{ScholarBridge}}\\
+    \vspace{0.25em}
+    {\LARGE \textbf{Campaign Summary}}\\
+    \vspace{0.45em}
+    {\large \textbf{ {{ campaign.campaign_name|latex }} }}\\
+    {{ campaign.campaign_year|latex }} \enspace $\cdot$ \enspace Generated {{ generated_date|latex }}
+\end{center}
+
+\vspace{0.5em}
+\section*{Campaign Overview}
+\begin{center}
+\begin{tabular}{@{}>{\centering\arraybackslash}p{1.55in}>{\centering\arraybackslash}p{1.55in}>{\centering\arraybackslash}p{1.55in}>{\centering\arraybackslash}p{1.55in}@{}}
+\toprule
+\textbf{Total Partners} & \textbf{Total Solicitations} & \textbf{Total Solicitors} & \textbf{Total Tranches} \\
+\midrule
+{\Large {{ total_partners }}} & {\Large {{ total_solicitations }}} & {\Large {{ total_solicitors }}} & {\Large {{ total_tranches }}} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\section*{Solicitation Status}
+\begin{center}
+\begin{tabular}{@{}p{3.9in}r@{}}
+\toprule
+\textbf{Workflow Status} & \textbf{Solicitations} \\
+\midrule
+{% for status in status_rows %}
+{{ status.label|latex }} & {{ status.count }} \\
+{% endfor %}
+\midrule
+\textbf{Total} & \textbf{ {{ status_total }} } \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\vspace{0.5em}
+\section*{Financial Summary}
+\begin{center}
+\begin{tabular}{@{}p{3.9in}r@{}}
+\toprule
+\textbf{Measure} & \textbf{Amount} \\
+\midrule
+Total Requested & {{ total_requested|money }} \\
+Total Pledged & {{ total_pledged|money }} \\
+Total Contributed or Received & {{ total_contributed|money }} \\
+\bottomrule
+\end{tabular}
+\end{center}
+\end{document}

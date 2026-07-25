@@ -14,6 +14,11 @@ from jinja2 import Environment, FileSystemLoader
 REPO_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE_DIR = REPO_ROOT / "app" / "reports" / "templates"
 PROOF_CONFIGS = {
+    "summary": (
+        "campaign_summary.tex.j2",
+        REPO_ROOT / "docs" / "report_proofs" / "campaign_summary",
+        "campaign_summary_proof",
+    ),
     "partner": (
         "campaign_by_partner.tex.j2",
         REPO_ROOT / "docs" / "report_proofs" / "campaign_by_partner",
@@ -30,6 +35,7 @@ PROOF_CONFIGS = {
 @dataclass(frozen=True)
 class Campaign:
     campaign_year: int
+    campaign_name: str = "2026 Scholarship Campaign"
 
 
 @dataclass(frozen=True)
@@ -125,7 +131,7 @@ def render_template(report_name: str) -> Path:
     else:
         rows.sort(key=lambda row: row.partner_display_name.casefold())
     template = env.get_template(template_name)
-    rendered = template.render(
+    context = dict(
         campaign=Campaign(campaign_year=2026),
         generated_date=date(2026, 7, 18).strftime("%B %-d, %Y"),
         rows=rows,
@@ -133,6 +139,22 @@ def render_template(report_name: str) -> Path:
         total_pledged=total_money(rows, "amount_pledged"),
         total_contributed=total_money(rows, "amount_received"),
     )
+    if report_name == "summary":
+        status_labels = ("Not Contacted", "Contacted", "Pledged", "Gift Received", "Declined")
+        # Deliberately leave Declined at zero to prove the complete lifecycle is rendered.
+        status_counts = (4, 5, 6, 5, 0)
+        context.update(
+            total_partners=len(rows),
+            total_solicitations=len(rows),
+            total_solicitors=4,
+            total_tranches=3,
+            status_rows=[
+                {"label": label, "count": count}
+                for label, count in zip(status_labels, status_counts)
+            ],
+            status_total=sum(status_counts),
+        )
+    rendered = template.render(**context)
 
     tex_path = output_dir / f"{output_basename}.tex"
     tex_path.write_text(rendered, encoding="utf-8")
@@ -159,7 +181,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--report",
-        choices=["partner", "participation", "both"],
+        choices=["partner", "participation", "summary", "both", "all"],
         default="both",
         help="Select which campaign report proof to render (default: both).",
     )
@@ -170,7 +192,12 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    report_names = PROOF_CONFIGS if args.report == "both" else (args.report,)
+    if args.report == "both":
+        report_names = ("partner", "participation")
+    elif args.report == "all":
+        report_names = PROOF_CONFIGS
+    else:
+        report_names = (args.report,)
     for report_name in report_names:
         tex_path = render_template(report_name)
         if not args.no_compile:

@@ -12,6 +12,7 @@ from app.models import Campaign, Partner, Person, Solicitation, User
 from app.reports.registry import (
     build_campaign_by_partner_context,
     build_campaign_by_participation_context,
+    build_campaign_summary_context,
     get_report,
     list_reports,
 )
@@ -99,12 +100,12 @@ class ReportsTests(unittest.TestCase):
         self.rendered_tex = tex_path.read_text(encoding="utf-8")
         return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
 
-    def test_report_registry_contains_both_campaign_reports(self):
+    def test_report_registry_contains_campaign_reports(self):
         reports = list_reports()
 
         self.assertEqual(
             [report.id for report in reports],
-            ["campaign-by-participation", "campaign-by-partner"],
+            ["campaign-summary", "campaign-by-participation", "campaign-by-partner"],
         )
         report = get_report("campaign-by-partner")
         self.assertIsNotNone(report)
@@ -117,6 +118,10 @@ class ReportsTests(unittest.TestCase):
             participation_report.template_name,
             "campaign_by_participation.tex.j2",
         )
+        summary_report = get_report("campaign-summary")
+        self.assertIsNotNone(summary_report)
+        self.assertEqual(summary_report.label, "Campaign Summary")
+        self.assertEqual(summary_report.template_name, "campaign_summary.tex.j2")
 
     def test_reports_page_shows_campaign_selector_and_report_cards(self):
         response = self.client.get("/reports")
@@ -129,6 +134,7 @@ class ReportsTests(unittest.TestCase):
         self.assertIn("Available Reports", html)
         self.assertEqual(html.count("Campaign by Partner"), 2)
         self.assertEqual(html.count("Campaign by Participation"), 2)
+        self.assertEqual(html.count("Campaign Summary"), 2)
         self.assertIn("Generate", html)
         self.assertIn("View PDF", html)
         self.assertIn("No PDF generated for this campaign yet.", html)
@@ -233,6 +239,98 @@ class ReportsTests(unittest.TestCase):
         for total_name in ("total_requested", "total_pledged", "total_contributed"):
             self.assertEqual(partner_context[total_name], participation_context[total_name])
         self.assertEqual(participation_context["total_contributed"], Decimal("1900"))
+
+    def test_campaign_summary_aggregates_selected_campaign_and_complete_lifecycle(self):
+        with self.app.app_context():
+            campaign = db.session.get(Campaign, self.campaign_2026_id)
+            other_campaign = db.session.get(Campaign, self.campaign_2025_id)
+            solicitor_one = db.session.scalar(db.select(Person))
+            solicitor_two = Person(first_name="Blair", last_name="Builder")
+            db.session.add(solicitor_two)
+            db.session.flush()
+
+            additions = (
+                ("Beta", solicitor_one.id, 2, "contacted", None, Decimal("250"), None),
+                ("Gamma", solicitor_two.id, 3, "responded", Decimal("2000"), Decimal("1500"), None),
+                ("Delta", None, 3, "declined", Decimal("500"), None, Decimal("100")),
+            )
+            for name, solicitor_id, tranche, status, requested, pledged, received in additions:
+                partner = Partner(partner_name=name, display_name=name, partner_type="Other")
+                db.session.add(partner)
+                db.session.flush()
+                db.session.add(
+                    Solicitation(
+                        partner_id=partner.id,
+                        campaign_id=campaign.id,
+                        solicitor_person_id=solicitor_id,
+                        tranche=tranche,
+                        amount_requested=requested,
+                        amount_pledged=pledged,
+                        amount_received=received,
+                        status=status,
+                    )
+                )
+
+            outside_partner = Partner(
+                partner_name="Outside", display_name="Outside", partner_type="Other"
+            )
+            db.session.add(outside_partner)
+            db.session.flush()
+            db.session.add(
+                Solicitation(
+                    partner_id=outside_partner.id,
+                    campaign_id=other_campaign.id,
+                    solicitor_person_id=solicitor_two.id,
+                    tranche=1,
+                    amount_requested=Decimal("99999"),
+                    amount_pledged=Decimal("99999"),
+                    amount_received=Decimal("99999"),
+                    status="not_contacted",
+                )
+            )
+            db.session.commit()
+
+            context = build_campaign_summary_context(campaign)
+
+        self.assertEqual(context["total_partners"], 4)
+        self.assertEqual(context["total_solicitations"], 4)
+        self.assertEqual(context["total_solicitors"], 2)
+        self.assertEqual(context["total_tranches"], 3)
+        self.assertEqual(
+            [(row.key, row.count) for row in context["status_rows"]],
+            [
+                ("not_contacted", 0),
+                ("contacted", 1),
+                ("pledged", 1),
+                ("gift_received", 1),
+                ("declined", 1),
+            ],
+        )
+        self.assertEqual(context["status_total"], context["total_solicitations"])
+        self.assertEqual(context["total_requested"], Decimal("3500"))
+        self.assertEqual(context["total_pledged"], Decimal("2500"))
+        self.assertEqual(context["total_contributed"], Decimal("600"))
+
+    def test_campaign_summary_generation_renders_template_and_filename(self):
+        with patch(
+            "app.reports.report_service.subprocess.run",
+            side_effect=self._fake_xelatex,
+        ) as run:
+            response = self.client.post(
+                "/reports/campaign-summary/generate",
+                follow_redirects=True,
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(run.call_count, 2)
+        self.assertIn("Generated campaign_summary_2026.pdf.", response.get_data(as_text=True))
+        self.assertIn('href="/reports/campaign-summary/pdf"', response.get_data(as_text=True))
+        self.assertIn(r"\textbf{Campaign Summary}", self.rendered_tex)
+        self.assertIn("2026 Scholarship Campaign", self.rendered_tex)
+        self.assertIn("Not Contacted & 0", self.rendered_tex)
+        self.assertIn(r"\$1,000", self.rendered_tex)
+        self.assertIn(r"\$750", self.rendered_tex)
+        self.assertIn(r"\$500", self.rendered_tex)
 
     def test_report_pdf_route_serves_generated_pdf(self):
         with self.app.app_context():
