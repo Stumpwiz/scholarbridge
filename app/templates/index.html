@@ -116,32 +116,52 @@
     {% endif %}
     <div class="row g-3">
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="card text-center border-success h-100">
-                <div class="card-body">
+            <div class="card text-center border-secondary h-100 sb-dashboard-card">
+                <div class="card-body position-relative">
+                    <div class="display-6 fw-bold">{{ highlights.not_contacted_count }}</div>
+                    <div class="card-title mt-1 mb-0 small text-muted">Not Contacted Solicitations</div>
+                    <a class="stretched-link" href="{{ url_for('main.solicitation_list', status='not_contacted') }}">
+                        <span class="visually-hidden">View Not Contacted solicitations</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+            <div class="card text-center border-success h-100 sb-dashboard-card">
+                <div class="card-body position-relative">
                     <div class="display-6 fw-bold text-success">${{ "{:,.0f}".format(highlights.total_received) }}</div>
                     <div class="card-title mt-1 mb-0 small text-muted">Total Donations Received</div>
+                    <a class="stretched-link" href="{{ url_for('main.solicitation_list', status='gift_received') }}">
+                        <span class="visually-hidden">View Gift Received solicitations</span>
+                    </a>
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="card text-center border-primary h-100">
-                <div class="card-body">
+            <div class="card text-center border-primary h-100 sb-dashboard-card">
+                <div class="card-body position-relative">
                     <div class="display-6 fw-bold text-primary">{{ highlights.active_partners }}</div>
                     <div class="card-title mt-1 mb-0 small text-muted">Active Partners</div>
+                    <a class="stretched-link" href="{{ url_for('main.partner_list', active_only_applied=1, active_only=1) }}">
+                        <span class="visually-hidden">View Active Partners</span>
+                    </a>
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="card text-center border-warning h-100">
-                <div class="card-body">
+            <div class="card text-center border-warning h-100 sb-dashboard-card">
+                <div class="card-body position-relative">
                     <div class="display-6 fw-bold text-warning">{{ highlights.gift_received_count }}</div>
                     <div class="card-title mt-1 mb-0 small text-muted">Partners With Gifts Received</div>
+                    <a class="stretched-link" href="{{ url_for('main.partner_list', gift_received='true', active_only_applied=1) }}">
+                        <span class="visually-hidden">View Partners with Gifts Received</span>
+                    </a>
                 </div>
             </div>
         </div>
         <div class="col-12 col-sm-6 col-xl-3">
-            <div class="card text-center h-100">
-                <div class="card-body">
+            <div class="card text-center h-100 sb-dashboard-card">
+                <div class="card-body position-relative">
                     {% if highlights.completion_pct is not none %}
                         <div class="display-6 fw-bold">{{ highlights.completion_pct }}%</div>
                         <div class="card-title mt-1 mb-0 small text-muted">Solicitations Complete</div>
@@ -149,6 +169,9 @@
                         <div class="display-6 fw-bold text-muted">—</div>
                         <div class="card-title mt-1 mb-0 small text-muted">Solicitations Complete</div>
                     {% endif %}
+                    <a class="stretched-link" href="{{ url_for('main.solicitation_list', complete='true', status='') }}">
+                        <span class="visually-hidden">View Complete solicitations</span>
+                    </a>
                 </div>
             </div>
         </div>

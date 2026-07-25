@@ -212,7 +212,7 @@ class SolicitationListUiTests(unittest.TestCase):
         self.assertIn("Incomplete Solicitation", gamma_row)
         self.assertIn("text-bg-warning", gamma_row)
 
-        self.assertNotIn("Not Contacted", html)
+        self.assertIn("Not Contacted", html)
         self.assertIn("Pledged", html)
         self.assertIn("$750.00", alpha_row)
         self.assertIn("$5000.00", alpha_row)
@@ -259,6 +259,7 @@ class SolicitationListUiTests(unittest.TestCase):
         solicitor_select = self._select_for(html, "solicitor_id")
         tranche_select = self._select_for(html, "tranche")
         self.assertIn('value="" selected', solicitor_select)
+        self.assertIn("All Solicitors", solicitor_select)
         self.assertIn('value="" selected', tranche_select)
         for tranche in ("1", "2", "3"):
             self.assertIn(f'value="{tranche}"', tranche_select)
@@ -344,6 +345,181 @@ class SolicitationListUiTests(unittest.TestCase):
         for partner_name in ("Alpha Ready", "Beta Incomplete", "Delta Incomplete", "Gamma Ready"):
             self.assertIn(partner_name, html)
         self.assertIn('value="" selected', self._select_for(html, "tranche"))
+
+    def _set_workflow_statuses(self):
+        with self.app.app_context():
+            statuses = {
+                "Alpha Ready": "not_contacted",
+                "Beta Incomplete": "contacted",
+                "Delta Incomplete": "responded",
+                "Gamma Ready": "donated",
+            }
+            for partner_name, status in statuses.items():
+                solicitation = db.session.get(Solicitation, self.ids_by_partner[partner_name])
+                solicitation.status = status
+            db.session.commit()
+
+    def test_status_filter_shows_only_canonical_not_contacted_and_active_control(self):
+        self._set_workflow_statuses()
+
+        response = self.client.get("/solicitations?status=not_contacted")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Alpha Ready", html)
+        for name in ("Beta Incomplete", "Delta Incomplete", "Gamma Ready"):
+            self.assertNotIn(name, html)
+        self.assertIn('value="not_contacted" selected', self._select_for(html, "status"))
+        self.assertIn("Workflow Status", html)
+        self.assertIn("Not Contacted", self._row_for_partner(html, "Alpha Ready"))
+        self.assertIn(f'/solicitations/{self.alpha_ready_id}"', html)
+        self.assertIn(f'/solicitations/{self.alpha_ready_id}/edit"', html)
+
+    def test_legacy_status_query_is_normalized(self):
+        self._set_workflow_statuses()
+
+        response = self.client.get("/solicitations?status=donated")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Gamma Ready", html)
+        for name in ("Alpha Ready", "Beta Incomplete", "Delta Incomplete"):
+            self.assertNotIn(name, html)
+        self.assertIn('value="gift_received" selected', self._select_for(html, "status"))
+
+    def test_invalid_status_filter_is_safely_ignored(self):
+        self._set_workflow_statuses()
+
+        response = self.client.get("/solicitations?status=unknown")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        for name in self.ids_by_partner:
+            self.assertIn(name, html)
+        self.assertIn('value="" selected', self._select_for(html, "status"))
+
+    def test_status_combines_with_solicitor_and_tranche_filters(self):
+        self._set_workflow_statuses()
+        with self.app.app_context():
+            delta = db.session.get(Solicitation, self.ids_by_partner["Delta Incomplete"])
+            delta.status = "not_contacted"
+            db.session.commit()
+
+        response = self.client.get(
+            f"/solicitations?status=not_contacted&solicitor_id={self.solicitor_b_id}&tranche=2"
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Delta Incomplete", html)
+        for name in ("Alpha Ready", "Beta Incomplete", "Gamma Ready"):
+            self.assertNotIn(name, html)
+        self.assertIn('value="not_contacted" selected', self._select_for(html, "status"))
+        self.assertIn(
+            f'value="{self.solicitor_b_id}" selected', self._select_for(html, "solicitor_id")
+        )
+        self.assertIn('value="2" selected', self._select_for(html, "tranche"))
+
+    def test_status_combines_independently_with_existing_filters(self):
+        self._set_workflow_statuses()
+        with self.app.app_context():
+            beta = db.session.get(Solicitation, self.ids_by_partner["Beta Incomplete"])
+            beta.status = "not_contacted"
+            db.session.commit()
+
+        by_solicitor = self.client.get(
+            f"/solicitations?status=not_contacted&solicitor_id={self.solicitor_a_id}"
+        ).get_data(as_text=True)
+        self.assertIn("Alpha Ready", by_solicitor)
+        self.assertIn("Beta Incomplete", by_solicitor)
+        self.assertNotIn("Delta Incomplete", by_solicitor)
+
+        by_tranche = self.client.get(
+            "/solicitations/clear-filter", follow_redirects=True
+        )
+        self.assertEqual(by_tranche.status_code, 200)
+        by_tranche = self.client.get(
+            "/solicitations?status=not_contacted&tranche=2"
+        ).get_data(as_text=True)
+        self.assertIn("Beta Incomplete", by_tranche)
+        self.assertNotIn("Alpha Ready", by_tranche)
+        self.assertNotIn("Delta Incomplete", by_tranche)
+
+    def test_status_filter_can_be_cleared_without_resetting_other_filters(self):
+        self._set_workflow_statuses()
+        self.client.get(
+            f"/solicitations?status=not_contacted&solicitor_id={self.solicitor_a_id}"
+        )
+
+        response = self.client.get("/solicitations?status=")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Alpha Ready", html)
+        self.assertIn("Beta Incomplete", html)
+        self.assertIn('value="" selected', self._select_for(html, "status"))
+        self.assertIn(
+            f'value="{self.solicitor_a_id}" selected', self._select_for(html, "solicitor_id")
+        )
+        self.assertIn('value="" selected', self._select_for(html, "tranche"))
+
+    def test_status_filter_zero_results_renders_empty_state(self):
+        self._set_workflow_statuses()
+
+        response = self.client.get(
+            f"/solicitations?status=declined&solicitor_id={self.solicitor_a_id}&tranche=1"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "No solicitations match the selected filters.", response.get_data(as_text=True)
+        )
+
+    def test_complete_filter_uses_existing_readiness_rule_and_keeps_actions(self):
+        response = self.client.get("/solicitations?complete=true&status=")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Alpha Ready", html)
+        self.assertIn("Delta Incomplete", html)
+        self.assertNotIn("Beta Incomplete", html)
+        self.assertNotIn("Gamma Ready", html)
+        self.assertIn('value="true" selected', self._select_for(html, "complete"))
+        for name in ("Alpha Ready", "Delta Incomplete"):
+            solicitation_id = self.ids_by_partner[name]
+            row = self._row_for_partner(html, name)
+            self.assertIn(f'/solicitations/{solicitation_id}"', row)
+            self.assertIn(f'/solicitations/{solicitation_id}/edit"', row)
+
+    def test_complete_filter_combines_with_existing_filters(self):
+        self._set_workflow_statuses()
+        response = self.client.get(
+            f"/solicitations?complete=true&status=pledged&solicitor_id={self.solicitor_b_id}&tranche=2"
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertIn("Delta Incomplete", html)
+        for name in ("Alpha Ready", "Beta Incomplete", "Gamma Ready"):
+            self.assertNotIn(name, html)
+        self.assertIn('value="true" selected', self._select_for(html, "complete"))
+        self.assertIn('value="pledged" selected', self._select_for(html, "status"))
+
+    def test_invalid_complete_filter_is_ignored_and_empty_state_renders(self):
+        invalid_response = self.client.get("/solicitations?complete=invalid&status=")
+        self.assertEqual(invalid_response.status_code, 200)
+        invalid_html = invalid_response.get_data(as_text=True)
+        for name in self.ids_by_partner:
+            self.assertIn(name, invalid_html)
+        self.assertIn('value="" selected', self._select_for(invalid_html, "complete"))
+
+        empty_response = self.client.get(
+            f"/solicitations?complete=true&status=declined&solicitor_id={self.solicitor_a_id}&tranche=3"
+        )
+        self.assertEqual(empty_response.status_code, 200)
+        self.assertIn(
+            "No solicitations match the selected filters.",
+            empty_response.get_data(as_text=True),
+        )
 
     def test_solicitation_create_records_pledged_amount(self):
         response = self.client.post(

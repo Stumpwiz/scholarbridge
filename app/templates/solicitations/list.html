@@ -87,14 +87,23 @@
 </div>
 
 <form method="get" action="{{ url_for('main.solicitation_list') }}" class="row g-2 align-items-end mb-3">
-    <div class="col-12 col-md-5 col-lg-4">
+    <div class="col-12 col-md-4 col-lg-3">
         <label for="solicitor_id" class="form-label mb-1">Filter by Solicitor</label>
         <select class="form-select form-select-sm" id="solicitor_id" name="solicitor_id">
-            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>Clear Filter</option>
+            <option value="" {% if selected_solicitor_id is none %}selected{% endif %}>All Solicitors</option>
             {% for person in solicitor_filter_people %}
                 <option value="{{ person.id }}" {% if selected_solicitor_id == person.id %}selected{% endif %}>
                     {{ person.preferred_name or person.first_name }} {{ person.last_name }}{% if not person.is_active %} (Inactive){% endif %}
                 </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-3">
+        <label for="status" class="form-label mb-1">Filter by Status</label>
+        <select class="form-select form-select-sm" id="status" name="status">
+            <option value="" {% if selected_status is none %}selected{% endif %}>All Statuses</option>
+            {% for status in status_filter_options %}
+                <option value="{{ status }}" {% if selected_status == status %}selected{% endif %}>{{ solicitation_status_label(status) }}</option>
             {% endfor %}
         </select>
     </div>
@@ -105,6 +114,13 @@
             {% for t in tranche_filter_options %}
                 <option value="{{ t }}" {% if selected_tranche == t %}selected{% endif %}>{{ t }}</option>
             {% endfor %}
+        </select>
+    </div>
+    <div class="col-12 col-md-3 col-lg-2">
+        <label for="complete" class="form-label mb-1">Filter by Completion</label>
+        <select class="form-select form-select-sm" id="complete" name="complete">
+            <option value="" {% if not complete_only %}selected{% endif %}>All Completion States</option>
+            <option value="true" {% if complete_only %}selected{% endif %}>Complete</option>
         </select>
     </div>
     <div class="col-12 col-md-auto">
@@ -125,7 +141,8 @@
                 <th>Tranche</th>
                 <th>Solicitor</th>
                 <th>MRPOC</th>
-                <th>Status</th>
+                <th>Workflow Status</th>
+                <th>Readiness</th>
                 <th>Business Volume</th>
                 <th>Requested</th>
                 <th>Pledged</th>
@@ -168,6 +185,9 @@
                         {% endif %}
                     </td>
                     <td>
+                        {{ solicitation_status_label(solicitation.status) }}
+                    </td>
+                    <td>
                         {% if solicitation.id in incomplete_partner_ids %}
                             <span class="badge text-bg-danger">Incomplete Partner</span>
                         {% elif solicitation.id in incomplete_solicitation_ids %}
@@ -202,7 +222,11 @@
 {% else %}
     <div class="card">
         <div class="card-body">
-            <p class="mb-3">No solicitations have been added yet.</p>
+            {% if selected_status or selected_solicitor_id or selected_tranche or complete_only %}
+                <p class="mb-3">No solicitations match the selected filters.</p>
+            {% else %}
+                <p class="mb-3">No solicitations have been added yet.</p>
+            {% endif %}
             {% if can_edit %}
                 <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Create first solicitation</a>
             {% else %}

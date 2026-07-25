@@ -49,6 +49,7 @@ from app.main.solicitation_status import (
     SOLICITATION_STATUS_OPTIONS,
     canonical_solicitation_status,
     solicitation_status_for_storage,
+    solicitation_status_query_values,
 )
 from app.main.solicitation_workflow import SolicitationWorkflowService
 from app.main import bp
@@ -670,9 +671,16 @@ def campaign_edit(campaign_id: int):
 @bp.get("/partners")
 def partner_list():
     active_only = _partner_active_only_selection()
+    gift_received_only = _validated_true_query_filter("gift_received")
     query = select(Partner)
     if active_only:
         query = query.where(Partner.is_active.is_(True))
+    if gift_received_only:
+        query = query.where(
+            Partner.solicitations.any(
+                Solicitation.status.in_(solicitation_status_query_values("gift_received"))
+            )
+        )
 
     partners = db.session.scalars(query).all()
     partners = sorted(
@@ -698,6 +706,7 @@ def partner_list():
         incomplete_partner_ids=incomplete_partner_ids,
         stats=stats,
         active_only=active_only,
+        gift_received_only=gift_received_only,
     )
 
 
@@ -777,6 +786,7 @@ def person_edit(person_id: int):
 def solicitation_clear_filter():
     session.pop("active_solicitor_id", None)
     session.pop("active_tranche", None)
+    session.pop("active_solicitation_status", None)
     return redirect(url_for("main.solicitation_list"))
 
 
@@ -863,6 +873,8 @@ def report_pdf(report_id: str):
 def solicitation_list():
     solicitor_filter_people, selected_solicitor_id = _selected_solicitor_filter()
     tranche_filter_options, selected_tranche = _selected_tranche_filter()
+    selected_status = _selected_solicitation_status_filter()
+    complete_only = _validated_true_query_filter("complete")
 
     partner_sort_name = func.coalesce(func.nullif(Partner.display_name, ""), Partner.partner_name)
     query = (
@@ -880,6 +892,10 @@ def solicitation_list():
         query = query.where(Solicitation.solicitor_person_id == selected_solicitor_id)
     if selected_tranche is not None:
         query = query.where(Solicitation.tranche == selected_tranche)
+    if selected_status is not None:
+        query = query.where(
+            Solicitation.status.in_(solicitation_status_query_values(selected_status))
+        )
 
     solicitations = db.session.scalars(
         query.order_by(
@@ -891,6 +907,10 @@ def solicitation_list():
     ).all()
     from app.main.status import solicitation_is_ready as _sol_is_ready  # noqa: PLC0415
     from app.main.status import partner_is_incomplete as _partner_incomplete  # noqa: PLC0415
+    if complete_only:
+        solicitations = [
+            solicitation for solicitation in solicitations if _sol_is_ready(solicitation)
+        ]
     incomplete_partner_ids = {
         solicitation.id
         for solicitation in solicitations
@@ -922,6 +942,9 @@ def solicitation_list():
         selected_solicitor_id=selected_solicitor_id,
         tranche_filter_options=tranche_filter_options,
         selected_tranche=selected_tranche,
+        status_filter_options=SOLICITATION_STATUS_OPTIONS,
+        selected_status=selected_status,
+        complete_only=complete_only,
         stats=stats,
     )
 
@@ -2077,6 +2100,33 @@ def _selected_tranche_filter() -> tuple[list[int], int | None]:
             selected_tranche = session_tranche
 
     return tranche_filter_options, selected_tranche
+
+
+def _selected_solicitation_status_filter() -> str | None:
+    if "status" in request.args:
+        requested_status = canonical_solicitation_status(request.args.get("status"))
+        if not requested_status:
+            session.pop("active_solicitation_status", None)
+            return None
+        if requested_status in SOLICITATION_STATUS_OPTIONS:
+            session["active_solicitation_status"] = requested_status
+            return requested_status
+        return None
+
+    session_status = canonical_solicitation_status(
+        session.get("active_solicitation_status")
+    )
+    if session_status in SOLICITATION_STATUS_OPTIONS:
+        return session_status
+    session.pop("active_solicitation_status", None)
+    return None
+
+
+def _validated_true_query_filter(parameter_name: str) -> bool:
+    value = request.args.get(parameter_name)
+    if value is None:
+        return False
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _primary_contact_for_solicitation(solicitation: Solicitation) -> "Contact | None":

@@ -322,8 +322,14 @@ def dashboard_highlights() -> dict:
     completion_pct = round(complete_sol * 100 / total_sol) if total_sol else None
 
     gift_received_count = db.session.scalar(
-        select(func.count()).select_from(Solicitation).where(
+        select(func.count(Solicitation.partner_id.distinct())).where(
             Solicitation.status.in_(solicitation_status_query_values("gift_received"))
+        )
+    ) or 0
+
+    not_contacted_count = db.session.scalar(
+        select(func.count()).select_from(Solicitation).where(
+            Solicitation.status.in_(solicitation_status_query_values("not_contacted"))
         )
     ) or 0
 
@@ -344,6 +350,7 @@ def dashboard_highlights() -> dict:
         "total_solicitations": total_sol,
         "completion_pct": completion_pct,
         "gift_received_count": gift_received_count,
+        "not_contacted_count": not_contacted_count,
         "total_requested": total_requested,
         "active_campaign_name": active_campaign_name,
     }

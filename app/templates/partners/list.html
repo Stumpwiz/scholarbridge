@@ -20,6 +20,7 @@
 
 <form method="get" action="{{ url_for('main.partner_list') }}" class="row g-2 align-items-center mb-3">
     <input type="hidden" name="active_only_applied" value="1">
+    {% if gift_received_only %}<input type="hidden" name="gift_received" value="true">{% endif %}
     <div class="col-auto">
         <div class="form-check">
             <input
@@ -37,6 +38,13 @@
         <button type="submit" class="btn btn-outline-primary btn-sm">Apply</button>
     </div>
 </form>
+
+{% if gift_received_only %}
+    <div class="alert alert-info py-2" role="status">
+        Showing partners with at least one Gift Received solicitation.
+        <a class="alert-link ms-1" href="{{ url_for('main.partner_list', active_only_applied=1, active_only=1 if active_only else none) }}">Show all partners</a>
+    </div>
+{% endif %}
 
 <div class="row g-2 mb-4">
     <div class="col-6 col-md-3">
@@ -164,7 +172,7 @@
 {% else %}
     <div class="card">
         <div class="card-body">
-            <p class="mb-3">No partners have been added yet.</p>
+            <p class="mb-3">{% if gift_received_only %}No partners match the selected filters.{% else %}No partners have been added yet.{% endif %}</p>
             {% if can_edit %}
                 <a class="btn btn-primary btn-sm" href="{{ url_for('main.partner_create') }}">Create first partner</a>
             {% else %}

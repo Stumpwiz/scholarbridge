@@ -92,6 +92,7 @@ class PartnerListUiTests(unittest.TestCase):
 
             self.user_id = str(user.id)
             self.inactive_partner_id = inactive_zeta.id
+            self.active_alpha_id = active_alpha.id
 
         with self.client.session_transaction() as session:
             session["_user_id"] = self.user_id
@@ -150,6 +151,56 @@ class PartnerListUiTests(unittest.TestCase):
             "checked",
             html[html.find('id="active_only"'): html.find('id="active_only"') + 180],
         )
+
+    def test_gift_received_filter_returns_distinct_qualifying_partners(self):
+        with self.app.app_context():
+            another_campaign = Campaign(
+                campaign_year=2025,
+                campaign_name="2025 Scholarship Campaign",
+                status="closed",
+            )
+            db.session.add(another_campaign)
+            db.session.flush()
+            db.session.add(
+                Solicitation(
+                    partner_id=self.inactive_partner_id,
+                    campaign_id=another_campaign.id,
+                    status="donated",
+                    amount_pledged=50,
+                )
+            )
+            db.session.commit()
+
+        response = self.client.get(
+            "/partners?gift_received=true&active_only_applied=1"
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        self.assertEqual(html.count("Zeta Inactive"), 1)
+        self.assertNotIn("Alpha Active", html)
+        self.assertNotIn("Beta Active", html)
+        self.assertIn("Showing partners with at least one Gift Received solicitation.", html)
+        self.assertIn(f'/partners/{self.inactive_partner_id}', html)
+
+    def test_gift_received_filter_empty_state_and_invalid_value(self):
+        empty_response = self.client.get(
+            "/partners?gift_received=true&active_only_applied=1&active_only=1"
+        )
+        self.assertEqual(empty_response.status_code, 200)
+        self.assertIn(
+            "No partners match the selected filters.",
+            empty_response.get_data(as_text=True),
+        )
+
+        invalid_response = self.client.get(
+            "/partners?gift_received=invalid&active_only_applied=1&active_only=1"
+        )
+        self.assertEqual(invalid_response.status_code, 200)
+        invalid_html = invalid_response.get_data(as_text=True)
+        self.assertIn("Alpha Active", invalid_html)
+        self.assertIn("Beta Active", invalid_html)
+        self.assertNotIn("Showing partners with at least one Gift Received solicitation.", invalid_html)
 
 
 if __name__ == "__main__":
