@@ -184,6 +184,7 @@ class LettersQueueTests(unittest.TestCase):
             self.solicitor_b_id = solicitor_b.id
             self.ready_id = solicitation_ready_1.id
             self.incomplete_id = solicitation_incomplete.id
+            self.incomplete_partner_id = partner_incomplete.id
             self.ready_2_id = solicitation_ready_2.id
             self.incomplete_2_id = solicitation_incomplete_2.id
 
@@ -227,8 +228,44 @@ class LettersQueueTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
 
-        self.assertIn('<span class="badge text-bg-warning">Incomplete</span>', html)
+        self.assertIn('<span class="badge text-bg-danger">Incomplete Partner</span>', html)
         self.assertIn('<span class="badge text-bg-success">Ready</span>', html)
+        self.assertIn("Why incomplete?", html)
+        self.assertIn(f'/solicitations/{self.incomplete_id}', html)
+
+    def test_letters_queue_labels_missing_amount_as_incomplete_solicitation(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.amount_requested = None
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertIn("Incomplete Solicitation", row)
+        self.assertIn("Why incomplete?", row)
+        self.assertNotIn("Generate Solicitation", row)
+
+    def test_solicitation_detail_shows_ready_indicator(self):
+        response = self.client.get(f"/solicitations/{self.ready_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Ready for solicitation letter generation", response.get_data(as_text=True)
+        )
+
+    def test_solicitation_detail_lists_both_issue_types_and_edit_links(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.incomplete_id)
+            solicitation.amount_requested = None
+            db.session.commit()
+
+        response = self.client.get(f"/solicitations/{self.incomplete_id}")
+        html = response.get_data(as_text=True)
+        self.assertIn("Incomplete Partner", html)
+        self.assertIn("Incomplete Solicitation", html)
+        self.assertIn("Partner category is missing.", html)
+        self.assertIn("Requested amount is missing.", html)
+        self.assertIn(f'/partners/{self.incomplete_partner_id}/edit', html)
+        self.assertIn(f'/solicitations/{self.incomplete_id}/edit', html)
 
     def test_generated_correspondence_empty_states_are_preserved(self):
         response = self.client.get("/letters")

@@ -7,6 +7,7 @@ from app.main.status import (
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
     solicitation_is_ready,
+    solicitation_readiness_diagnostics,
 )
 
 _MISSING = object()
@@ -151,7 +152,7 @@ class PartnerReadinessSummaryTests(unittest.TestCase):
     def test_missing_category_is_incomplete(self):
         result = partner_readiness_summary(_partner(partner_type=None))
         self.assertFalse(result["is_complete"])
-        self.assertTrue(any("Category" in m for m in result["missing"]))
+        self.assertIn("Partner category is missing.", result["missing"])
 
     def test_needs_review_category_is_incomplete(self):
         result = partner_readiness_summary(_partner(partner_type="Needs Review"))
@@ -177,6 +178,89 @@ class PartnerReadinessSummaryTests(unittest.TestCase):
         result = partner_readiness_summary(_partner(contacts=[_contact()]))
         self.assertTrue(result["is_complete"])
         self.assertEqual(result["missing"], [])
+
+
+class SolicitationReadinessDiagnosticsTests(unittest.TestCase):
+    def test_fully_ready_solicitation(self):
+        result = solicitation_readiness_diagnostics(_solicitation())
+        self.assertEqual(
+            result,
+            {"is_ready": True, "partner_issues": [], "solicitation_issues": []},
+        )
+
+    def test_missing_partner_category(self):
+        result = solicitation_readiness_diagnostics(
+            _solicitation(partner=_partner(partner_type=None))
+        )
+        self.assertIn("Partner category is missing.", result["partner_issues"])
+
+    def test_partially_populated_contact_missing_title(self):
+        result = solicitation_readiness_diagnostics(
+            _solicitation(partner=_partner(contacts=[_contact(title=None)]))
+        )
+        self.assertIn("Primary contact title is missing.", result["partner_issues"])
+
+    def test_contact_missing_first_name(self):
+        result = solicitation_readiness_diagnostics(
+            _solicitation(partner=_partner(contacts=[_contact(first_name="")]))
+        )
+        self.assertIn("Primary contact first name is missing.", result["partner_issues"])
+
+    def test_contact_missing_last_name(self):
+        result = solicitation_readiness_diagnostics(
+            _solicitation(partner=_partner(contacts=[_contact(last_name=None)]))
+        )
+        self.assertIn("Primary contact last name is missing.", result["partner_issues"])
+
+    def test_missing_requested_amount(self):
+        result = solicitation_readiness_diagnostics(_solicitation(amount_requested=None))
+        self.assertIn("Requested amount is missing.", result["solicitation_issues"])
+
+    def test_simultaneous_partner_and_solicitation_issues(self):
+        solicitation = _solicitation(
+            partner=_partner(partner_type=None), amount_requested=None
+        )
+        result = solicitation_readiness_diagnostics(solicitation)
+        self.assertFalse(result["is_ready"])
+        self.assertTrue(result["partner_issues"])
+        self.assertTrue(result["solicitation_issues"])
+
+    def test_business_volume_is_never_reported(self):
+        result = solicitation_readiness_diagnostics(_solicitation(business_volume=None))
+        all_issues = result["partner_issues"] + result["solicitation_issues"]
+        self.assertTrue(result["is_ready"])
+        self.assertFalse(any("business volume" in issue.lower() for issue in all_issues))
+
+    def test_diagnostics_and_boolean_readiness_are_consistent(self):
+        solicitations = [
+            _solicitation(),
+            _solicitation(amount_requested=None),
+            _solicitation(partner=_partner(partner_type=None)),
+            _solicitation(solicitor_person_id=None, solicitor=None),
+        ]
+        for solicitation in solicitations:
+            with self.subTest(solicitation=solicitation):
+                self.assertEqual(
+                    solicitation_readiness_diagnostics(solicitation)["is_ready"],
+                    solicitation_is_ready(solicitation),
+                )
+
+    def test_letter_diagnostics_include_existing_person_requirements(self):
+        solicitor = SimpleNamespace(
+            first_name="First",
+            last_name=None,
+            email=None,
+            phone=None,
+            mobile_phone=None,
+            other_phone=None,
+        )
+        solicitation = _solicitation(solicitor=solicitor, mrpoc=None)
+        result = solicitation_readiness_diagnostics(solicitation, for_letter=True)
+        self.assertIn("Solicitor last name is missing.", result["solicitation_issues"])
+        self.assertIn("Solicitor email is missing.", result["solicitation_issues"])
+        self.assertIn("Solicitor phone is missing.", result["solicitation_issues"])
+        self.assertIn("MRPOC is missing.", result["solicitation_issues"])
+        self.assertEqual(result["is_ready"], solicitation_is_letter_ready(solicitation))
 
     def test_primary_contact_preferred_over_first(self):
         non_primary = _contact(first_name=None, is_primary=False)

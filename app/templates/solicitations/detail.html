@@ -40,6 +40,65 @@
 </div>
 
 <div class="row g-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">Letter Readiness</div>
+            <div class="card-body">
+                {% if readiness.is_ready %}
+                    <p class="mb-0 text-success fw-semibold">
+                        <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+                        Ready for solicitation letter generation
+                    </p>
+                {% else %}
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        {% if readiness.partner_issues %}
+                            <span class="badge text-bg-danger">Incomplete Partner</span>
+                        {% endif %}
+                        {% if readiness.solicitation_issues %}
+                            <span class="badge text-bg-warning">Incomplete Solicitation</span>
+                        {% endif %}
+                    </div>
+                    <div class="row g-3">
+                        {% if readiness.partner_issues %}
+                            <div class="col-12 col-lg-6">
+                                <p class="fw-semibold mb-1">Partner issues</p>
+                                <ul class="mb-2">
+                                    {% for issue in readiness.partner_issues %}
+                                        <li>{{ issue }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% if can_edit and solicitation.partner %}
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.partner_edit', partner_id=solicitation.partner.id) }}">Edit Partner</a>
+                                    {% if primary_contact %}
+                                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.partner_contact_edit', partner_id=solicitation.partner.id, contact_id=primary_contact.id, _anchor='contacts') }}">Edit Contact</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        {% if readiness.solicitation_issues %}
+                            <div class="col-12 col-lg-6">
+                                <p class="fw-semibold mb-1">Solicitation issues</p>
+                                <ul class="mb-2">
+                                    {% for issue in readiness.solicitation_issues %}
+                                        <li>{{ issue }}</li>
+                                    {% endfor %}
+                                </ul>
+                                {% if can_edit %}
+                                    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.solicitation_edit', solicitation_id=solicitation.id) }}">Edit Solicitation</a>
+                                    {% if solicitation.solicitor %}
+                                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.person_edit', person_id=solicitation.solicitor.id) }}">Edit Solicitor</a>
+                                    {% endif %}
+                                    {% if solicitation.mrpoc %}
+                                        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('main.person_edit', person_id=solicitation.mrpoc.id) }}">Edit MRPOC</a>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
     <div class="col-12 col-lg-6">
         <div class="card h-100">
             <div class="card-header">Solicitation Profile</div>
@@ -143,7 +202,7 @@
                 {% else %}
                     <div class="alert alert-warning mb-0">
                         <p class="mb-2"><strong>No primary contact has been designated for this partner.</strong></p>
-                        <p class="mb-0">A primary contact should be created before a solicitation letter is generated.</p>
+                        <p class="mb-0">A contact is optional for readiness; if one is added, its title and name fields are required.</p>
                     </div>
                 {% endif %}
             </div>

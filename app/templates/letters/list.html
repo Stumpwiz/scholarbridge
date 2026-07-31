@@ -59,6 +59,7 @@
             </thead>
             <tbody>
             {% for solicitation in solicitations %}
+                {% set readiness = readiness_by_solicitation_id[solicitation.id] %}
                 <tr {% if solicitation.id in incomplete_solicitation_ids %}class="table-warning"{% endif %}>
                     <td>
                         {% if solicitation.partner %}
@@ -83,10 +84,15 @@
                     </td>
                     <td>${{ "%.2f"|format(solicitation.amount_requested or 0) }}</td>
                     <td>
-                        {% if solicitation.id in incomplete_solicitation_ids %}
-                            <span class="badge text-bg-warning">Incomplete</span>
+                        {% if solicitation.id in incomplete_partner_ids %}
+                            <span class="badge text-bg-danger">Incomplete Partner</span>
+                        {% elif solicitation.id in incomplete_solicitation_ids %}
+                            <span class="badge text-bg-warning">Incomplete Solicitation</span>
                         {% else %}
                             <span class="badge text-bg-success">Ready</span>
+                        {% endif %}
+                        {% if not readiness.is_ready %}
+                            <a class="d-block small mt-1" href="{{ url_for('main.solicitation_detail', solicitation_id=solicitation.id) }}">Why incomplete?</a>
                         {% endif %}
                     </td>
                     <td class="text-nowrap">

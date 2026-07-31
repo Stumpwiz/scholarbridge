@@ -44,6 +44,8 @@ from app.main.status import (
     partner_readiness_summary,
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
+    solicitation_is_ready,
+    solicitation_readiness_diagnostics,
 )
 from app.main.solicitation_status import (
     SOLICITATION_STATUS_OPTIONS,
@@ -143,15 +145,24 @@ def letter_list():
         selected_solicitor_id=selected_solicitor_id,
         selected_tranche=selected_tranche,
     )
-    incomplete_solicitation_ids = {
-        solicitation.id
+    readiness_by_solicitation_id = {
+        solicitation.id: solicitation_readiness_diagnostics(solicitation, for_letter=True)
         for solicitation in solicitations
-        if solicitation_is_incomplete(solicitation)
+    }
+    incomplete_solicitation_ids = {
+        solicitation_id
+        for solicitation_id, readiness in readiness_by_solicitation_id.items()
+        if not readiness["is_ready"]
+    }
+    incomplete_partner_ids = {
+        solicitation_id
+        for solicitation_id, readiness in readiness_by_solicitation_id.items()
+        if readiness["partner_issues"]
     }
     letter_ready_solicitation_ids = {
-        solicitation.id
-        for solicitation in solicitations
-        if solicitation_is_letter_ready(solicitation)
+        solicitation_id
+        for solicitation_id, readiness in readiness_by_solicitation_id.items()
+        if readiness["is_ready"]
     }
     letter_editable_solicitation_ids = {
         solicitation.id
@@ -187,7 +198,9 @@ def letter_list():
         "letters/list.html",
         page_title="Letters",
         solicitations=solicitations,
+        readiness_by_solicitation_id=readiness_by_solicitation_id,
         incomplete_solicitation_ids=incomplete_solicitation_ids,
+        incomplete_partner_ids=incomplete_partner_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         letter_editable_solicitation_ids=letter_editable_solicitation_ids,
         acknowledgement_eligible_solicitation_ids=acknowledgement_eligible_solicitation_ids,
@@ -905,21 +918,19 @@ def solicitation_list():
             Solicitation.id.asc(),
         )
     ).all()
-    from app.main.status import solicitation_is_ready as _sol_is_ready  # noqa: PLC0415
-    from app.main.status import partner_is_incomplete as _partner_incomplete  # noqa: PLC0415
     if complete_only:
         solicitations = [
-            solicitation for solicitation in solicitations if _sol_is_ready(solicitation)
+            solicitation for solicitation in solicitations if solicitation_is_ready(solicitation)
         ]
     incomplete_partner_ids = {
         solicitation.id
         for solicitation in solicitations
-        if _partner_incomplete(getattr(solicitation, "partner", None))
+        if partner_is_incomplete(getattr(solicitation, "partner", None))
     }
     incomplete_solicitation_ids = {
         solicitation.id
         for solicitation in solicitations
-        if not _sol_is_ready(solicitation)
+        if not solicitation_is_ready(solicitation)
     }
     letter_ready_solicitation_ids = {
         solicitation.id
@@ -1009,6 +1020,7 @@ def solicitation_detail(solicitation_id: int):
     return_to = _solicitation_return_to_value()
     solicitor_id = _solicitation_filter_solicitor_id()
     primary_contact = _primary_contact_for_solicitation(solicitation)
+    readiness = solicitation_readiness_diagnostics(solicitation, for_letter=True)
     return render_template(
         "solicitations/detail.html",
         page_title=f"Solicitation #{solicitation.id}",
@@ -1016,6 +1028,7 @@ def solicitation_detail(solicitation_id: int):
         return_to=return_to,
         solicitor_id=solicitor_id,
         primary_contact=primary_contact,
+        readiness=readiness,
     )
 
 
