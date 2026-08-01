@@ -42,6 +42,7 @@ from app.main.letter_storage import (
 from app.main.status import (
     partner_is_incomplete,
     partner_readiness_summary,
+    select_partner_contact,
     solicitation_is_incomplete,
     solicitation_is_letter_ready,
     solicitation_is_ready,
@@ -944,7 +945,7 @@ def solicitation_list():
     stats = solicitation_stats()
     return render_template(
         "solicitations/list.html",
-        page_title="Solicitations",
+        page_title="Solicitation Dashboard",
         solicitations=solicitations,
         incomplete_partner_ids=incomplete_partner_ids,
         incomplete_solicitation_ids=incomplete_solicitation_ids,
@@ -1043,26 +1044,47 @@ def solicitation_edit(solicitation_id: int):
     solicitor_id = _solicitation_filter_solicitor_id()
     primary_contact = _primary_contact_for_solicitation(solicitation)
     contact_form_data = _contact_to_form_data(primary_contact) if primary_contact else _contact_form_data()
+    partner_address_form_data = _partner_address_to_form_data(solicitation.partner)
 
     if request.method == "POST":
         form_data = _solicitation_form_data(request.form)
-        validation_error, clean_data = _validate_solicitation_form(
-            form_data, solicitation_id=solicitation.id, allow_closed_campaign=True
+        contact_form_data = _contact_form_data(request.form)
+        partner_address_form_data = _partner_address_form_data(request.form)
+
+        if form_data["partner_id"] != solicitation.partner_id:
+            validation_error, clean_data = (
+                "Partner cannot be changed from Edit Solicitation.",
+                {},
+            )
+        else:
+            validation_error, clean_data = _validate_solicitation_form(
+                form_data, solicitation_id=solicitation.id, allow_closed_campaign=True
+            )
+
+        address_error, clean_address_data = _validate_partner_address_form(
+            partner_address_form_data
         )
+        contact_error = None
+        clean_contact_data = {}
+        if primary_contact is not None:
+            contact_error, clean_contact_data = _validate_correspondence_contact_form(
+                contact_form_data
+            )
+
+        validation_error = validation_error or address_error or contact_error
         if validation_error:
             flash(validation_error, "danger")
         else:
+            for key, value in clean_address_data.items():
+                setattr(solicitation.partner, key, value)
+            if primary_contact is not None:
+                for key in ("first_name", "middle_initial", "last_name", "title", "email", "phone"):
+                    setattr(primary_contact, key, clean_contact_data[key])
             for key, value in clean_data.items():
                 if key == "status":
                     continue
                 setattr(solicitation, key, value)
             SolicitationWorkflowService.update_status(solicitation, clean_data["status"])
-            if primary_contact is not None:
-                raw_contact = _contact_form_data(request.form)
-                _contact_err, normalized_contact = _validate_contact_form(raw_contact)
-                if not _contact_err:
-                    for key in ("first_name", "middle_initial", "last_name", "title", "email", "phone"):
-                        setattr(primary_contact, key, normalized_contact[key])
             db.session.commit()
             flash("Solicitation updated.", "success")
             redirect_kwargs = {"solicitation_id": solicitation.id}
@@ -1071,8 +1093,6 @@ def solicitation_edit(solicitation_id: int):
             if solicitor_id is not None:
                 redirect_kwargs["solicitor_id"] = solicitor_id
             return redirect(url_for("main.solicitation_detail", **redirect_kwargs))
-        primary_contact = _primary_contact_for_solicitation(solicitation)
-        contact_form_data = _contact_form_data(request.form)
 
     return render_template(
         "solicitations/form.html",
@@ -1090,6 +1110,7 @@ def solicitation_edit(solicitation_id: int):
         status_options=SOLICITATION_STATUS_OPTIONS,
         primary_contact=primary_contact,
         contact_form_data=contact_form_data,
+        partner_address_form_data=partner_address_form_data,
     )
 
 
@@ -1404,6 +1425,40 @@ def _partner_to_form_data(partner: Partner) -> dict:
     }
 
 
+def _partner_address_form_data(form) -> dict:
+    return {
+        "address_1": (form.get("address_1") or "").strip(),
+        "address_2": (form.get("address_2") or "").strip(),
+        "city": (form.get("city") or "").strip(),
+        "state": (form.get("state") or "").strip(),
+        "postal_code": (form.get("postal_code") or "").strip(),
+    }
+
+
+def _partner_address_to_form_data(partner: Partner) -> dict:
+    return {
+        "address_1": partner.address_1 or "",
+        "address_2": partner.address_2 or "",
+        "city": partner.city or "",
+        "state": partner.state or "",
+        "postal_code": partner.postal_code or "",
+    }
+
+
+def _validate_partner_address_form(form_data: dict) -> tuple[str | None, dict]:
+    limits = {
+        "address_1": (255, "Address 1"),
+        "address_2": (255, "Address 2"),
+        "city": (120, "City"),
+        "state": (80, "State"),
+        "postal_code": (40, "Postal code"),
+    }
+    for field, (maximum, label) in limits.items():
+        if len(form_data[field]) > maximum:
+            return f"{label} must be {maximum} characters or fewer.", {}
+    return None, {field: _empty_to_none(form_data[field]) for field in limits}
+
+
 def _validate_partner_form(form_data: dict) -> str | None:
     if not form_data["partner_name"]:
         return "Partner name is required."
@@ -1591,6 +1646,23 @@ def _validate_contact_form(form_data: dict) -> tuple[str | None, dict]:
             "is_active": form_data["is_active"],
         },
     )
+
+
+def _validate_correspondence_contact_form(
+    form_data: dict,
+) -> tuple[str | None, dict]:
+    required_fields = (
+        ("title", "Title"),
+        ("first_name", "First Name"),
+        ("last_name", "Last Name"),
+    )
+    missing = [label for field, label in required_fields if not form_data[field]]
+    if missing:
+        return (
+            "Correspondence contact requires: " + ", ".join(missing) + ".",
+            {},
+        )
+    return _validate_contact_form(form_data)
 
 
 def _partner_type_choices() -> list[str]:
@@ -2143,12 +2215,7 @@ def _validated_true_query_filter(parameter_name: str) -> bool:
 
 
 def _primary_contact_for_solicitation(solicitation: Solicitation) -> "Contact | None":
-    if solicitation.partner is None:
-        return None
-    return db.session.scalar(
-        select(Contact)
-        .where(Contact.partner_id == solicitation.partner_id, Contact.is_primary == True)  # noqa: E712
-    )
+    return select_partner_contact(solicitation.partner)
 
 
 def _solicitation_return_to_value() -> str | None:

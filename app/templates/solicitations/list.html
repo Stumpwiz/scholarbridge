@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 
-{% block title %}Solicitations - {{ config.APP_NAME }}{% endblock %}
+{% block title %}Solicitation Dashboard - {{ config.APP_NAME }}{% endblock %}
 
 {% block content %}
 {% set can_edit = user_can_edit() %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <h1 class="h4 mb-0">Solicitations</h1>
+    <h1 class="h4 mb-0">Solicitation Dashboard</h1>
     {% if can_edit %}
         <a class="btn btn-primary btn-sm" href="{{ url_for('main.solicitation_create') }}">Add Solicitation</a>
     {% else %}

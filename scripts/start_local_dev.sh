@@ -24,7 +24,10 @@ uv run flask --app run.py db upgrade
 
 echo
 echo "Starting Flask development server..."
-echo "URL: http://127.0.0.1:5000"
+echo "URL: http://0.0.0.0:5000 (all interfaces)"
 echo
 
-exec uv run flask --app run.py run --debug
+exec uv run flask --app run.py run \
+    --host 0.0.0.0 \
+    --port 5000 \
+    --debug

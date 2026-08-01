@@ -147,6 +147,14 @@ class SolicitationListUiTests(unittest.TestCase):
             session["_user_id"] = self.user_id
             session["_fresh"] = True
 
+    def test_solicitation_dashboard_uses_requested_display_label(self):
+        response = self.client.get("/solicitations")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("<title>Solicitation Dashboard - ScholarBridge</title>", html)
+        self.assertIn(">Solicitation Dashboard</h1>", html)
+        self.assertIn('href="/solicitations">Solicitations</a>', html)
+
     def _row_for_partner(self, html: str, partner_name: str) -> str:
         marker = html.find(partner_name)
         self.assertNotEqual(marker, -1, msg=f"Missing row for partner: {partner_name}")

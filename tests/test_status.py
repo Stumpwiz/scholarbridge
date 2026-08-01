@@ -8,6 +8,7 @@ from app.main.status import (
     solicitation_is_letter_ready,
     solicitation_is_ready,
     solicitation_readiness_diagnostics,
+    select_partner_contact,
 )
 
 _MISSING = object()
@@ -17,12 +18,17 @@ def _partner(*, partner_type="Insurance", contacts=None):
     return SimpleNamespace(partner_type=partner_type, contacts=contacts or [])
 
 
-def _contact(*, first_name="First", last_name="Last", title="Manager", is_primary=False):
+def _contact(
+    *, first_name="First", last_name="Last", title="Manager",
+    is_primary=False, is_active=True, contact_id=1
+):
     return SimpleNamespace(
         first_name=first_name,
         last_name=last_name,
         title=title,
         is_primary=is_primary,
+        is_active=is_active,
+        id=contact_id,
     )
 
 
@@ -54,6 +60,24 @@ def _solicitation(
 
 
 class StatusHelperTests(unittest.TestCase):
+    def test_contact_selection_prefers_active_primary(self):
+        inactive_primary = _contact(first_name="Inactive", is_primary=True, is_active=False)
+        active_regular = _contact(first_name="Regular", is_primary=False)
+        active_primary = _contact(first_name="Primary", is_primary=True, contact_id=3)
+        partner = _partner(contacts=[inactive_primary, active_regular, active_primary])
+        self.assertIs(select_partner_contact(partner), active_primary)
+
+    def test_contact_selection_falls_back_deterministically_by_name_and_id(self):
+        later = _contact(first_name="Zed", last_name="Zulu", contact_id=1)
+        same_name_later_id = _contact(first_name="Amy", last_name="Able", contact_id=3)
+        expected = _contact(first_name="Amy", last_name="Able", contact_id=2)
+        partner = _partner(contacts=[later, same_name_later_id, expected])
+        self.assertIs(select_partner_contact(partner), expected)
+
+    def test_contact_selection_returns_none_when_all_contacts_are_inactive(self):
+        partner = _partner(contacts=[_contact(is_primary=True, is_active=False)])
+        self.assertIsNone(select_partner_contact(partner))
+
     def test_partner_missing_partner_type_is_incomplete(self):
         self.assertTrue(partner_is_incomplete(_partner(partner_type=None)))
         self.assertTrue(partner_is_incomplete(_partner(partner_type="")))

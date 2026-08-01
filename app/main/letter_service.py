@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from app.extensions import db
+from app.main.status import select_partner_contact
 from app.models import Contact, Partner, Solicitation
 from app.services.docx_template_service import DocxTemplateError, DocxTemplateService
 from app.services.formatters import clean, month_year, normalize_phone
@@ -49,7 +50,7 @@ def build_solicitation_letter_context_for_solicitation(solicitation_id: int) -> 
         raise SolicitationLetterError("Solicitation partner not found.")
 
     partner = solicitation.partner
-    contact = _pick_contact(partner.contacts)
+    contact = select_partner_contact(partner)
     return _build_solicitation_letter_context(partner, contact, solicitation)
 
 
@@ -76,7 +77,7 @@ def build_acknowledgement_letter_context_for_solicitation(
         )
 
     partner = solicitation.partner
-    contact = _pick_contact(partner.contacts)
+    contact = select_partner_contact(partner)
     salutation = clean(contact.title)
     first_name = clean(contact.first_name)
     last_name = clean(contact.last_name)
@@ -107,7 +108,7 @@ def acknowledgement_missing_fields(solicitation: Solicitation) -> list[str]:
     partner = solicitation.partner
     if partner is None:
         return ["partner"]
-    contact = _pick_contact(partner.contacts)
+    contact = select_partner_contact(partner)
     required = (
         ("partner name", partner.partner_name),
         ("address line 1", partner.address_1),
@@ -238,28 +239,12 @@ def build_solicitation_mailing_list_text(solicitations: list[Solicitation]) -> s
     return "\n\n".join(blocks)
 
 
-def _pick_contact(contacts: list[Contact]) -> Contact | None:
-    if not contacts:
-        return None
-    ranked = sorted(
-        contacts,
-        key=lambda item: (
-            not item.is_primary,
-            not item.is_active,
-            (item.last_name or "").lower(),
-            (item.first_name or "").lower(),
-            item.id,
-        ),
-    )
-    return ranked[0]
-
-
 def _solicitation_envelope_block(solicitation: Solicitation) -> str:
     partner = solicitation.partner
     if partner is None:
         return ""
 
-    contact = _pick_contact(partner.contacts)
+    contact = select_partner_contact(partner)
 
     contact_first_name = clean(contact.first_name if contact else None)
     contact_last_name = clean(contact.last_name if contact else None)

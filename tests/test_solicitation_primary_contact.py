@@ -5,6 +5,8 @@ from pathlib import Path
 from app import create_app
 from app.config import Config
 from app.extensions import db
+from app.main.letter_service import build_solicitation_letter_context_for_solicitation
+from app.main.status import solicitation_readiness_diagnostics
 from app.models import Campaign, Contact, Partner, Solicitation, User
 
 
@@ -113,6 +115,242 @@ class SolicitationPrimaryContactTests(unittest.TestCase):
         self.assertIn("jane@alpha.com", html)
         self.assertIn("4105550001", html)
 
+    def _valid_edit_data(self, **overrides):
+        data = {
+            "campaign_id": "1",
+            "partner_id": str(self.partner_with_id),
+            "tranche": "1",
+            "status": "not_contacted",
+            "amount_pledged": "0.00",
+            "address_1": "1 Main St",
+            "address_2": "",
+            "city": "Baltimore",
+            "state": "MD",
+            "postal_code": "21201",
+            "first_name": "Jane",
+            "middle_initial": "A",
+            "last_name": "Doe",
+            "title": "Dr.",
+            "email": "jane@alpha.com",
+            "phone": "4105550001",
+        }
+        data.update(overrides)
+        return data
+
+    def test_edit_renders_partner_address_and_read_only_partner(self):
+        response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        html = response.get_data(as_text=True)
+        self.assertIn("Partner Address", html)
+        self.assertIn('name="address_1" maxlength="255" value="1 Main St"', html)
+        self.assertIn('name="postal_code" maxlength="40" value="21201"', html)
+        self.assertIn("The partner cannot be changed from Edit Solicitation.", html)
+        self.assertNotIn('<select class="form-select" id="partner_id"', html)
+
+    def test_edit_uses_first_active_contact_when_no_primary_exists(self):
+        with self.app.app_context():
+            contact = db.session.get(Contact, self.primary_contact_id)
+            contact.is_primary = False
+            second = Contact(
+                partner_id=self.partner_with_id,
+                first_name="Zelda",
+                last_name="Zulu",
+                title="Ms.",
+                is_active=True,
+            )
+            db.session.add(second)
+            db.session.commit()
+
+        response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        html = response.get_data(as_text=True)
+        self.assertIn('name="first_name" value="Jane"', html)
+        self.assertNotIn('name="first_name" value="Zelda"', html)
+
+    def test_valid_edit_updates_all_entities_and_future_letter_context(self):
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data=self._valid_edit_data(
+                address_1="99 Future Ave",
+                city="Annapolis",
+                postal_code="21401",
+                first_name="Janet",
+                last_name="Future",
+                notes="Composite update",
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.sol_with_id)
+            contact = db.session.get(Contact, self.primary_contact_id)
+            self.assertEqual(solicitation.notes, "Composite update")
+            self.assertEqual(solicitation.partner.address_1, "99 Future Ave")
+            self.assertEqual(solicitation.partner.city, "Annapolis")
+            self.assertEqual(contact.first_name, "Janet")
+            self.assertEqual(contact.last_name, "Future")
+            self.assertTrue(contact.is_primary)
+            self.assertTrue(contact.is_active)
+            context = build_solicitation_letter_context_for_solicitation(self.sol_with_id)
+            self.assertEqual(context["address_1"], "99 Future Ave")
+            self.assertEqual(context["contact_first_name"], "Janet")
+
+    def _assert_composite_unchanged(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.sol_with_id)
+            contact = db.session.get(Contact, self.primary_contact_id)
+            self.assertIsNone(solicitation.notes)
+            self.assertEqual(solicitation.partner.address_1, "1 Main St")
+            self.assertEqual(contact.first_name, "Jane")
+
+    def test_invalid_solicitation_updates_nothing_and_preserves_values(self):
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data=self._valid_edit_data(
+                tranche="99", address_1="Submitted Address", first_name="Submitted Name"
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Please select a valid tranche.", html)
+        self.assertIn('value="Submitted Address"', html)
+        self.assertIn('value="Submitted Name"', html)
+        self._assert_composite_unchanged()
+
+    def test_invalid_address_updates_nothing_and_preserves_values(self):
+        invalid_city = "C" * 121
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data=self._valid_edit_data(city=invalid_city, first_name="Submitted Name"),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("City must be 120 characters or fewer.", html)
+        self.assertIn(invalid_city, html)
+        self.assertIn('value="Submitted Name"', html)
+        self._assert_composite_unchanged()
+
+    def test_missing_correspondence_contact_fields_reject_entire_update(self):
+        required_fields = {
+            "title": "Title",
+            "first_name": "First Name",
+            "last_name": "Last Name",
+        }
+        for field, label in required_fields.items():
+            with self.subTest(field=field):
+                response = self.client.post(
+                    f"/solicitations/{self.sol_with_id}/edit",
+                    data=self._valid_edit_data(
+                        **{
+                            field: "",
+                            "address_1": "Submitted Address",
+                            "notes": "Submitted notes",
+                            "email": "submitted@example.com",
+                        }
+                    ),
+                )
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertIn(f"Correspondence contact requires: {label}.", html)
+                self.assertIn('value="Submitted Address"', html)
+                self.assertIn("Submitted notes", html)
+                self.assertIn('value="submitted@example.com"', html)
+                self._assert_composite_unchanged()
+
+    def test_all_missing_correspondence_fields_are_reported_together(self):
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data=self._valid_edit_data(
+                title="",
+                first_name="",
+                last_name="",
+                address_1="Submitted Address",
+                notes="Submitted notes",
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn(
+            "Correspondence contact requires: Title, First Name, Last Name.", html
+        )
+        self.assertIn('value="Submitted Address"', html)
+        self.assertIn("Submitted notes", html)
+        self._assert_composite_unchanged()
+
+    def test_general_contact_edit_still_allows_missing_title(self):
+        response = self.client.post(
+            f"/partners/{self.partner_with_id}/contacts/{self.primary_contact_id}/edit",
+            data={
+                "title": "",
+                "first_name": "Jane",
+                "middle_initial": "A",
+                "last_name": "Doe",
+                "email": "jane@alpha.com",
+                "phone": "4105550001",
+                "is_primary": "on",
+                "is_active": "on",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        with self.app.app_context():
+            contact = db.session.get(Contact, self.primary_contact_id)
+            self.assertIsNone(contact.title)
+
+    def test_partner_reassignment_is_rejected_without_cross_partner_contact_update(self):
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data=self._valid_edit_data(
+                partner_id=str(self.partner_without_id), first_name="Wrong Partner Update"
+            ),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            "Partner cannot be changed from Edit Solicitation.",
+            response.get_data(as_text=True),
+        )
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.sol_with_id)
+            contact = db.session.get(Contact, self.primary_contact_id)
+            self.assertEqual(solicitation.partner_id, self.partner_with_id)
+            self.assertEqual(contact.first_name, "Jane")
+            self.assertEqual(
+                db.session.query(Contact).filter_by(partner_id=self.partner_without_id).count(),
+                0,
+            )
+
+    def test_reader_cannot_edit_and_admin_can_edit(self):
+        with self.app.app_context():
+            user = db.session.get(User, int(self.user_id))
+            user.role = User.ROLE_READER
+            db.session.commit()
+        reader_response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        self.assertEqual(reader_response.status_code, 403)
+
+        with self.app.app_context():
+            user = db.session.get(User, int(self.user_id))
+            user.role = User.ROLE_ADMIN
+            db.session.commit()
+        admin_response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        self.assertEqual(admin_response.status_code, 200)
+
+    def test_readiness_and_correspondence_use_same_fallback_contact(self):
+        with self.app.app_context():
+            contact = db.session.get(Contact, self.primary_contact_id)
+            contact.is_primary = False
+            contact.first_name = "Chosen"
+            contact.last_name = "Able"
+            second = Contact(
+                partner_id=self.partner_with_id,
+                first_name="NotChosen",
+                last_name="Zulu",
+                title="Mr.",
+                is_active=True,
+            )
+            db.session.add(second)
+            db.session.commit()
+            solicitation = db.session.get(Solicitation, self.sol_with_id)
+            readiness = solicitation_readiness_diagnostics(solicitation)
+            context = build_solicitation_letter_context_for_solicitation(self.sol_with_id)
+            self.assertEqual(readiness["partner_issues"], [])
+            self.assertEqual(context["contact_first_name"], "Chosen")
+
     def test_detail_shows_warning_when_no_primary_contact(self):
         response = self.client.get(f"/solicitations/{self.sol_without_id}")
         self.assertEqual(response.status_code, 200)
@@ -126,7 +364,7 @@ class SolicitationPrimaryContactTests(unittest.TestCase):
         response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn("Primary Partner Contact", html)
+        self.assertIn("Primary Contact", html)
         self.assertIn("Jane", html)
         self.assertIn("Doe", html)
         self.assertIn("jane@alpha.com", html)

@@ -44,7 +44,9 @@ class DashboardUiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn("Dashboard", html)
+        self.assertIn(">Home</a>", html)
+        self.assertIn(">Home</h1>", html)
+        self.assertNotIn(">Dashboard</a>", html)
         self.assertIn("Program at a Glance", html)
         self.assertIn("Reports", html)
         self.assertIn("Generate and view campaign reports.", html)

@@ -13,13 +13,27 @@ def _is_missing(value: Any) -> bool:
     return False
 
 
-def _partner_contact_for_completeness(partner: Any) -> Any | None:
+def select_partner_contact(partner: Any) -> Any | None:
+    """Select the active contact used throughout solicitation workflows."""
     contacts = getattr(partner, "contacts", None)
     if not contacts:
         return None
 
-    primary_contact = next((contact for contact in contacts if getattr(contact, "is_primary", False)), None)
-    return primary_contact or contacts[0]
+    active_contacts = [
+        contact for contact in contacts if getattr(contact, "is_active", True)
+    ]
+    if not active_contacts:
+        return None
+
+    return min(
+        active_contacts,
+        key=lambda contact: (
+            not getattr(contact, "is_primary", False),
+            (getattr(contact, "last_name", None) or "").strip().casefold(),
+            (getattr(contact, "first_name", None) or "").strip().casefold(),
+            getattr(contact, "id", 0) or 0,
+        ),
+    )
 
 
 def partner_is_incomplete(partner: Any) -> bool:
@@ -39,7 +53,7 @@ def _partner_readiness_issues(partner: Any) -> list[str]:
 
     # An absent contact is intentionally allowed. Once a contact exists, the
     # selected primary (or first) contact must have the letter name fields.
-    contact = _partner_contact_for_completeness(partner)
+    contact = select_partner_contact(partner)
     if contact is not None:
         if _is_missing(getattr(contact, "title", None)):
             issues.append("Primary contact title is missing.")
