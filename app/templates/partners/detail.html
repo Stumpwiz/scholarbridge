@@ -106,25 +106,26 @@
 
     <div class="col-12 col-lg-6">
         <div class="card h-100">
-            <div class="card-header">Primary Contact</div>
+            <div class="card-header">
+                {% if selected_contact and selected_contact.is_primary %}Primary Contact{% else %}Correspondence Contact{% endif %}
+            </div>
             <div class="card-body">
-                {% set primary_contact = contacts | selectattr("is_primary") | first | default(contacts | first | default(none)) %}
-                {% if primary_contact %}
+                {% if selected_contact %}
                     {% set formal_name_parts = [
-                        primary_contact.title or "",
-                        primary_contact.first_name or "",
-                        (primary_contact.middle_initial ~ ".") if primary_contact.middle_initial else "",
-                        primary_contact.last_name or ""
+                        selected_contact.title or "",
+                        selected_contact.first_name or "",
+                        (selected_contact.middle_initial ~ ".") if selected_contact.middle_initial else "",
+                        selected_contact.last_name or ""
                     ] | select | list %}
                     <dl class="row mb-0">
                         <dt class="col-sm-4">Name</dt>
                         <dd class="col-sm-8">{{ formal_name_parts | join(" ") or "—" }}</dd>
 
                         <dt class="col-sm-4">Email</dt>
-                        <dd class="col-sm-8">{{ primary_contact.email or "—" }}</dd>
+                        <dd class="col-sm-8">{{ selected_contact.email or "—" }}</dd>
 
                         <dt class="col-sm-4">Phone</dt>
-                        <dd class="col-sm-8">{{ primary_contact.phone or "—" }}</dd>
+                        <dd class="col-sm-8">{{ selected_contact.phone or "—" }}</dd>
                     </dl>
                 {% else %}
                     <p class="text-muted mb-0">No contacts on record.</p>

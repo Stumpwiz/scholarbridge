@@ -1385,12 +1385,14 @@ def _render_partner_detail(
     edit_form_data: dict | None = None,
 ):
     contacts = _load_partner_contacts(partner.id)
+    selected_contact = select_partner_contact(partner)
     readiness = partner_readiness_summary(partner)
     return render_template(
         "partners/detail.html",
         page_title=partner.partner_name,
         partner=partner,
         contacts=contacts,
+        selected_contact=selected_contact,
         contact_form_data=contact_form_data,
         editing_contact=editing_contact,
         edit_form_data=edit_form_data or {},

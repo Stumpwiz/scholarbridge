@@ -128,6 +128,27 @@ class Phase2PartnerContactTests(unittest.TestCase):
         self.assertIn("Mark", html)
         self.assertIn("Isakson", html)
 
+    def test_partner_detail_labels_fallback_and_offers_make_primary(self):
+        response = self.client.get(f"/partners/{self.partner_chesapeake_id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Correspondence Contact", html)
+        self.assertIn("Mark", html)
+        self.assertIn("Make Primary", html)
+
+    def test_partner_detail_labels_formal_primary_and_hides_make_primary(self):
+        with self.app.app_context():
+            mark = db.session.get(Contact, self.mark_id)
+            mark.is_primary = True
+            db.session.commit()
+
+        response = self.client.get(f"/partners/{self.partner_chesapeake_id}")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Primary Contact", html)
+        self.assertNotIn("Correspondence Contact", html)
+        self.assertNotIn("Make Primary", html)
+
     # ── Partner Contacts section in Edit Solicitation ─────────────────────
 
     def test_edit_solicitation_shows_partner_contacts_section(self):
