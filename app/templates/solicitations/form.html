@@ -218,6 +218,62 @@
             {% endif %}
             {% endif %}
 
+            {% if mode == "edit" and solicitation %}
+            <hr class="my-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="h5 mb-0">Partner Contacts</h2>
+                <a class="btn btn-outline-primary btn-sm"
+                   href="{{ url_for('main.partner_contact_create', partner_id=solicitation.partner.id, return_to_solicitation=solicitation.id) }}">
+                    Add Contact
+                </a>
+            </div>
+            {% set partner_contacts = solicitation.partner.contacts | sort(attribute='last_name') %}
+            {% if partner_contacts %}
+                <div class="list-group mb-3">
+                {% for contact in solicitation.partner.contacts | sort(attribute='id') | sort(attribute='last_name') %}
+                    {% set contact_name = ((contact.first_name or "") ~ ((" " ~ contact.middle_initial) if contact.middle_initial else "") ~ " " ~ (contact.last_name or "")).strip() %}
+                    {% set is_correspondence = primary_contact and contact.id == primary_contact.id %}
+                    <div class="list-group-item {% if contact.is_primary %}list-group-item-primary{% elif is_correspondence %}list-group-item-light{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <div class="fw-semibold">
+                                    {{ contact_name or "No name provided" }}
+                                    {% if contact.is_primary %}
+                                        <span class="badge text-bg-primary ms-2">Primary Contact</span>
+                                    {% elif is_correspondence %}
+                                        <span class="badge text-bg-secondary ms-2">Correspondence Contact</span>
+                                    {% endif %}
+                                    {% if not contact.is_active %}
+                                        <span class="badge text-bg-secondary ms-1">Inactive</span>
+                                    {% endif %}
+                                </div>
+                                {% if contact.title %}<div class="text-muted small">{{ contact.title }}</div>{% endif %}
+                                {% if contact.phone %}<div class="small">{{ contact.phone }}</div>{% endif %}
+                                {% if contact.email %}<div class="small">{{ contact.email }}</div>{% endif %}
+                            </div>
+                            <div class="d-flex gap-2 ms-3 flex-shrink-0">
+                                <a class="btn btn-outline-secondary btn-sm"
+                                   href="{{ url_for('main.partner_contact_edit', partner_id=solicitation.partner.id, contact_id=contact.id) }}">
+                                    Edit
+                                </a>
+                                {% if contact.is_active and not contact.is_primary %}
+                                    <form method="post"
+                                          action="{{ url_for('main.partner_contact_make_primary', partner_id=solicitation.partner.id, contact_id=contact.id) }}"
+                                          class="d-inline">
+                                        <input type="hidden" name="return_to_solicitation" value="{{ solicitation.id }}">
+                                        <button type="submit" class="btn btn-outline-success btn-sm">Make Primary</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No contacts recorded for this partner.</p>
+            {% endif %}
+            {% endif %}
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">Save</button>
                 {% if solicitation %}

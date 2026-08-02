@@ -1216,6 +1216,12 @@ def partner_contact_create(partner_id: int):
         request.args.get("return_to_solicitation") or request.form.get("return_to_solicitation")
     )
 
+    # Validate that the return_to_solicitation belongs to this partner (reject forged cross-Partner targets)
+    if return_to_solicitation is not None:
+        _sol = db.session.get(Solicitation, return_to_solicitation)
+        if _sol is None or _sol.partner_id != partner.id:
+            abort(400)
+
     if request.method == "GET":
         form_data = _contact_form_data()
         form_data["is_primary"] = True
@@ -1343,6 +1349,33 @@ def partner_contact_delete(partner_id: int, contact_id: int):
     return redirect(
         url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts")
     )
+
+
+@bp.post("/partners/<int:partner_id>/contacts/<int:contact_id>/make-primary")
+@editor_required
+def partner_contact_make_primary(partner_id: int, contact_id: int):
+    partner = db.get_or_404(Partner, partner_id)
+    contact = db.get_or_404(Contact, contact_id)
+    if contact.partner_id != partner.id:
+        abort(404)
+    if not contact.is_active:
+        flash("Only active contacts can be designated as primary.", "danger")
+        return_to_solicitation = _safe_int(request.form.get("return_to_solicitation"))
+        if return_to_solicitation is not None:
+            return redirect(url_for("main.solicitation_edit", solicitation_id=return_to_solicitation))
+        return redirect(url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts"))
+
+    _unset_other_primary_contacts(partner.id, except_contact_id=contact.id)
+    contact.is_primary = True
+    db.session.commit()
+    flash("Primary contact updated.", "success")
+
+    return_to_solicitation = _safe_int(request.form.get("return_to_solicitation"))
+    if return_to_solicitation is not None:
+        _sol = db.session.get(Solicitation, return_to_solicitation)
+        if _sol is not None and _sol.partner_id == partner.id:
+            return redirect(url_for("main.solicitation_edit", solicitation_id=return_to_solicitation))
+    return redirect(url_for("main.partner_detail", partner_id=partner.id, _anchor="contacts"))
 
 
 def _render_partner_detail(
