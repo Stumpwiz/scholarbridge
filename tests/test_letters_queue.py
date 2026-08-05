@@ -325,7 +325,18 @@ class LettersQueueTests(unittest.TestCase):
         self.assertIn(f"/letters?solicitor_id={self.solicitor_a_id}", response.headers["Location"])
         response.close()
 
-    def test_contacted_solicitation_shows_archived_letter_action(self):
+    def test_not_contacted_without_pdf_can_generate_solicitation(self):
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+
+        self.assertIn("Generate Solicitation", row)
+        self.assertNotIn("Archived solicitation letter missing", row)
+        response.close()
+
+    def test_contacted_solicitation_with_pdf_shows_archived_letter_action(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-archived")
         with self.app.app_context():
             solicitation = db.session.get(Solicitation, self.ready_id)
             solicitation.status = "contacted"
@@ -340,6 +351,82 @@ class LettersQueueTests(unittest.TestCase):
             f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
             row,
         )
+        response.close()
+
+    def test_contacted_solicitation_without_pdf_offers_recovery_generation(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+
+        self.assertIn("Archived solicitation letter missing", row)
+        self.assertIn("Generate Solicitation", row)
+        self.assertNotIn("Solicitation Archived", row)
+        response.close()
+
+    def test_gift_received_with_pdf_shows_archived_solicitation(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-archived")
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "donated"
+            solicitation.amount_received = 750
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertIn("Solicitation Archived", row)
+        self.assertNotIn("Archived solicitation letter missing", row)
+        response.close()
+
+    def test_gift_received_without_pdf_offers_solicitation_recovery(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "donated"
+            solicitation.amount_received = 750
+            db.session.commit()
+
+        response = self.client.get("/letters")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertIn("Archived solicitation letter missing", row)
+        self.assertIn("Generate Solicitation", row)
+        self.assertIn("Generate Acknowledgement", row)
+        response.close()
+
+    def test_recovery_generation_creates_archive_and_returns_ui_to_archived(self):
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            solicitation.status = "contacted"
+            db.session.commit()
+
+        with patch("app.main.routes.generate_solicitation_pdf_bytes", return_value=b"%PDF-recovered"):
+            response = self.client.get(
+                f"/letters/solicitation.pdf?solicitation_id={self.ready_id}",
+                follow_redirects=True,
+            )
+
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        self.assertEqual(output_path.read_bytes(), b"%PDF-recovered")
+        row = self._row_for_partner(response.get_data(as_text=True), "Alpha Display")
+        self.assertIn("Solicitation Archived", row)
+        self.assertNotIn("Archived solicitation letter missing", row)
+        self.assertNotIn(">Generate Solicitation<", row)
+        self.assertIn(f"solicitation_{self.ready_id}.pdf", response.get_data(as_text=True))
+        with self.app.app_context():
+            solicitation = db.session.get(Solicitation, self.ready_id)
+            self.assertEqual(solicitation.status, "contacted")
+        response.close()
+
+        view_response = self.client.get(
+            f"/letters/generated/solicitation/{self.ready_id}.pdf"
+        )
+        self.assertEqual(view_response.status_code, 200)
+        self.assertEqual(view_response.data, b"%PDF-recovered")
+        view_response.close()
 
     def test_contacted_solicitation_cannot_regenerate_letter(self):
         output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
@@ -703,6 +790,9 @@ class LettersQueueTests(unittest.TestCase):
         response.close()
 
     def test_donated_alias_enables_acknowledgement_and_archives_solicitation(self):
+        output_path = self._generated_dir / f"solicitation_{self.ready_id}.pdf"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_bytes(b"%PDF-archived")
         with self.app.app_context():
             solicitation = db.session.get(Solicitation, self.ready_id)
             solicitation.status = "donated"

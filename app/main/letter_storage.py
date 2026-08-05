@@ -73,6 +73,10 @@ def solicitation_letter_path(solicitation_id: int) -> Path:
     return generated_solicitation_letters_dir() / solicitation_letter_filename(solicitation_id)
 
 
+def solicitation_letter_pdf_exists(solicitation_id: int) -> bool:
+    return solicitation_letter_path(solicitation_id).is_file()
+
+
 def save_solicitation_letter_pdf(solicitation_id: int, pdf_bytes: bytes) -> Path:
     output_path = solicitation_letter_path(solicitation_id)
     output_path.write_bytes(pdf_bytes)

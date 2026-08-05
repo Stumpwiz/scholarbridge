@@ -37,6 +37,7 @@ from app.main.letter_storage import (
     save_acknowledgement_letter_pdf,
     save_generated_mailing_list,
     save_solicitation_letter_pdf,
+    solicitation_letter_pdf_exists,
     solicitation_letter_path,
 )
 from app.main.status import (
@@ -170,6 +171,18 @@ def letter_list():
         for solicitation in solicitations
         if SolicitationWorkflowService.can_edit_solicitation_letter(solicitation)
     }
+    archived_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation.id not in letter_editable_solicitation_ids
+        and solicitation_letter_pdf_exists(solicitation.id)
+    }
+    missing_archived_solicitation_ids = {
+        solicitation.id
+        for solicitation in solicitations
+        if solicitation.id not in letter_editable_solicitation_ids
+        and solicitation.id not in archived_solicitation_ids
+    }
     acknowledgement_eligible_solicitation_ids = {
         solicitation.id
         for solicitation in solicitations
@@ -204,6 +217,8 @@ def letter_list():
         incomplete_partner_ids=incomplete_partner_ids,
         letter_ready_solicitation_ids=letter_ready_solicitation_ids,
         letter_editable_solicitation_ids=letter_editable_solicitation_ids,
+        archived_solicitation_ids=archived_solicitation_ids,
+        missing_archived_solicitation_ids=missing_archived_solicitation_ids,
         acknowledgement_eligible_solicitation_ids=acknowledgement_eligible_solicitation_ids,
         acknowledgement_missing_by_solicitation_id=acknowledgement_missing_by_solicitation_id,
         generated_solicitation_letters=generated_solicitation_letters,
@@ -245,7 +260,10 @@ def letter_solicitation_pdf():
             edit_kwargs["solicitor_id"] = selected_solicitor_id
         return redirect(url_for("main.solicitation_edit", **edit_kwargs))
 
-    if not SolicitationWorkflowService.can_edit_solicitation_letter(solicitation):
+    if (
+        not SolicitationWorkflowService.can_edit_solicitation_letter(solicitation)
+        and solicitation_letter_pdf_exists(solicitation.id)
+    ):
         flash("Solicitation letter is archived and cannot be regenerated.", "warning")
         return redirect(
             url_for(
@@ -277,7 +295,7 @@ def letter_solicitation_pdf():
 @bp.get("/letters/generated/solicitation/<int:solicitation_id>.pdf")
 def letter_generated_solicitation_pdf(solicitation_id: int):
     output_path = solicitation_letter_path(solicitation_id)
-    if not output_path.exists():
+    if not solicitation_letter_pdf_exists(solicitation_id):
         flash("Generated solicitation letter not found.", "warning")
         return redirect(url_for("main.letter_list"))
 
