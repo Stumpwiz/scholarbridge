@@ -505,6 +505,99 @@ class SolicitationPrimaryContactTests(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"/partners/{self.partner_without_id}", response.headers["Location"])
 
+    # --- Regression: no nested <form> in Edit Solicitation (nested forms break Save) ---
+
+    def test_edit_page_has_no_nested_forms(self):
+        """Make Primary forms must not be nested inside the main solicitation form."""
+        response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        # Find the main form open tag and its closing tag
+        main_form_start = html.find('<form method="post"')
+        self.assertNotEqual(main_form_start, -1, "Main form not found")
+        main_form_end = html.find("</form>", main_form_start)
+        self.assertNotEqual(main_form_end, -1, "Main form closing tag not found")
+
+        # There must be no second <form opening inside the main form
+        inner_html = html[main_form_start + 1 : main_form_end]
+        nested_form_pos = inner_html.find("<form")
+        self.assertEqual(
+            nested_form_pos,
+            -1,
+            "Nested <form> found inside the main solicitation edit form — this breaks Save",
+        )
+
+    def test_edit_page_save_button_inside_main_form(self):
+        """The Save button must be inside the main solicitation form."""
+        response = self.client.get(f"/solicitations/{self.sol_with_id}/edit")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+
+        main_form_start = html.find('<form method="post"')
+        main_form_end = html.find("</form>", main_form_start)
+        inner_html = html[main_form_start:main_form_end]
+        self.assertIn(
+            'type="submit"',
+            inner_html,
+            "Save (submit) button not found inside the main form",
+        )
+
+    def test_edit_notes_only_saves_successfully(self):
+        """A notes-only edit must POST and redirect (Save works end-to-end)."""
+        with self.app.app_context():
+            from app.models import Campaign
+            campaign_id = db.session.get(Campaign, 1).id if db.session.get(Campaign, 1) else 1
+
+        response = self.client.post(
+            f"/solicitations/{self.sol_with_id}/edit",
+            data={
+                "campaign_id": "1",
+                "partner_id": str(self.partner_with_id),
+                "tranche": "1",
+                "status": "not_contacted",
+                "notes": "Regression test note",
+                "first_name": "Jane",
+                "middle_initial": "A",
+                "last_name": "Doe",
+                "title": "Dr.",
+                "email": "jane@alpha.com",
+                "phone": "4105550001",
+            },
+            follow_redirects=False,
+        )
+        self.assertEqual(
+            response.status_code,
+            302,
+            "Save did not redirect — POST may not have been processed",
+        )
+
+    def test_make_primary_remains_functional(self):
+        """Make Primary POST must work after the form restructure."""
+        # Add a second non-primary contact
+        with self.app.app_context():
+            second = Contact(
+                partner_id=self.partner_with_id,
+                first_name="Bob",
+                last_name="Smith",
+                is_primary=False,
+                is_active=True,
+            )
+            db.session.add(second)
+            db.session.commit()
+            second_id = second.id
+
+        response = self.client.post(
+            f"/partners/{self.partner_with_id}/contacts/{second_id}/make-primary",
+            data={"return_to_solicitation": str(self.sol_with_id)},
+            follow_redirects=False,
+        )
+        self.assertEqual(response.status_code, 302)
+
+        with self.app.app_context():
+            promoted = db.session.get(Contact, second_id)
+            self.assertTrue(promoted.is_primary)
+
 
 if __name__ == "__main__":
     unittest.main()
